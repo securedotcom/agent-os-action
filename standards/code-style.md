@@ -16,7 +16,7 @@ This file is part of the Agent OS standards system. These global code style rule
 
 ### Naming Conventions
 - **Methods and Variables**: Use snake_case (e.g., `user_profile`, `calculate_total`)
-- **Classes and Modules**: Use CamelCase (e.g., `UserProfile`, `PaymentProcessor`)
+- **Classes and Modules**: Use PascalCase (e.g., `UserProfile`, `PaymentProcessor`)
 - **Constants**: Use UPPER_SNAKE_CASE (e.g., `MAX_RETRY_COUNT`)
 
 ### String Formatting
