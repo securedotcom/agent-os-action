@@ -60,6 +60,23 @@ Initiate execution of one or more tasks for a given spec.
   <purpose>minimal context for task understanding</purpose>
 </step_metadata>
 
+<context_fetcher_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      USE: @agent:context-fetcher for each file not in context:
+      - REQUEST: "Get product pitch from mission-lite.md"
+      - REQUEST: "Get spec summary from spec-lite.md"
+      - REQUEST: "Get technical approach from technical-spec.md"
+      PROCESS: Returned information
+    ELSE:
+      PROCEED: To conditional loading below
+  </claude_code_check>
+</context_fetcher_strategy>
+
+<conditional-block context-check="fallback-context-loading">
+IF NOT using context-fetcher agent:
+  READ: The following fallback context loading
+
 <conditional_loading>
   <mission_lite>
     IF NOT already in context:
@@ -74,6 +91,7 @@ Initiate execution of one or more tasks for a given spec.
       READ sub-specs/technical-spec.md
   </technical_spec>
 </conditional_loading>
+</conditional-block>
 
 <context_gathering>
   <essential_docs>
@@ -89,6 +107,7 @@ Initiate execution of one or more tasks for a given spec.
 <instructions>
   ACTION: Always read tasks.md
   CHECK: Which files are already in context
+  USE: Context-fetcher if Claude Code, else fallback
   LOAD: Only files not already in context
   SKIP: Other sub-specs files and best practices for now
   ANALYZE: Requirements specific to current task

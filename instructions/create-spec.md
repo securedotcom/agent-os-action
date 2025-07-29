@@ -656,17 +656,31 @@ Generate detailed feature specifications aligned with product roadmap and missio
 </step_metadata>
 
 <conditional_reads>
-  <mission_lite>
-    - IF NOT already in context: READ @.agent-os/product/mission-lite.md
-    - IF already in context: SKIP reading
-  </mission_lite>
-  <roadmap>
-    - IF NOT already in context: READ @.agent-os/product/roadmap.md
-    - IF already in context: SKIP reading
-  </roadmap>
-  <decisions>
-    - NEVER load decisions.md into context
-  </decisions>
+  <context_fetcher_option>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      IF mission-lite.md NOT in context:
+        USE: @agent:context-fetcher
+        REQUEST: "Get product pitch from mission-lite.md"
+      IF roadmap.md NOT in context:
+        USE: @agent:context-fetcher
+        REQUEST: "Get current development phase from roadmap.md"
+    ELSE:
+      PROCEED: To manual reading below
+  </context_fetcher_option>
+  
+  <manual_reads>
+    <mission_lite>
+      - IF NOT already in context: READ @.agent-os/product/mission-lite.md
+      - IF already in context: SKIP reading
+    </mission_lite>
+    <roadmap>
+      - IF NOT already in context: READ @.agent-os/product/roadmap.md
+      - IF already in context: SKIP reading
+    </roadmap>
+    <decisions>
+      - NEVER load decisions.md into context
+    </decisions>
+  </manual_reads>
 </conditional_reads>
 
 <decision_analysis>

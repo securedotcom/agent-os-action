@@ -62,7 +62,7 @@ echo ""
 echo "📥 Downloading Claude Code subagents to ~/.claude/agents/"
 
 # List of agent files to download
-agents=("test-runner")
+agents=("test-runner" "context-fetcher")
 
 for agent in "${agents[@]}"; do
     if [ -f "$HOME/.claude/agents/${agent}.md" ]; then

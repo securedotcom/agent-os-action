@@ -83,6 +83,25 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <purpose>apply relevant best practices to this task</purpose>
 </step_metadata>
 
+<context_fetcher_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      USE: @agent:context-fetcher
+      REQUEST: "Find best practices sections relevant to:
+                - Task's technology stack: [CURRENT_TECH]
+                - Feature type: [CURRENT_FEATURE_TYPE]
+                - Testing approaches needed
+                - Code organization patterns"
+      PROCESS: Returned best practices
+    ELSE:
+      PROCEED: To conditional reading below
+  </claude_code_check>
+</context_fetcher_strategy>
+
+<conditional-block context-check="fallback-best-practices">
+IF NOT using context-fetcher agent:
+  READ: The following fallback best practices retrieval
+
 <conditional_reading>
   <check_context>
     IF relevant best practices sections already in context:
@@ -111,6 +130,7 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   SKIP: Already-loaded sections and unrelated sections
   APPLY: Relevant patterns to implementation
 </instructions>
+</conditional-block>
 
 </step>
 
@@ -122,6 +142,25 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <reads>relevant parts of @~/.agent-os/standards/code-style.md</reads>
   <purpose>apply relevant code style rules to this task</purpose>
 </step_metadata>
+
+<context_fetcher_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      USE: @agent:context-fetcher
+      REQUEST: "Find code style rules for:
+                - Languages: [LANGUAGES_IN_TASK]
+                - File types: [FILE_TYPES_BEING_MODIFIED]
+                - Component patterns: [PATTERNS_BEING_IMPLEMENTED]
+                - Testing style guidelines"
+      PROCESS: Returned style rules
+    ELSE:
+      PROCEED: To conditional reading below
+  </claude_code_check>
+</context_fetcher_strategy>
+
+<conditional-block context-check="fallback-code-style">
+IF NOT using context-fetcher agent:
+  READ: The following fallback code style retrieval
 
 <conditional_reading>
   <check_context>
@@ -151,6 +190,7 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   SKIP: Already-loaded sections and unused language rules
   APPLY: Relevant formatting and patterns
 </instructions>
+</conditional-block>
 
 </step>
 

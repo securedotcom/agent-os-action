@@ -42,6 +42,17 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   </fallback_sequence>
 </data_sources>
 
+<context_fetcher_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      USE: @agent:context-fetcher
+      REQUEST: "Get tech stack defaults from tech-stack.md"
+      PROCESS: Use returned defaults for missing items
+    ELSE:
+      PROCEED: To manual fallback checking
+  </claude_code_check>
+</context_fetcher_strategy>
+
 <error_template>
   Please provide the following missing information:
   1. Main idea for the product
@@ -250,15 +261,27 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
 </required_items>
 
 <data_resolution>
-  <for_each item="required_items">
-    <if_not_in>user_input</if_not_in>
-    <then_check>
-      1. @~/.agent-os/standards/tech-stack.md
-      2. @~/.claude/CLAUDE.md
-      3. Cursor User Rules
-    </then_check>
-    <else>add_to_missing_list</else>
-  </for_each>
+  <context_fetcher_option>
+    IF current agent is Claude Code AND context-fetcher agent exists:
+      FOR missing tech stack items:
+        USE: @agent:context-fetcher
+        REQUEST: "Find [ITEM_NAME] from tech-stack.md"
+        PROCESS: Use found defaults
+    ELSE:
+      PROCEED: To manual resolution below
+  </context_fetcher_option>
+  
+  <manual_resolution>
+    <for_each item="required_items">
+      <if_not_in>user_input</if_not_in>
+      <then_check>
+        1. @~/.agent-os/standards/tech-stack.md
+        2. @~/.claude/CLAUDE.md
+        3. Cursor User Rules
+      </then_check>
+      <else>add_to_missing_list</else>
+    </for_each>
+  </manual_resolution>
 </data_resolution>
 
 <missing_items_template>
