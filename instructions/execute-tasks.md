@@ -1,5 +1,5 @@
 ---
-description: Task Execution Rules for Agent OS
+description: Rules to initiate execution of a set of tasks using Agent OS
 globs:
 alwaysApply: false
 version: 1.0
@@ -15,7 +15,7 @@ encoding: UTF-8
 
 ## Overview
 
-Execute spec tasks systematically following a TDD development workflow.
+Initiate execution of one or more tasks for a given spec.
 
 <process_flow>
 
@@ -49,90 +49,56 @@ Execute spec tasks systematically following a TDD development workflow.
 ### Step 2: Context Analysis
 
 <step_metadata>
-  <reads>
-    - spec SRD file
-- spec tasks.md
-- all files in spec sub-specs/ folder
-    - @.agent-os/product/mission.md
-  </reads>
-  <purpose>complete understanding of requirements</purpose>
+  <reads_always>
+    - spec tasks.md
+  </reads_always>
+  <reads_conditionally>
+    - @.agent-os/product/mission-lite.md (if not already in context)
+    - spec-lite.md (if not already in context)
+    - sub-specs/technical-spec.md (if not already in context)
+  </reads_conditionally>
+  <purpose>minimal context for task understanding</purpose>
 </step_metadata>
 
+<conditional_loading>
+  <mission_lite>
+    IF NOT already in context:
+      READ @.agent-os/product/mission-lite.md
+  </mission_lite>
+  <spec_lite>
+    IF NOT already in context:
+      READ spec-lite.md from spec folder
+  </spec_lite>
+  <technical_spec>
+    IF NOT already in context:
+      READ sub-specs/technical-spec.md
+  </technical_spec>
+</conditional_loading>
+
 <context_gathering>
-  <spec_level>
-    - requirements from SRD
-    - technical specs
-    - test specifications
-  </spec_level>
-  <product_level>
-    - overall mission alignment
-    - technical standards
-    - best practices
-  </product_level>
+  <essential_docs>
+    - tasks.md for task breakdown
+  </essential_docs>
+  <conditional_docs>
+    - mission-lite.md for product alignment
+    - spec-lite.md for feature summary
+    - technical-spec.md for implementation details
+  </conditional_docs>
 </context_gathering>
 
 <instructions>
-  ACTION: Read all spec documentation thoroughly
-  ANALYZE: Requirements and specifications for current task
-  UNDERSTAND: How task fits into overall spec goals
+  ACTION: Always read tasks.md
+  CHECK: Which files are already in context
+  LOAD: Only files not already in context
+  SKIP: Other sub-specs files and best practices for now
+  ANALYZE: Requirements specific to current task
 </instructions>
 
 </step>
 
-<step number="3" name="implementation_planning">
+<step number="3" name="development_server_check">
 
-### Step 3: Implementation Planning
-
-<step_metadata>
-  <creates>execution plan</creates>
-  <requires>user approval</requires>
-</step_metadata>
-
-<plan_structure>
-  <format>numbered list with sub-bullets</format>
-  <includes>
-    - all subtasks from tasks.md
-    - implementation approach
-    - dependencies to install
-    - test strategy
-  </includes>
-</plan_structure>
-
-<plan_template>
-  ## Implementation Plan for [TASK_NAME]
-
-  1. **[MAJOR_STEP_1]**
-     - [SPECIFIC_ACTION]
-     - [SPECIFIC_ACTION]
-
-  2. **[MAJOR_STEP_2]**
-     - [SPECIFIC_ACTION]
-     - [SPECIFIC_ACTION]
-
-  **Dependencies to Install:**
-  - [LIBRARY_NAME] - [PURPOSE]
-
-  **Test Strategy:**
-  - [TEST_APPROACH]
-</plan_template>
-
-<approval_request>
-  I've prepared the above implementation plan.
-  Please review and confirm before I proceed with execution.
-</approval_request>
-
-<instructions>
-  ACTION: Create detailed execution plan
-  DISPLAY: Plan to user for review
-  WAIT: For explicit approval before proceeding
-  BLOCK: Do not proceed without affirmative permission
-</instructions>
-
-</step>
-
-<step number="4" name="development_server_check">
-
-### Step 4: Check for Development Server
+### Step 3: Check for Development Server
 
 <step_metadata>
   <checks>running development server</checks>
@@ -162,9 +128,9 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="5" name="git_branch_management">
+<step number="4" name="git_branch_management">
 
-### Step 5: Git Branch Management
+### Step 4: Git Branch Management
 
 <step_metadata>
   <manages>git branches</manages>
@@ -211,77 +177,63 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="6" name="development_execution">
+<step number="5" name="task_execution_loop">
 
-### Step 6: Development Execution
+### Step 5: Task Execution Loop
 
 <step_metadata>
-  <follows>approved implementation plan</follows>
-  <adheres_to>all spec standards</adheres_to>
+  <executes>parent tasks and subtasks</executes>
+  <uses>@~/.agent-os/instructions/execute-task.md</uses>
+  <continues>until all tasks complete</continues>
 </step_metadata>
 
-<execution_standards>
-  <follow_exactly>
-    - approved implementation plan
-    - spec specifications
-    - @.agent-os/product/code-style.md
-    - @.agent-os/product/dev-best-practices.md
-  </follow_exactly>
-  <approach>test-driven development (TDD)</approach>
-</execution_standards>
+<execution_flow>
+  LOAD @~/.agent-os/instructions/execute-task.md ONCE
 
-<tdd_workflow>
-  1. Write failing tests first
-  2. Implement minimal code to pass
-  3. Refactor while keeping tests green
-  4. Repeat for each feature
-</tdd_workflow>
+  FOR each parent_task assigned in Step 1:
+    EXECUTE instructions from execute-task.md with:
+      - parent_task_number
+      - all associated subtasks
+    WAIT for task completion
+    UPDATE tasks.md status
+  END FOR
+</execution_flow>
+
+<loop_logic>
+  <continue_conditions>
+    - More unfinished parent tasks exist
+    - User has not requested stop
+  </continue_conditions>
+  <exit_conditions>
+    - All assigned tasks marked complete
+    - User requests early termination
+    - Blocking issue prevents continuation
+  </exit_conditions>
+</loop_logic>
+
+<task_status_check>
+  AFTER each task execution:
+    CHECK tasks.md for remaining tasks
+    IF all assigned tasks complete:
+      PROCEED to next step
+    ELSE:
+      CONTINUE with next task
+</task_status_check>
 
 <instructions>
-  ACTION: Execute development plan systematically
-  FOLLOW: All coding standards and specifications
-  IMPLEMENT: TDD approach throughout
-  MAINTAIN: Code quality at every step
+  ACTION: Load execute-task.md instructions once at start
+  REUSE: Same instructions for each parent task iteration
+  LOOP: Through all assigned parent tasks
+  UPDATE: Task status after each completion
+  VERIFY: All tasks complete before proceeding
+  HANDLE: Blocking issues appropriately
 </instructions>
 
 </step>
 
-<step number="7" name="task_status_updates">
+<step number="6" name="test_suite_verification">
 
-### Step 7: Task Status Updates
-
-<step_metadata>
-  <updates>tasks.md file</updates>
-  <timing>immediately after completion</timing>
-</step_metadata>
-
-<update_format>
-  <completed>- [x] Task description</completed>
-  <incomplete>- [ ] Task description</incomplete>
-  <blocked>
-    - [ ] Task description
-    ⚠️ Blocking issue: [DESCRIPTION]
-  </blocked>
-</update_format>
-
-<blocking_criteria>
-  <attempts>maximum 3 different approaches</attempts>
-  <action>document blocking issue</action>
-  <emoji>⚠️</emoji>
-</blocking_criteria>
-
-<instructions>
-  ACTION: Update tasks.md after each task completion
-  MARK: [x] for completed items immediately
-  DOCUMENT: Blocking issues with ⚠️ emoji
-  LIMIT: 3 attempts before marking as blocked
-</instructions>
-
-</step>
-
-<step number="8" name="test_suite_verification">
-
-### Step 8: Run All Tests
+### Step 6: Run All Tests
 
 <step_metadata>
   <runs>entire test suite</runs>
@@ -290,9 +242,8 @@ Execute spec tasks systematically following a TDD development workflow.
 
 <test_execution>
   <order>
-    1. Verify new tests pass
-    2. Run entire test suite
-    3. Fix any failures
+    1. Run entire test suite
+    2. Fix any failures
   </order>
   <requirement>100% pass rate</requirement>
 </test_execution>
@@ -311,9 +262,9 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="9" name="git_workflow">
+<step number="7" name="git_workflow">
 
-### Step 9: Git Workflow
+### Step 7: Git Workflow
 
 <step_metadata>
   <creates>
@@ -362,14 +313,33 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="10" name="roadmap_progress_check">
+<step number="8" name="roadmap_progress_check">
 
-### Step 10: Roadmap Progress Check
+### Step 8: Roadmap Progress Check (Conditional)
 
 <step_metadata>
-  <checks>@.agent-os/product/roadmap.md</checks>
+  <condition>only if tasks may have completed roadmap item</condition>
+  <checks>@.agent-os/product/roadmap.md (if not in context)</checks>
   <updates>if spec completes roadmap item</updates>
 </step_metadata>
+
+<conditional_execution>
+  <preliminary_check>
+    EVALUATE: Did executed tasks potentially complete a roadmap item?
+    IF NO:
+      SKIP this entire step
+      PROCEED to step 9
+    IF YES:
+      CONTINUE with roadmap check
+  </preliminary_check>
+</conditional_execution>
+
+<conditional_loading>
+  IF roadmap.md NOT already in context:
+    LOAD @.agent-os/product/roadmap.md
+  ELSE:
+    SKIP loading (use existing context)
+</conditional_loading>
 
 <roadmap_criteria>
   <update_when>
@@ -381,7 +351,10 @@ Execute spec tasks systematically following a TDD development workflow.
 </roadmap_criteria>
 
 <instructions>
-  ACTION: Review roadmap.md for related items
+  ACTION: First evaluate if roadmap check is needed
+  SKIP: If tasks clearly don't complete roadmap items
+  CHECK: If roadmap.md already in context
+  LOAD: Only if needed and not in context
   EVALUATE: If current spec completes roadmap goals
   UPDATE: Mark roadmap items complete if applicable
   VERIFY: Certainty before marking complete
@@ -389,9 +362,9 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="11" name="completion_notification">
+<step number="9" name="completion_notification">
 
-### Step 11: Task Completion Notification
+### Step 9: Task Completion Notification
 
 <step_metadata>
   <plays>system sound</plays>
@@ -409,9 +382,9 @@ Execute spec tasks systematically following a TDD development workflow.
 
 </step>
 
-<step number="12" name="completion_summary">
+<step number="10" name="completion_summary">
 
-### Step 12: Completion Summary
+### Step 10: Completion Summary
 
 <step_metadata>
   <creates>summary message</creates>
@@ -461,27 +434,6 @@ Execute spec tasks systematically following a TDD development workflow.
 </step>
 
 </process_flow>
-
-## Development Standards
-
-<standards>
-  <code_style>
-    <follow>@.agent-os/product/code-style.md</follow>
-    <enforce>strictly</enforce>
-  </code_style>
-  <best_practices>
-    <follow>@.agent-os/product/dev-best-practices.md</follow>
-    <apply>all directives</apply>
-  </best_practices>
-  <testing>
-    <coverage>comprehensive</coverage>
-    <approach>test-driven development</approach>
-  </testing>
-  <documentation>
-    <commits>clear and descriptive</commits>
-    <pull_requests>detailed descriptions</pull_requests>
-  </documentation>
-</standards>
 
 ## Error Handling
 
