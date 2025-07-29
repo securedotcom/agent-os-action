@@ -1,11 +1,15 @@
 # Code Style Guide
 
-> Version: 1.0.0
-> Last Updated: 2025-04-24
-
 ## Context
 
-This file is part of the Agent OS standards system. These global code style rules are referenced by all product codebases and provide default formatting guidelines. Individual projects may extend or override these rules in their `.agent-os/product/code-style.md` file.
+Global code style rules for Agent OS projects.
+
+<conditional-block context-check="general-formatting">
+IF this General Formatting section already read in current context:
+  SKIP: Re-reading this section
+  NOTE: "Using General Formatting rules already in context"
+ELSE:
+  READ: The following formatting rules
 
 ## General Formatting
 
@@ -24,87 +28,35 @@ This file is part of the Agent OS standards system. These global code style rule
 - Use double quotes only when interpolation is needed
 - Use template literals for multi-line strings or complex interpolation
 
-## HTML/Template Formatting
-
-### Structure Rules
-- Use 2 spaces for indentation
-- Place nested elements on new lines with proper indentation
-- Content between tags should be on its own line when multi-line
-
-### Attribute Formatting
-- Place each HTML attribute on its own line
-- Align attributes vertically
-- Keep the closing `>` on the same line as the last attribute
-
-### Example HTML Structure
-
-```html
-<div class="container">
-  <header class="flex flex-col space-y-2
-                 md:flex-row md:space-y-0 md:space-x-4">
-    <h1 class="text-primary dark:text-primary-300">
-      Page Title
-    </h1>
-    <nav class="flex flex-col space-y-2
-                md:flex-row md:space-y-0 md:space-x-4">
-      <a href="/"
-         class="btn-ghost">
-        Home
-      </a>
-      <a href="/about"
-         class="btn-ghost">
-        About
-      </a>
-    </nav>
-  </header>
-</div>
-```
-
-## Tailwind CSS preferences
-
-### Multi-line CSS classes in markup
-
-- We use a unique multi-line formatting style when writing Tailwind CSS classes in HTML markup and ERB tags, where the classes for each responsive size are written on their own dedicated line.
-- The top-most line should be the smallest size (no responsive prefix). Each line below it should be the next responsive size up.
-- Each line of CSS classes should be aligned vertically.
-- focus and hover classes should be on their own additional dedicated lines.
-- We implement one additional responsive breakpoint size called 'xs' which represents 400px.
-- If there are any custom CSS classes being used, those should be included at the start of the first line.
-
-**Example of multi-line Tailwind CSS classes:**
-
-<div class="custom-cta bg-gray-50 dark:bg-gray-900 p-4 rounded cursor-pointer w-full
-            hover:bg-gray-100 dark:hover:bg-gray-800
-            xs:p-6
-            sm:p-8 sm:font-medium
-            md:p-10 md:text-lg
-            lg:p-12 lg:text-xl lg:font-semibold lg:2-3/5
-            xl:p-14 xl:text-2xl
-            2xl:p-16 2xl:text-3xl 2xl:font-bold 2xl:w-3/4">
-  I'm a call-to-action!
-</div>
-
-## Code Comments
-
-### When to Comment
+### Code Comments
 - Add brief comments above non-obvious business logic
 - Document complex algorithms or calculations
 - Explain the "why" behind implementation choices
-
-### Comment Maintenance
 - Never remove existing comments unless removing the associated code
 - Update comments when modifying code to maintain accuracy
 - Keep comments concise and relevant
+</conditional-block>
 
-### Comment Format
-```ruby
-# Calculate compound interest with monthly contributions
-# Uses the formula: A = P(1 + r/n)^(nt) + PMT × (((1 + r/n)^(nt) - 1) / (r/n))
-def calculate_compound_interest(principal, rate, time, monthly_payment)
-  # Implementation here
-end
-```
+<conditional-block task-condition="html-css-tailwind" context-check="html-css-style">
+IF current task involves writing or updating HTML, CSS, or TailwindCSS:
+  IF html-style.md AND css-style.md already in context:
+    SKIP: Re-reading these files
+    NOTE: "Using HTML/CSS style guides already in context"
+  ELSE:
+    READ the following style guides (only if not already in context):
+    - @~/.agent-os/standards/code-style/html-style.md (if not in context)
+    - @~/.agent-os/standards/code-style/css-style.md (if not in context)
+ELSE:
+  SKIP: HTML/CSS style guides not relevant to current task
+</conditional-block>
 
----
-
-*Customize this file with your team's specific style preferences. These formatting rules apply to all code written by humans and AI agents.*
+<conditional-block task-condition="javascript" context-check="javascript-style">
+IF current task involves writing or updating JavaScript:
+  IF javascript-style.md already in context:
+    SKIP: Re-reading this file
+    NOTE: "Using JavaScript style guide already in context"
+  ELSE:
+    READ: @~/.agent-os/standards/code-style/javascript-style.md
+ELSE:
+  SKIP: JavaScript style guide not relevant to current task
+</conditional-block>

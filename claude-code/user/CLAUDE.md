@@ -1,8 +1,5 @@
 # CLAUDE.md
 
-> Agent OS User Standards
-> Last Updated: 2025-09-15
-
 ## Purpose
 
 This file directs Claude Code to use your personal Agent OS standards for all development work. These global standards define your preferred way of building software across all projects.
@@ -31,7 +28,7 @@ This file directs Claude Code to use your personal Agent OS standards for all de
 You can invoke Agent OS commands directly:
 - `/plan-product` - Start a new product
 - `/create-spec` - Plan a new feature
-- `/execute-task` - Build and ship code
+- `/execute-tasks` - Build and ship code
 - `/analyze-product` - Add Agent OS to existing code
 
 ## Important Notes

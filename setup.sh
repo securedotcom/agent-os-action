@@ -48,6 +48,7 @@ BASE_URL="https://raw.githubusercontent.com/buildermethods/agent-os/main"
 # Create directories
 echo "📁 Creating directories..."
 mkdir -p "$HOME/.agent-os/standards"
+mkdir -p "$HOME/.agent-os/standards/code-style"
 mkdir -p "$HOME/.agent-os/instructions"
 
 # Download standards files
@@ -90,6 +91,46 @@ else
     fi
 fi
 
+# Download code-style subdirectory files
+echo ""
+echo "📥 Downloading code style files to ~/.agent-os/standards/code-style/"
+
+# css-style.md
+if [ -f "$HOME/.agent-os/standards/code-style/css-style.md" ] && [ "$OVERWRITE_STANDARDS" = false ]; then
+    echo "  ⚠️  ~/.agent-os/standards/code-style/css-style.md already exists - skipping"
+else
+    curl -s -o "$HOME/.agent-os/standards/code-style/css-style.md" "${BASE_URL}/standards/code-style/css-style.md"
+    if [ -f "$HOME/.agent-os/standards/code-style/css-style.md" ] && [ "$OVERWRITE_STANDARDS" = true ]; then
+        echo "  ✓ ~/.agent-os/standards/code-style/css-style.md (overwritten)"
+    else
+        echo "  ✓ ~/.agent-os/standards/code-style/css-style.md"
+    fi
+fi
+
+# html-style.md
+if [ -f "$HOME/.agent-os/standards/code-style/html-style.md" ] && [ "$OVERWRITE_STANDARDS" = false ]; then
+    echo "  ⚠️  ~/.agent-os/standards/code-style/html-style.md already exists - skipping"
+else
+    curl -s -o "$HOME/.agent-os/standards/code-style/html-style.md" "${BASE_URL}/standards/code-style/html-style.md"
+    if [ -f "$HOME/.agent-os/standards/code-style/html-style.md" ] && [ "$OVERWRITE_STANDARDS" = true ]; then
+        echo "  ✓ ~/.agent-os/standards/code-style/html-style.md (overwritten)"
+    else
+        echo "  ✓ ~/.agent-os/standards/code-style/html-style.md"
+    fi
+fi
+
+# javascript-style.md
+if [ -f "$HOME/.agent-os/standards/code-style/javascript-style.md" ] && [ "$OVERWRITE_STANDARDS" = false ]; then
+    echo "  ⚠️  ~/.agent-os/standards/code-style/javascript-style.md already exists - skipping"
+else
+    curl -s -o "$HOME/.agent-os/standards/code-style/javascript-style.md" "${BASE_URL}/standards/code-style/javascript-style.md"
+    if [ -f "$HOME/.agent-os/standards/code-style/javascript-style.md" ] && [ "$OVERWRITE_STANDARDS" = true ]; then
+        echo "  ✓ ~/.agent-os/standards/code-style/javascript-style.md (overwritten)"
+    else
+        echo "  ✓ ~/.agent-os/standards/code-style/javascript-style.md"
+    fi
+fi
+
 # Download instruction files
 echo ""
 echo "📥 Downloading instruction files to ~/.agent-os/instructions/"
@@ -127,6 +168,18 @@ else
         echo "  ✓ ~/.agent-os/instructions/execute-tasks.md (overwritten)"
     else
         echo "  ✓ ~/.agent-os/instructions/execute-tasks.md"
+    fi
+fi
+
+# execute-task.md
+if [ -f "$HOME/.agent-os/instructions/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "  ⚠️  ~/.agent-os/instructions/execute-task.md already exists - skipping"
+else
+    curl -s -o "$HOME/.agent-os/instructions/execute-task.md" "${BASE_URL}/instructions/execute-task.md"
+    if [ -f "$HOME/.agent-os/instructions/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "  ✓ ~/.agent-os/instructions/execute-task.md (overwritten)"
+    else
+        echo "  ✓ ~/.agent-os/instructions/execute-task.md"
     fi
 fi
 

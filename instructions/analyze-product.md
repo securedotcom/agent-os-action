@@ -9,40 +9,13 @@ encoding: UTF-8
 # Analyze Current Product & Install Agent OS
 
 <ai_meta>
-  <parsing_rules>
-    - Process XML blocks first for structured data
-    - Execute instructions in sequential order
-    - Use templates as exact patterns
-    - Analyze existing code before generating documentation
-  </parsing_rules>
-  <file_conventions>
-    - encoding: UTF-8
-    - line_endings: LF
-    - indent: 2 spaces
-    - markdown_headers: no indentation
-  </file_conventions>
+  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
+  <format>UTF-8, LF, 2-space indent, no header indent</format>
 </ai_meta>
 
 ## Overview
 
-<purpose>
-  - Install Agent OS into an existing codebase
-  - Analyze current product state and progress
-  - Generate documentation that reflects actual implementation
-  - Preserve existing architectural decisions
-</purpose>
-
-<context>
-  - Part of Agent OS framework
-  - Used when retrofitting Agent OS to established products
-  - Builds on plan-product.md with codebase analysis
-</context>
-
-<prerequisites>
-  - Existing product codebase
-  - Write access to project root
-  - Access to @~/.agent-os/instructions/plan-product.md
-</prerequisites>
+Install Agent OS into an existing codebase, analyze current product state and progress.  Builds on plan-product.md
 
 <process_flow>
 
@@ -231,7 +204,6 @@ encoding: UTF-8
   - [ ] All product documentation reflects actual codebase
   - [ ] Roadmap shows completed and planned features accurately
   - [ ] Tech stack matches installed dependencies
-  - [ ] CLAUDE.md or .cursorrules configured (if applicable)
 </verification_checklist>
 
 <summary_template>

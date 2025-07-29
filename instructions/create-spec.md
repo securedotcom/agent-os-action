@@ -9,42 +9,13 @@ encoding: UTF-8
 # Spec Creation Rules
 
 <ai_meta>
-  <parsing_rules>
-    - Process XML blocks first for structured data
-    - Execute instructions in sequential order
-    - Use templates as exact patterns
-    - Request missing data rather than assuming
-  </parsing_rules>
-  <file_conventions>
-    - encoding: UTF-8
-    - line_endings: LF
-    - indent: 2 spaces
-    - markdown_headers: no indentation
-  </file_conventions>
+  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
+  <format>UTF-8, LF, 2-space indent, no header indent</format>
 </ai_meta>
 
 ## Overview
 
-<purpose>
-  - Create detailed spec plans for specific features
-  - Generate structured documentation for implementation
-  - Ensure alignment with product roadmap and mission
-</purpose>
-
-<context>
-  - Part of Agent OS framework
-  - Executed when implementing roadmap items
-  - Creates spec-specific documentation
-</context>
-
-<prerequisites>
-  - Product documentation exists in .agent-os/product/
-  - Access to:
-    - @.agent-os/product/mission.md,
-    - @.agent-os/product/roadmap.md,
-    - @.agent-os/product/tech-stack.md
-  - User has spec idea or roadmap reference
-</prerequisites>
+Generate detailed feature specifications aligned with product roadmap and mission.
 
 <process_flow>
 
@@ -62,7 +33,6 @@ encoding: UTF-8
 <option_a_flow>
   <trigger_phrases>
     - "what's next?"
-    - "what should we work on next?"
   </trigger_phrases>
   <actions>
     1. CHECK @.agent-os/product/roadmap.md
@@ -88,27 +58,38 @@ encoding: UTF-8
 
 <step number="2" name="context_gathering">
 
-### Step 2: Context Gathering
+### Step 2: Context Gathering (Conditional)
 
 <step_metadata>
+  <condition>only if mission-lite.md AND tech-stack.md not already in context</condition>
   <reads>
-    - @.agent-os/product/mission.md
-    - @.agent-os/product/roadmap.md
-    - @.agent-os/product/tech-stack.md
+    - @.agent-os/product/mission-lite.md (conditional)
+    - @.agent-os/product/tech-stack.md (conditional)
   </reads>
-  <purpose>understand spec alignment</purpose>
+  <purpose>minimal context for spec alignment</purpose>
 </step_metadata>
 
+<conditional_logic>
+  IF both mission-lite.md AND tech-stack.md already read in current context:
+    SKIP this entire step
+    PROCEED to step 3
+  ELSE:
+    READ only files not already in context:
+      - mission-lite.md (if not in context)
+      - tech-stack.md (if not in context)
+    CONTINUE with context analysis
+</conditional_logic>
+
 <context_analysis>
-  <mission>overall product vision</mission>
-  <roadmap>current progress and plans</roadmap>
+  <mission_lite>core product purpose and value</mission_lite>
   <tech_stack>technical requirements</tech_stack>
 </context_analysis>
 
 <instructions>
-  ACTION: Read all three product documents
-  ANALYZE: Spec alignment with each document
-  NOTE: Consider implications for implementation
+  ACTION: Check if both files already in context
+  SKIP: Entire step if both already read
+  READ: Only files not already in context
+  ANALYZE: Minimal alignment requirements
 </instructions>
 
 </step>
@@ -143,14 +124,6 @@ encoding: UTF-8
   ELSE:
     PROCEED to_date_determination
 </decision_tree>
-
-<question_template>
-  Based on the spec description, I need clarification on:
-
-  1. [SPECIFIC_QUESTION_ABOUT_SCOPE]
-  2. [SPECIFIC_QUESTION_ABOUT_TECHNICAL_APPROACH]
-  3. [SPECIFIC_QUESTION_ABOUT_USER_EXPERIENCE]
-</question_template>
 
 <instructions>
   ACTION: Evaluate need for clarification
@@ -361,9 +334,51 @@ encoding: UTF-8
 
 </step>
 
-<step number="7" name="create_technical_spec">
+<step number="7" name="create_spec_lite_md">
 
-### Step 7: Create Technical Specification
+### Step 7: Create spec-lite.md
+
+<step_metadata>
+  <creates>
+    - file: .agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md
+  </creates>
+  <purpose>condensed spec for efficient AI context usage</purpose>
+</step_metadata>
+
+<file_template>
+  <header>
+    # Spec Summary (Lite)
+  </header>
+</file_template>
+
+<content_structure>
+  <spec_summary>
+    - source: Step 6 spec.md overview section
+    - length: 1-3 sentences
+    - content: core goal and objective of the feature
+  </spec_summary>
+</content_structure>
+
+<content_template>
+  [1-3_SENTENCES_SUMMARIZING_SPEC_GOAL_AND_OBJECTIVE]
+</content_template>
+
+<example>
+  Implement secure password reset via email verification to reduce support tickets and enable self-service account recovery. Users can request a reset link, receive a time-limited token via email, and set a new password following security best practices.
+</example>
+
+<instructions>
+  ACTION: Create spec-lite.md from spec.md overview
+  EXTRACT: Core goal and objective from spec.md
+  CONDENSE: Into 1-3 sentences maximum
+  FOCUS: Essential feature purpose only
+</instructions>
+
+</step>
+
+<step number="8" name="create_technical_spec">
+
+### Step 8: Create Technical Specification
 
 <step_metadata>
   <creates>
@@ -377,9 +392,6 @@ encoding: UTF-8
     # Technical Specification
 
     This is the technical specification for the spec detailed in @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-
-    > Created: [CURRENT_DATE]
-    > Version: 1.0.0
   </header>
 </file_template>
 
@@ -390,16 +402,12 @@ encoding: UTF-8
     - integration requirements
     - performance criteria
   </technical_requirements>
-  <approach_options>
-    - multiple approaches (if applicable)
-    - selected approach
-    - rationale for selection
-  </approach_options>
-  <external_dependencies>
+  <external_dependencies_conditional>
+    - only include if new dependencies needed
     - new libraries/packages
     - justification for each
     - version requirements
-  </external_dependencies>
+  </external_dependencies_conditional>
 </spec_sections>
 
 <example_template>
@@ -408,35 +416,32 @@ encoding: UTF-8
   - [SPECIFIC_TECHNICAL_REQUIREMENT]
   - [SPECIFIC_TECHNICAL_REQUIREMENT]
 
-  ## Approach Options
+  ## External Dependencies (Conditional)
 
-  **Option A:** [DESCRIPTION]
-  - Pros: [LIST]
-  - Cons: [LIST]
-
-  **Option B:** [DESCRIPTION] (Selected)
-  - Pros: [LIST]
-  - Cons: [LIST]
-
-  **Rationale:** [EXPLANATION]
-
-  ## External Dependencies
-
+  [ONLY_IF_NEW_DEPENDENCIES_NEEDED]
   - **[LIBRARY_NAME]** - [PURPOSE]
   - **Justification:** [REASON_FOR_INCLUSION]
 </example_template>
 
+<conditional_logic>
+  IF spec_requires_new_external_dependencies:
+    INCLUDE "External Dependencies" section
+  ELSE:
+    OMIT section entirely
+</conditional_logic>
+
 <instructions>
   ACTION: Create sub-specs folder and technical-spec.md
-  DOCUMENT: All technical decisions and requirements
-  JUSTIFY: Any new dependencies
+  DOCUMENT: Technical requirements only
+  INCLUDE: External dependencies section ONLY if new libraries needed
+  OMIT: Multiple approach options and rationale
 </instructions>
 
 </step>
 
-<step number="8" name="create_database_schema">
+<step number="9" name="create_database_schema">
 
-### Step 8: Create Database Schema (Conditional)
+### Step 9: Create Database Schema (Conditional)
 
 <step_metadata>
   <creates>
@@ -457,9 +462,6 @@ encoding: UTF-8
     # Database Schema
 
     This is the database schema implementation for the spec detailed in @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-
-    > Created: [CURRENT_DATE]
-    > Version: 1.0.0
   </header>
 </file_template>
 
@@ -490,9 +492,9 @@ encoding: UTF-8
 
 </step>
 
-<step number="9" name="create_api_spec">
+<step number="10" name="create_api_spec">
 
-### Step 9: Create API Specification (Conditional)
+### Step 10: Create API Specification (Conditional)
 
 <step_metadata>
   <creates>
@@ -513,9 +515,6 @@ encoding: UTF-8
     # API Specification
 
     This is the API specification for the spec detailed in @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-
-    > Created: [CURRENT_DATE]
-    > Version: 1.0.0
   </header>
 </file_template>
 
@@ -556,77 +555,6 @@ encoding: UTF-8
 
 </step>
 
-<step number="10" name="create_tests_spec">
-
-### Step 10: Create Tests Specification
-
-<step_metadata>
-  <creates>
-    - file: sub-specs/tests.md
-  </creates>
-</step_metadata>
-
-<file_template>
-  <header>
-    # Tests Specification
-
-    This is the tests coverage details for the spec detailed in @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-
-    > Created: [CURRENT_DATE]
-    > Version: 1.0.0
-  </header>
-</file_template>
-
-<test_categories>
-  <unit_tests>
-    - model tests
-    - service tests
-    - helper tests
-  </unit_tests>
-  <integration_tests>
-    - controller tests
-    - API tests
-    - workflow tests
-  </integration_tests>
-  <feature_tests>
-    - end-to-end scenarios
-    - user workflows
-  </feature_tests>
-  <mocking_requirements>
-    - external services
-    - API responses
-    - time-based tests
-  </mocking_requirements>
-</test_categories>
-
-<test_template>
-  ## Test Coverage
-
-  ### Unit Tests
-
-  **[CLASS_NAME]**
-  - [TEST_DESCRIPTION]
-  - [TEST_DESCRIPTION]
-
-  ### Integration Tests
-
-  **[FEATURE_NAME]**
-  - [SCENARIO_DESCRIPTION]
-  - [SCENARIO_DESCRIPTION]
-
-  ### Mocking Requirements
-
-  - **[SERVICE_NAME]:** [MOCK_STRATEGY]
-</test_template>
-
-<instructions>
-  ACTION: Create comprehensive test specification
-  ENSURE: All new functionality has test coverage
-  SPECIFY: Mock requirements for external services
-</instructions>
-
-</step>
-
 <step number="11" name="user_review">
 
 ### Step 11: User Review
@@ -643,6 +571,7 @@ encoding: UTF-8
   I've created the spec documentation:
 
   - Spec Requirements: @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
+  - Spec Summary: @.agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md
   - Technical Spec: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/technical-spec.md
   [LIST_OTHER_CREATED_SPECS]
 
@@ -671,11 +600,6 @@ encoding: UTF-8
 <file_template>
   <header>
     # Spec Tasks
-
-    These are the tasks to be completed for the spec detailed in @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-
-    > Created: [CURRENT_DATE]
-    > Status: Ready for Implementation
   </header>
 </file_template>
 
@@ -722,72 +646,54 @@ encoding: UTF-8
 
 </step>
 
-<step number="13" name="update_cross_references">
+<step number="13" name="decision_documentation">
 
-### Step 13: Documentation Cross-References
-
-<step_metadata>
-  <updates>
-    - file: spec.md
-  </updates>
-  <adds>references to all spec files</adds>
-</step_metadata>
-
-<reference_template>
-  ## Spec Documentation
-
-  - Tasks: @.agent-os/specs/YYYY-MM-DD-spec-name/tasks.md
-  - Technical Specification: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/technical-spec.md
-  - API Specification: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/api-spec.md
-  - Database Schema: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/database-schema.md
-  - Tests Specification: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/tests.md
-</reference_template>
-
-<reference_format>
-  - Use @ prefix for clickable paths
-  - Include full path from project root
-  - Only list files that were created
-</reference_format>
-
-<instructions>
-  ACTION: Update spec.md with references
-  FORMAT: Use @ prefix for all paths
-  INCLUDE: Only files actually created
-</instructions>
-
-</step>
-
-<step number="14" name="decision_documentation">
-
-### Step 14: Decision Documentation
+### Step 13: Decision Documentation (Conditional)
 
 <step_metadata>
-  <evaluates>strategic impact</evaluates>
-  <updates>decisions.md if needed</updates>
+  <evaluates>strategic impact without loading decisions.md</evaluates>
+  <updates>decisions.md only if significant deviation and user approves</updates>
 </step_metadata>
+
+<conditional_reads>
+  <mission_lite>
+    - IF NOT already in context: READ @.agent-os/product/mission-lite.md
+    - IF already in context: SKIP reading
+  </mission_lite>
+  <roadmap>
+    - IF NOT already in context: READ @.agent-os/product/roadmap.md
+    - IF already in context: SKIP reading
+  </roadmap>
+  <decisions>
+    - NEVER load decisions.md into context
+  </decisions>
+</conditional_reads>
 
 <decision_analysis>
   <review_against>
-    - @.agent-os/product/mission.md
-    - @.agent-os/product/decisions.md
+    - @.agent-os/product/mission-lite.md (conditional)
+    - @.agent-os/product/roadmap.md (conditional)
   </review_against>
   <criteria>
-    - changes product direction
-    - impacts roadmap priorities
-    - introduces new technical patterns
-    - affects user experience significantly
+    - significantly deviates from mission in mission-lite.md
+    - significantly changes or conflicts with roadmap.md
   </criteria>
 </decision_analysis>
 
 <decision_tree>
-  IF spec_impacts_mission_or_roadmap:
-    IDENTIFY key_decisions (max 3)
-    DOCUMENT decision_details
-    ASK user_for_approval
-    IF approved:
+  IF spec_does_NOT_significantly_deviate:
+    SKIP this entire step
+    STATE "Spec aligns with mission and roadmap"
+    PROCEED to step 13
+  ELSE IF spec_significantly_deviates:
+    EXPLAIN the significant deviation
+    ASK user: "This spec significantly deviates from our mission/roadmap. Should I draft a decision entry?"
+    IF user_approves:
+      DRAFT decision entry
       UPDATE decisions.md
-  ELSE:
-    STATE "This spec is inline with the current mission and roadmap, so no need to post anything to our decisions log at this time."
+    ELSE:
+      SKIP updating decisions.md
+      PROCEED to step 13
 </decision_tree>
 
 <decision_template>
@@ -806,27 +712,25 @@ encoding: UTF-8
 
   [WHY_THIS_DECISION_WAS_NEEDED]
 
-  ### Consequences
+  ### Deviation
 
-  **Positive:**
-  - [EXPECTED_BENEFITS]
-
-  **Negative:**
-  - [KNOWN_TRADEOFFS]
+  [SPECIFIC_DEVIATION_FROM_MISSION_OR_ROADMAP]
 </decision_template>
 
 <instructions>
-  ACTION: Analyze spec for strategic decisions
-  IDENTIFY: Up to 3 key decisions if any
-  REQUEST: User approval before updating
-  UPDATE: Add to decisions.md if approved
+  ACTION: Check if mission-lite.md and roadmap.md already in context
+  READ: Only files not already in context
+  NEVER: Load decisions.md
+  EVALUATE: Only significant deviations warrant decision entry
+  ASK: User permission before drafting any decision
+  UPDATE: decisions.md only with explicit user approval
 </instructions>
 
 </step>
 
-<step number="15" name="execution_readiness">
+<step number="14" name="execution_readiness">
 
-### Step 15: Execution Readiness Check
+### Step 14: Execution Readiness Check
 
 <step_metadata>
   <evaluates>readiness to begin implementation</evaluates>
@@ -848,7 +752,7 @@ encoding: UTF-8
   **Task 1:** [FIRST_TASK_TITLE]
   [BRIEF_DESCRIPTION_OF_TASK_1_AND_SUBTASKS]
 
-  Would you like me to proceed with implementing Task 1? I will follow the execution guidelines in @~/.agent-os/instructions/execute-tasks.md and focus only on this first task and its subtasks unless you specify otherwise.
+  Would you like me to proceed with implementing Task 1? I will focus only on this first task and its subtasks unless you specify otherwise.
 
   Type 'yes' to proceed with Task 1, or let me know if you'd like to review or modify the plan first."
 </execution_prompt>
