@@ -17,6 +17,15 @@ encoding: UTF-8
 
 Execute a specific task along with its sub-tasks systematically following a TDD development workflow.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    SET has_test_runner = (Claude Code AND test-runner agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="task_understanding">
@@ -83,6 +92,23 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <purpose>apply relevant best practices to this task</purpose>
 </step_metadata>
 
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher
+    REQUEST: "Find best practices sections relevant to:
+              - Task's technology stack: [CURRENT_TECH]
+              - Feature type: [CURRENT_FEATURE_TYPE]
+              - Testing approaches needed
+              - Code organization patterns"
+    PROCESS: Returned best practices
+  ELSE:
+    PROCEED: To conditional reading below
+</instructions>
+
+<conditional-block context-check="fallback-best-practices">
+IF NOT using context-fetcher agent:
+  READ: The following fallback best practices retrieval
+
 <conditional_reading>
   <check_context>
     IF relevant best practices sections already in context:
@@ -111,6 +137,7 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   SKIP: Already-loaded sections and unrelated sections
   APPLY: Relevant patterns to implementation
 </instructions>
+</conditional-block>
 
 </step>
 
@@ -122,6 +149,23 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <reads>relevant parts of @~/.agent-os/standards/code-style.md</reads>
   <purpose>apply relevant code style rules to this task</purpose>
 </step_metadata>
+
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher
+    REQUEST: "Find code style rules for:
+              - Languages: [LANGUAGES_IN_TASK]
+              - File types: [FILE_TYPES_BEING_MODIFIED]
+              - Component patterns: [PATTERNS_BEING_IMPLEMENTED]
+              - Testing style guidelines"
+    PROCESS: Returned style rules
+  ELSE:
+    PROCEED: To conditional reading below
+</instructions>
+
+<conditional-block context-check="fallback-code-style">
+IF NOT using context-fetcher agent:
+  READ: The following fallback code style retrieval
 
 <conditional_reading>
   <check_context>
@@ -151,6 +195,7 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   SKIP: Already-loaded sections and unused language rules
   APPLY: Relevant formatting and patterns
 </instructions>
+</conditional-block>
 
 </step>
 
@@ -228,34 +273,51 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <scope>task-specific tests only</scope>
 </step_metadata>
 
-<focused_test_execution>
-  <run_only>
-    - All new tests written for this parent task
-    - All tests updated during this task
-    - Tests directly related to this feature
-  </run_only>
-  <skip>
-    - Full test suite (done later in execute-tasks.md)
-    - Unrelated test files
-  </skip>
-</focused_test_execution>
-
-<final_verification>
-  IF any test failures:
-    - Debug and fix the specific issue
-    - Re-run only the failed tests
-  ELSE:
-    - Confirm all task tests passing
-    - Ready to proceed
-</final_verification>
-
 <instructions>
-  ACTION: Run ONLY tests created/updated in this task
-  SCOPE: Focus on this parent task's tests
-  VERIFY: 100% pass rate for task-specific tests
-  SKIP: Full test suite (that's for execute-tasks.md)
-  CONFIRM: This feature's tests are complete
+  IF has_test_runner:
+    USE: @agent:test-runner
+    REQUEST: "Run tests for [this parent task's test files]"
+    WAIT: For test-runner analysis
+    PROCESS: Returned failure information
+  ELSE:
+    PROCEED: To fallback test execution below
 </instructions>
+
+<conditional-block context-check="fallback-test-execution">
+IF NOT using test-runner agent:
+  READ: The following fallback test execution instructions
+
+<fallback_test_execution>
+  <focused_test_execution>
+    <run_only>
+      - All new tests written for this parent task
+      - All tests updated during this task
+      - Tests directly related to this feature
+    </run_only>
+    <skip>
+      - Full test suite (done later in execute-tasks.md)
+      - Unrelated test files
+    </skip>
+  </focused_test_execution>
+
+  <final_verification>
+    IF any test failures:
+      - Debug and fix the specific issue
+      - Re-run only the failed tests
+    ELSE:
+      - Confirm all task tests passing
+      - Ready to proceed
+  </final_verification>
+
+  <instructions>
+    ACTION: Run ONLY tests created/updated in this task
+    SCOPE: Focus on this parent task's tests
+    VERIFY: 100% pass rate for task-specific tests
+    SKIP: Full test suite (that's for execute-tasks.md)
+    CONFIRM: This feature's tests are complete
+  </instructions>
+</fallback_test_execution>
+</conditional-block>
 
 </step>
 

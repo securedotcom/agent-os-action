@@ -17,6 +17,16 @@ encoding: UTF-8
 
 Initiate execution of one or more tasks for a given spec.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_git_workflow = (Claude Code AND git-workflow agent exists)
+    SET has_test_runner = (Claude Code AND test-runner agent exists)
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="task_assignment">
@@ -60,6 +70,21 @@ Initiate execution of one or more tasks for a given spec.
   <purpose>minimal context for task understanding</purpose>
 </step_metadata>
 
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher for each file not in context:
+    - REQUEST: "Get product pitch from mission-lite.md"
+    - REQUEST: "Get spec summary from spec-lite.md" 
+    - REQUEST: "Get technical approach from technical-spec.md"
+    PROCESS: Returned information
+  ELSE:
+    PROCEED: To conditional loading below
+</instructions>
+
+<conditional-block context-check="fallback-context-loading">
+IF NOT using context-fetcher agent:
+  READ: The following fallback context loading
+
 <conditional_loading>
   <mission_lite>
     IF NOT already in context:
@@ -74,6 +99,7 @@ Initiate execution of one or more tasks for a given spec.
       READ sub-specs/technical-spec.md
   </technical_spec>
 </conditional_loading>
+</conditional-block>
 
 <context_gathering>
   <essential_docs>
@@ -89,6 +115,7 @@ Initiate execution of one or more tasks for a given spec.
 <instructions>
   ACTION: Always read tasks.md
   CHECK: Which files are already in context
+  USE: Context-fetcher if Claude Code, else fallback
   LOAD: Only files not already in context
   SKIP: Other sub-specs files and best practices for now
   ANALYZE: Requirements specific to current task
@@ -137,6 +164,22 @@ Initiate execution of one or more tasks for a given spec.
   <ensures>proper isolation</ensures>
 </step_metadata>
 
+<instructions>
+  IF has_git_workflow:
+    USE: @agent:git-workflow
+    REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
+              - Create branch if needed
+              - Switch to correct branch
+              - Handle any uncommitted changes"
+    WAIT: For branch setup completion
+  ELSE:
+    PROCEED: To manual branch management below
+</instructions>
+
+<conditional-block context-check="manual-branch-management">
+IF NOT using git-workflow agent:
+  READ: The following manual branch management
+
 <branch_naming>
   <source>spec folder name</source>
   <format>exclude date prefix</format>
@@ -174,6 +217,7 @@ Initiate execution of one or more tasks for a given spec.
   EXECUTE: Appropriate branch action
   WAIT: Only for case C approval
 </instructions>
+</conditional-block>
 
 </step>
 
@@ -240,25 +284,43 @@ Initiate execution of one or more tasks for a given spec.
   <ensures>no regressions</ensures>
 </step_metadata>
 
-<test_execution>
-  <order>
-    1. Run entire test suite
-    2. Fix any failures
-  </order>
-  <requirement>100% pass rate</requirement>
-</test_execution>
-
-<failure_handling>
-  <action>troubleshoot and fix</action>
-  <priority>before proceeding</priority>
-</failure_handling>
-
 <instructions>
-  ACTION: Run complete test suite
-  VERIFY: All tests pass including new ones
-  FIX: Any test failures before continuing
-  BLOCK: Do not proceed with failing tests
+  IF has_test_runner:
+    USE: @agent:test-runner
+    REQUEST: "Run the full test suite"
+    WAIT: For test-runner analysis
+    PROCESS: Fix any reported failures
+    REPEAT: Until all tests pass
+  ELSE:
+    PROCEED: To fallback test execution below
 </instructions>
+
+<conditional-block context-check="fallback-full-test-execution">
+IF NOT using test-runner agent:
+  READ: The following fallback test execution instructions
+
+<fallback_test_execution>
+  <test_execution>
+    <order>
+      1. Run entire test suite
+      2. Fix any failures
+    </order>
+    <requirement>100% pass rate</requirement>
+  </test_execution>
+
+  <failure_handling>
+    <action>troubleshoot and fix</action>
+    <priority>before proceeding</priority>
+  </failure_handling>
+
+  <instructions>
+    ACTION: Run complete test suite
+    VERIFY: All tests pass including new ones
+    FIX: Any test failures before continuing
+    BLOCK: Do not proceed with failing tests
+  </instructions>
+</fallback_test_execution>
+</conditional-block>
 
 </step>
 
@@ -273,6 +335,24 @@ Initiate execution of one or more tasks for a given spec.
     - pull request
   </creates>
 </step_metadata>
+
+<instructions>
+  IF has_git_workflow:
+    USE: @agent:git-workflow
+    REQUEST: "Complete git workflow for [SPEC_NAME] feature:
+              - Spec: [SPEC_FOLDER_PATH]
+              - Changes: All modified files
+              - Target: main branch
+              - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
+    WAIT: For workflow completion
+    PROCESS: Save PR URL for summary
+  ELSE:
+    PROCEED: To manual git workflow below
+</instructions>
+
+<conditional-block context-check="manual-git-workflow">
+IF NOT using git-workflow agent:
+  READ: The following manual git workflow
 
 <commit_process>
   <commit>
@@ -310,6 +390,7 @@ Initiate execution of one or more tasks for a given spec.
   PUSH: To GitHub on spec branch
   CREATE: Pull request with detailed description
 </instructions>
+</conditional-block>
 
 </step>
 

@@ -17,6 +17,15 @@ encoding: UTF-8
 
 Generate detailed feature specifications aligned with product roadmap and mission.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_file_creator = (Claude Code AND file-creator agent exists)
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="spec_initiation">
@@ -222,7 +231,11 @@ Generate detailed feature specifications aligned with product roadmap and missio
 </example_names>
 
 <instructions>
-  ACTION: Create spec folder using stored date
+  IF has_file_creator:
+    USE: @agent:file-creator
+    REQUEST: "Create directory: .agent-os/specs/[DATE]-[SPEC-NAME]/"
+  ELSE:
+    CREATE: Directory using mkdir -p
   FORMAT: Use kebab-case for spec name
   LIMIT: Maximum 5 words in name
   VERIFY: Folder created successfully
@@ -656,17 +669,29 @@ Generate detailed feature specifications aligned with product roadmap and missio
 </step_metadata>
 
 <conditional_reads>
-  <mission_lite>
-    - IF NOT already in context: READ @.agent-os/product/mission-lite.md
-    - IF already in context: SKIP reading
-  </mission_lite>
-  <roadmap>
-    - IF NOT already in context: READ @.agent-os/product/roadmap.md
-    - IF already in context: SKIP reading
-  </roadmap>
-  <decisions>
-    - NEVER load decisions.md into context
-  </decisions>
+  IF has_context_fetcher:
+    IF mission-lite.md NOT in context:
+      USE: @agent:context-fetcher
+      REQUEST: "Get product pitch from mission-lite.md"
+    IF roadmap.md NOT in context:
+      USE: @agent:context-fetcher
+      REQUEST: "Get current development phase from roadmap.md"
+  ELSE:
+    PROCEED: To manual reading below
+  
+  <manual_reads>
+    <mission_lite>
+      - IF NOT already in context: READ @.agent-os/product/mission-lite.md
+      - IF already in context: SKIP reading
+    </mission_lite>
+    <roadmap>
+      - IF NOT already in context: READ @.agent-os/product/roadmap.md
+      - IF already in context: SKIP reading
+    </roadmap>
+    <decisions>
+      - NEVER load decisions.md into context
+    </decisions>
+  </manual_reads>
 </conditional_reads>
 
 <decision_analysis>
