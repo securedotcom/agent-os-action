@@ -17,6 +17,16 @@ encoding: UTF-8
 
 Initiate execution of one or more tasks for a given spec.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_git_workflow = (Claude Code AND git-workflow agent exists)
+    SET has_test_runner = (Claude Code AND test-runner agent exists)
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="task_assignment">
@@ -60,18 +70,16 @@ Initiate execution of one or more tasks for a given spec.
   <purpose>minimal context for task understanding</purpose>
 </step_metadata>
 
-<context_fetcher_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND context-fetcher agent exists:
-      USE: @agent:context-fetcher for each file not in context:
-      - REQUEST: "Get product pitch from mission-lite.md"
-      - REQUEST: "Get spec summary from spec-lite.md"
-      - REQUEST: "Get technical approach from technical-spec.md"
-      PROCESS: Returned information
-    ELSE:
-      PROCEED: To conditional loading below
-  </claude_code_check>
-</context_fetcher_strategy>
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher for each file not in context:
+    - REQUEST: "Get product pitch from mission-lite.md"
+    - REQUEST: "Get spec summary from spec-lite.md" 
+    - REQUEST: "Get technical approach from technical-spec.md"
+    PROCESS: Returned information
+  ELSE:
+    PROCEED: To conditional loading below
+</instructions>
 
 <conditional-block context-check="fallback-context-loading">
 IF NOT using context-fetcher agent:
@@ -156,19 +164,17 @@ IF NOT using context-fetcher agent:
   <ensures>proper isolation</ensures>
 </step_metadata>
 
-<git_branch_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND git-workflow agent exists:
-      USE: @agent:git-workflow
-      REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
-                - Create branch if needed
-                - Switch to correct branch
-                - Handle any uncommitted changes"
-      WAIT: For branch setup completion
-    ELSE:
-      PROCEED: To manual branch management below
-  </claude_code_check>
-</git_branch_strategy>
+<instructions>
+  IF has_git_workflow:
+    USE: @agent:git-workflow
+    REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
+              - Create branch if needed
+              - Switch to correct branch
+              - Handle any uncommitted changes"
+    WAIT: For branch setup completion
+  ELSE:
+    PROCEED: To manual branch management below
+</instructions>
 
 <conditional-block context-check="manual-branch-management">
 IF NOT using git-workflow agent:
@@ -278,18 +284,16 @@ IF NOT using git-workflow agent:
   <ensures>no regressions</ensures>
 </step_metadata>
 
-<test_execution_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND test-runner agent exists:
-      USE: @agent:test-runner
-      REQUEST: "Run the full test suite"
-      WAIT: For test-runner analysis
-      PROCESS: Fix any reported failures
-      REPEAT: Until all tests pass
-    ELSE:
-      PROCEED: To fallback test execution below
-  </claude_code_check>
-</test_execution_strategy>
+<instructions>
+  IF has_test_runner:
+    USE: @agent:test-runner
+    REQUEST: "Run the full test suite"
+    WAIT: For test-runner analysis
+    PROCESS: Fix any reported failures
+    REPEAT: Until all tests pass
+  ELSE:
+    PROCEED: To fallback test execution below
+</instructions>
 
 <conditional-block context-check="fallback-full-test-execution">
 IF NOT using test-runner agent:
@@ -332,21 +336,19 @@ IF NOT using test-runner agent:
   </creates>
 </step_metadata>
 
-<git_workflow_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND git-workflow agent exists:
-      USE: @agent:git-workflow
-      REQUEST: "Complete git workflow for [SPEC_NAME] feature:
-                - Spec: [SPEC_FOLDER_PATH]
-                - Changes: All modified files
-                - Target: main branch
-                - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
-      WAIT: For workflow completion
-      PROCESS: Save PR URL for summary
-    ELSE:
-      PROCEED: To manual git workflow below
-  </claude_code_check>
-</git_workflow_strategy>
+<instructions>
+  IF has_git_workflow:
+    USE: @agent:git-workflow
+    REQUEST: "Complete git workflow for [SPEC_NAME] feature:
+              - Spec: [SPEC_FOLDER_PATH]
+              - Changes: All modified files
+              - Target: main branch
+              - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
+    WAIT: For workflow completion
+    PROCESS: Save PR URL for summary
+  ELSE:
+    PROCEED: To manual git workflow below
+</instructions>
 
 <conditional-block context-check="manual-git-workflow">
 IF NOT using git-workflow agent:

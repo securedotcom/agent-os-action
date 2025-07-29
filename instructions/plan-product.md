@@ -17,6 +17,15 @@ encoding: UTF-8
 
 Generate product docs for new projects: mission, tech-stack, roadmap, decisions files for AI agent consumption.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_file_creator = (Claude Code AND file-creator agent exists)
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="gather_user_input">
@@ -42,16 +51,14 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   </fallback_sequence>
 </data_sources>
 
-<context_fetcher_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND context-fetcher agent exists:
-      USE: @agent:context-fetcher
-      REQUEST: "Get tech stack defaults from tech-stack.md"
-      PROCESS: Use returned defaults for missing items
-    ELSE:
-      PROCEED: To manual fallback checking
-  </claude_code_check>
-</context_fetcher_strategy>
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher
+    REQUEST: "Get tech stack defaults from tech-stack.md"
+    PROCESS: Use returned defaults for missing items
+  ELSE:
+    PROCEED: To manual fallback checking
+</instructions>
 
 <error_template>
   Please provide the following missing information:
@@ -99,7 +106,11 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
 </git_config>
 
 <instructions>
-  ACTION: Create directory structure as specified
+  IF has_file_creator:
+    USE: @agent:file-creator
+    REQUEST: "Create directory: .agent-os/product/"
+  ELSE:
+    CREATE: Directory using mkdir -p .agent-os/product/
   VALIDATION: Verify write permissions before creating
   PROTECTION: Confirm before overwriting existing files
 </instructions>
@@ -261,15 +272,13 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
 </required_items>
 
 <data_resolution>
-  <context_fetcher_option>
-    IF current agent is Claude Code AND context-fetcher agent exists:
-      FOR missing tech stack items:
-        USE: @agent:context-fetcher
-        REQUEST: "Find [ITEM_NAME] from tech-stack.md"
-        PROCESS: Use found defaults
-    ELSE:
-      PROCEED: To manual resolution below
-  </context_fetcher_option>
+  IF has_context_fetcher:
+    FOR missing tech stack items:
+      USE: @agent:context-fetcher
+      REQUEST: "Find [ITEM_NAME] from tech-stack.md"
+      PROCESS: Use found defaults
+  ELSE:
+    PROCEED: To manual resolution below
   
   <manual_resolution>
     <for_each item="required_items">

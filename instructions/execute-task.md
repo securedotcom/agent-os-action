@@ -17,6 +17,15 @@ encoding: UTF-8
 
 Execute a specific task along with its sub-tasks systematically following a TDD development workflow.
 
+<agent_detection>
+  <check_once>
+    AT START OF PROCESS:
+    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
+    SET has_test_runner = (Claude Code AND test-runner agent exists)
+    USE these flags throughout execution
+  </check_once>
+</agent_detection>
+
 <process_flow>
 
 <step number="1" name="task_understanding">
@@ -83,20 +92,18 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <purpose>apply relevant best practices to this task</purpose>
 </step_metadata>
 
-<context_fetcher_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND context-fetcher agent exists:
-      USE: @agent:context-fetcher
-      REQUEST: "Find best practices sections relevant to:
-                - Task's technology stack: [CURRENT_TECH]
-                - Feature type: [CURRENT_FEATURE_TYPE]
-                - Testing approaches needed
-                - Code organization patterns"
-      PROCESS: Returned best practices
-    ELSE:
-      PROCEED: To conditional reading below
-  </claude_code_check>
-</context_fetcher_strategy>
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher
+    REQUEST: "Find best practices sections relevant to:
+              - Task's technology stack: [CURRENT_TECH]
+              - Feature type: [CURRENT_FEATURE_TYPE]
+              - Testing approaches needed
+              - Code organization patterns"
+    PROCESS: Returned best practices
+  ELSE:
+    PROCEED: To conditional reading below
+</instructions>
 
 <conditional-block context-check="fallback-best-practices">
 IF NOT using context-fetcher agent:
@@ -143,20 +150,18 @@ IF NOT using context-fetcher agent:
   <purpose>apply relevant code style rules to this task</purpose>
 </step_metadata>
 
-<context_fetcher_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND context-fetcher agent exists:
-      USE: @agent:context-fetcher
-      REQUEST: "Find code style rules for:
-                - Languages: [LANGUAGES_IN_TASK]
-                - File types: [FILE_TYPES_BEING_MODIFIED]
-                - Component patterns: [PATTERNS_BEING_IMPLEMENTED]
-                - Testing style guidelines"
-      PROCESS: Returned style rules
-    ELSE:
-      PROCEED: To conditional reading below
-  </claude_code_check>
-</context_fetcher_strategy>
+<instructions>
+  IF has_context_fetcher:
+    USE: @agent:context-fetcher
+    REQUEST: "Find code style rules for:
+              - Languages: [LANGUAGES_IN_TASK]
+              - File types: [FILE_TYPES_BEING_MODIFIED]
+              - Component patterns: [PATTERNS_BEING_IMPLEMENTED]
+              - Testing style guidelines"
+    PROCESS: Returned style rules
+  ELSE:
+    PROCEED: To conditional reading below
+</instructions>
 
 <conditional-block context-check="fallback-code-style">
 IF NOT using context-fetcher agent:
@@ -268,17 +273,15 @@ IF NOT using context-fetcher agent:
   <scope>task-specific tests only</scope>
 </step_metadata>
 
-<test_execution_strategy>
-  <claude_code_check>
-    IF current agent is Claude Code AND test-runner agent exists:
-      USE: @agent:test-runner
-      REQUEST: "Run tests for [this parent task's test files]"
-      WAIT: For test-runner analysis
-      PROCESS: Returned failure information
-    ELSE:
-      PROCEED: To fallback test execution below
-  </claude_code_check>
-</test_execution_strategy>
+<instructions>
+  IF has_test_runner:
+    USE: @agent:test-runner
+    REQUEST: "Run tests for [this parent task's test files]"
+    WAIT: For test-runner analysis
+    PROCESS: Returned failure information
+  ELSE:
+    PROCEED: To fallback test execution below
+</instructions>
 
 <conditional-block context-check="fallback-test-execution">
 IF NOT using test-runner agent:
