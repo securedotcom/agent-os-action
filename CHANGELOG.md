@@ -5,6 +5,41 @@ All notable changes to Agent OS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-29
+
+### Added
+- **Claude Code Specialized Subagents** - New agents to offload specific tasks for improved efficiency:
+  - `test-runner.md` - Handles test execution and failure analysis with minimal toolset
+  - `context-fetcher.md` - Retrieves information from files while checking context to avoid duplication
+  - `git-workflow.md` - Manages git operations, branches, commits, and PR creation
+  - `file-creator.md` - Creates files, directories, and applies consistent templates
+- **Agent Detection Pattern** - Single check at process start with boolean flags for efficiency
+- **Subagent Integration** across all instruction files with automatic fallback for non-Claude Code users
+
+### Changed
+- **Instruction Files** - All updated to support conditional agent usage:
+  - `execute-tasks.md` - Uses git-workflow (branch management, PR creation), test-runner (full suite), and context-fetcher (loading lite files)
+  - `execute-task.md` - Uses context-fetcher (best practices, code style) and test-runner (task-specific tests)
+  - `plan-product.md` - Uses file-creator (directory creation) and context-fetcher (tech stack defaults)
+  - `create-spec.md` - Uses file-creator (spec folder) and context-fetcher (mission/roadmap checks)
+- **Standards Files** - Updated for conditional agent usage:
+  - `code-style.md` - Uses context-fetcher for loading language-specific style guides
+- **Setup Scripts** - Enhanced to install Claude Code agents:
+  - `setup-claude-code.sh` - Downloads all agents to `~/.claude/agents/` directory
+
+### Improved
+- **Context Efficiency** - Specialized agents use minimal context for their specific tasks
+- **Code Organization** - Complex operations delegated to focused agents with clear responsibilities
+- **Error Handling** - Agents provide targeted error analysis and recovery strategies
+- **Maintainability** - Cleaner main agent code with operations abstracted to subagents
+- **Performance** - Reduced context checks through one-time agent detection pattern
+
+### Technical Details
+- Each agent uses only necessary tools (e.g., test-runner uses only Bash, Read, Grep, Glob)
+- Automatic fallback ensures compatibility for users without Claude Code
+- Consistent `IF has_[agent_name]:` pattern reduces code complexity
+- All agents follow Agent OS conventions (branch naming, commit messages, file templates)
+
 ## [1.1.0] - 2025-07-29
 
 ### Added
@@ -65,5 +100,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task management with TDD workflow
 - Spec creation and organization system
 
+[1.2.0]: https://github.com/buildermethods/agent-os/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/buildermethods/agent-os/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/buildermethods/agent-os/releases/tag/v1.0.0
