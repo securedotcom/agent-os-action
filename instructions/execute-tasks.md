@@ -9,40 +9,13 @@ encoding: UTF-8
 # Task Execution Rules
 
 <ai_meta>
-  <parsing_rules>
-    - Process XML blocks first for structured data
-    - Execute instructions in sequential order
-    - Use templates as exact patterns
-    - Request missing data rather than assuming
-  </parsing_rules>
-  <file_conventions>
-    - encoding: UTF-8
-    - line_endings: LF
-    - indent: 2 spaces
-    - markdown_headers: no indentation
-  </file_conventions>
+  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
+  <format>UTF-8, LF, 2-space indent, no header indent</format>
 </ai_meta>
 
 ## Overview
 
-<purpose>
-  - Execute spec tasks systematically
-  - Follow TDD development workflow
-  - Ensure quality through testing and review
-</purpose>
-
-<context>
-  - Part of Agent OS framework
-  - Executed after spec planning is complete
-  - Follows tasks defined in spec tasks.md
-</context>
-
-<prerequisites>
-  - Spec documentation exists in @.agent-os/specs/
-  - Tasks defined in spec's tasks.md
-  - Development environment configured
-  - Git repository initialized
-</prerequisites>
+Execute spec tasks systematically following a TDD development workflow.
 
 <process_flow>
 

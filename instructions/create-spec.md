@@ -334,9 +334,51 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="7" name="create_technical_spec">
+<step number="7" name="create_spec_lite_md">
 
-### Step 7: Create Technical Specification
+### Step 7: Create spec-lite.md
+
+<step_metadata>
+  <creates>
+    - file: .agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md
+  </creates>
+  <purpose>condensed spec for efficient AI context usage</purpose>
+</step_metadata>
+
+<file_template>
+  <header>
+    # Spec Summary (Lite)
+  </header>
+</file_template>
+
+<content_structure>
+  <spec_summary>
+    - source: Step 6 spec.md overview section
+    - length: 1-3 sentences
+    - content: core goal and objective of the feature
+  </spec_summary>
+</content_structure>
+
+<content_template>
+  [1-3_SENTENCES_SUMMARIZING_SPEC_GOAL_AND_OBJECTIVE]
+</content_template>
+
+<example>
+  Implement secure password reset via email verification to reduce support tickets and enable self-service account recovery. Users can request a reset link, receive a time-limited token via email, and set a new password following security best practices.
+</example>
+
+<instructions>
+  ACTION: Create spec-lite.md from spec.md overview
+  EXTRACT: Core goal and objective from spec.md
+  CONDENSE: Into 1-3 sentences maximum
+  FOCUS: Essential feature purpose only
+</instructions>
+
+</step>
+
+<step number="8" name="create_technical_spec">
+
+### Step 8: Create Technical Specification
 
 <step_metadata>
   <creates>
@@ -397,9 +439,9 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="8" name="create_database_schema">
+<step number="9" name="create_database_schema">
 
-### Step 8: Create Database Schema (Conditional)
+### Step 9: Create Database Schema (Conditional)
 
 <step_metadata>
   <creates>
@@ -450,9 +492,9 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="9" name="create_api_spec">
+<step number="10" name="create_api_spec">
 
-### Step 9: Create API Specification (Conditional)
+### Step 10: Create API Specification (Conditional)
 
 <step_metadata>
   <creates>
@@ -513,9 +555,9 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="10" name="user_review">
+<step number="11" name="user_review">
 
-### Step 10: User Review
+### Step 11: User Review
 
 <step_metadata>
   <action>request user review</action>
@@ -529,6 +571,7 @@ Generate detailed feature specifications aligned with product roadmap and missio
   I've created the spec documentation:
 
   - Spec Requirements: @.agent-os/specs/YYYY-MM-DD-spec-name/spec.md
+  - Spec Summary: @.agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md
   - Technical Spec: @.agent-os/specs/YYYY-MM-DD-spec-name/sub-specs/technical-spec.md
   [LIST_OTHER_CREATED_SPECS]
 
@@ -543,15 +586,15 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="11" name="create_tasks">
+<step number="12" name="create_tasks">
 
-### Step 11: Create tasks.md
+### Step 12: Create tasks.md
 
 <step_metadata>
   <creates>
     - file: tasks.md
   </creates>
-  <depends_on>user approval from step 10</depends_on>
+  <depends_on>user approval from step 11</depends_on>
 </step_metadata>
 
 <file_template>
@@ -603,9 +646,9 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="12" name="decision_documentation">
+<step number="13" name="decision_documentation">
 
-### Step 12: Decision Documentation (Conditional)
+### Step 13: Decision Documentation (Conditional)
 
 <step_metadata>
   <evaluates>strategic impact without loading decisions.md</evaluates>
@@ -685,9 +728,9 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 </step>
 
-<step number="13" name="execution_readiness">
+<step number="14" name="execution_readiness">
 
-### Step 13: Execution Readiness Check
+### Step 14: Execution Readiness Check
 
 <step_metadata>
   <evaluates>readiness to begin implementation</evaluates>
