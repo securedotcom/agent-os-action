@@ -156,6 +156,24 @@ IF NOT using context-fetcher agent:
   <ensures>proper isolation</ensures>
 </step_metadata>
 
+<git_branch_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND git-workflow agent exists:
+      USE: @agent:git-workflow
+      REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
+                - Create branch if needed
+                - Switch to correct branch
+                - Handle any uncommitted changes"
+      WAIT: For branch setup completion
+    ELSE:
+      PROCEED: To manual branch management below
+  </claude_code_check>
+</git_branch_strategy>
+
+<conditional-block context-check="manual-branch-management">
+IF NOT using git-workflow agent:
+  READ: The following manual branch management
+
 <branch_naming>
   <source>spec folder name</source>
   <format>exclude date prefix</format>
@@ -193,6 +211,7 @@ IF NOT using context-fetcher agent:
   EXECUTE: Appropriate branch action
   WAIT: Only for case C approval
 </instructions>
+</conditional-block>
 
 </step>
 
@@ -313,6 +332,26 @@ IF NOT using test-runner agent:
   </creates>
 </step_metadata>
 
+<git_workflow_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND git-workflow agent exists:
+      USE: @agent:git-workflow
+      REQUEST: "Complete git workflow for [SPEC_NAME] feature:
+                - Spec: [SPEC_FOLDER_PATH]
+                - Changes: All modified files
+                - Target: main branch
+                - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
+      WAIT: For workflow completion
+      PROCESS: Save PR URL for summary
+    ELSE:
+      PROCEED: To manual git workflow below
+  </claude_code_check>
+</git_workflow_strategy>
+
+<conditional-block context-check="manual-git-workflow">
+IF NOT using git-workflow agent:
+  READ: The following manual git workflow
+
 <commit_process>
   <commit>
     <message>descriptive summary of changes</message>
@@ -349,6 +388,7 @@ IF NOT using test-runner agent:
   PUSH: To GitHub on spec branch
   CREATE: Pull request with detailed description
 </instructions>
+</conditional-block>
 
 </step>
 
