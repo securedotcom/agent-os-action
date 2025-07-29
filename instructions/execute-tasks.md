@@ -240,25 +240,45 @@ Initiate execution of one or more tasks for a given spec.
   <ensures>no regressions</ensures>
 </step_metadata>
 
-<test_execution>
-  <order>
-    1. Run entire test suite
-    2. Fix any failures
-  </order>
-  <requirement>100% pass rate</requirement>
-</test_execution>
+<test_execution_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND test-runner agent exists:
+      USE: @agent:test-runner
+      REQUEST: "Run the full test suite"
+      WAIT: For test-runner analysis
+      PROCESS: Fix any reported failures
+      REPEAT: Until all tests pass
+    ELSE:
+      PROCEED: To fallback test execution below
+  </claude_code_check>
+</test_execution_strategy>
 
-<failure_handling>
-  <action>troubleshoot and fix</action>
-  <priority>before proceeding</priority>
-</failure_handling>
+<conditional-block context-check="fallback-full-test-execution">
+IF NOT using test-runner agent:
+  READ: The following fallback test execution instructions
 
-<instructions>
-  ACTION: Run complete test suite
-  VERIFY: All tests pass including new ones
-  FIX: Any test failures before continuing
-  BLOCK: Do not proceed with failing tests
-</instructions>
+<fallback_test_execution>
+  <test_execution>
+    <order>
+      1. Run entire test suite
+      2. Fix any failures
+    </order>
+    <requirement>100% pass rate</requirement>
+  </test_execution>
+
+  <failure_handling>
+    <action>troubleshoot and fix</action>
+    <priority>before proceeding</priority>
+  </failure_handling>
+
+  <instructions>
+    ACTION: Run complete test suite
+    VERIFY: All tests pass including new ones
+    FIX: Any test failures before continuing
+    BLOCK: Do not proceed with failing tests
+  </instructions>
+</fallback_test_execution>
+</conditional-block>
 
 </step>
 

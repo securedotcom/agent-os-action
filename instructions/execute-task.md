@@ -228,34 +228,53 @@ Execute a specific task along with its sub-tasks systematically following a TDD 
   <scope>task-specific tests only</scope>
 </step_metadata>
 
-<focused_test_execution>
-  <run_only>
-    - All new tests written for this parent task
-    - All tests updated during this task
-    - Tests directly related to this feature
-  </run_only>
-  <skip>
-    - Full test suite (done later in execute-tasks.md)
-    - Unrelated test files
-  </skip>
-</focused_test_execution>
+<test_execution_strategy>
+  <claude_code_check>
+    IF current agent is Claude Code AND test-runner agent exists:
+      USE: @agent:test-runner
+      REQUEST: "Run tests for [this parent task's test files]"
+      WAIT: For test-runner analysis
+      PROCESS: Returned failure information
+    ELSE:
+      PROCEED: To fallback test execution below
+  </claude_code_check>
+</test_execution_strategy>
 
-<final_verification>
-  IF any test failures:
-    - Debug and fix the specific issue
-    - Re-run only the failed tests
-  ELSE:
-    - Confirm all task tests passing
-    - Ready to proceed
-</final_verification>
+<conditional-block context-check="fallback-test-execution">
+IF NOT using test-runner agent:
+  READ: The following fallback test execution instructions
 
-<instructions>
-  ACTION: Run ONLY tests created/updated in this task
-  SCOPE: Focus on this parent task's tests
-  VERIFY: 100% pass rate for task-specific tests
-  SKIP: Full test suite (that's for execute-tasks.md)
-  CONFIRM: This feature's tests are complete
-</instructions>
+<fallback_test_execution>
+  <focused_test_execution>
+    <run_only>
+      - All new tests written for this parent task
+      - All tests updated during this task
+      - Tests directly related to this feature
+    </run_only>
+    <skip>
+      - Full test suite (done later in execute-tasks.md)
+      - Unrelated test files
+    </skip>
+  </focused_test_execution>
+
+  <final_verification>
+    IF any test failures:
+      - Debug and fix the specific issue
+      - Re-run only the failed tests
+    ELSE:
+      - Confirm all task tests passing
+      - Ready to proceed
+  </final_verification>
+
+  <instructions>
+    ACTION: Run ONLY tests created/updated in this task
+    SCOPE: Focus on this parent task's tests
+    VERIFY: 100% pass rate for task-specific tests
+    SKIP: Full test suite (that's for execute-tasks.md)
+    CONFIRM: This feature's tests are complete
+  </instructions>
+</fallback_test_execution>
+</conditional-block>
 
 </step>
 

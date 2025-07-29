@@ -30,6 +30,7 @@ BASE_URL="https://raw.githubusercontent.com/buildermethods/agent-os/main"
 # Create directories
 echo "📁 Creating directories..."
 mkdir -p "$HOME/.claude/commands"
+mkdir -p "$HOME/.claude/agents"
 
 # Download command files for Claude Code
 echo ""
@@ -56,11 +57,28 @@ else
     echo "  ✓ ~/.claude/CLAUDE.md"
 fi
 
+# Download Claude Code agents
+echo ""
+echo "📥 Downloading Claude Code subagents to ~/.claude/agents/"
+
+# List of agent files to download
+agents=("test-runner")
+
+for agent in "${agents[@]}"; do
+    if [ -f "$HOME/.claude/agents/${agent}.md" ]; then
+        echo "  ⚠️  ~/.claude/agents/${agent}.md already exists - skipping"
+    else
+        curl -s -o "$HOME/.claude/agents/${agent}.md" "${BASE_URL}/claude-code/agents/${agent}.md"
+        echo "  ✓ ~/.claude/agents/${agent}.md"
+    fi
+done
+
 echo ""
 echo "✅ Agent OS Claude Code installation complete!"
 echo ""
 echo "📍 Files installed to:"
 echo "   ~/.claude/commands/        - Claude Code commands"
+echo "   ~/.claude/agents/          - Claude Code specialized subagents"
 echo "   ~/.claude/CLAUDE.md        - Claude Code configuration"
 echo ""
 echo "Next steps:"
