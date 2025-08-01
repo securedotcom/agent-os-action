@@ -8,36 +8,21 @@ encoding: UTF-8
 
 # Spec Creation Rules
 
-<ai_meta>
-  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
-  <format>UTF-8, LF, 2-space indent, no header indent</format>
-</ai_meta>
-
 ## Overview
 
 Generate detailed feature specifications aligned with product roadmap and mission.
 
-<agent_detection>
-  <check_once>
-    AT START OF PROCESS:
-    SET has_file_creator = (Claude Code AND file-creator agent exists)
-    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
-    USE these flags throughout execution
-  </check_once>
-</agent_detection>
+<pre_flight_check>
+  EXECUTE: @~/.agent-os/instructions/meta/pre-flight.md
+</pre_flight_check>
 
 <process_flow>
 
-<step number="1" name="spec_initiation">
+<step number="1" subagent="context-fetcher" name="spec_initiation">
 
 ### Step 1: Spec Initiation
 
-<step_metadata>
-  <trigger_options>
-    - option_a: user_asks_whats_next
-    - option_b: user_provides_specific_spec
-  </trigger_options>
-</step_metadata>
+Use the context-fetcher subagent to identify spec initiation method by either finding the next uncompleted roadmap item when user asks "what's next?" or accepting a specific spec idea from the user.
 
 <option_a_flow>
   <trigger_phrases>
@@ -57,26 +42,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   <proceed>to context gathering</proceed>
 </option_b_flow>
 
-<instructions>
-  ACTION: Identify spec initiation method
-  ROUTE: Follow appropriate flow based on trigger
-  WAIT: Ensure user agreement before proceeding
-</instructions>
-
 </step>
 
-<step number="2" name="context_gathering">
+<step number="2" subagent="context-fetcher" name="context_gathering">
 
 ### Step 2: Context Gathering (Conditional)
 
-<step_metadata>
-  <condition>only if mission-lite.md AND tech-stack.md not already in context</condition>
-  <reads>
-    - @.agent-os/product/mission-lite.md (conditional)
-    - @.agent-os/product/tech-stack.md (conditional)
-  </reads>
-  <purpose>minimal context for spec alignment</purpose>
-</step_metadata>
+Use the context-fetcher subagent to read @.agent-os/product/mission-lite.md and @.agent-os/product/tech-stack.md only if not already in context to ensure minimal context for spec alignment.
 
 <conditional_logic>
   IF both mission-lite.md AND tech-stack.md already read in current context:
@@ -94,25 +66,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   <tech_stack>technical requirements</tech_stack>
 </context_analysis>
 
-<instructions>
-  ACTION: Check if both files already in context
-  SKIP: Entire step if both already read
-  READ: Only files not already in context
-  ANALYZE: Minimal alignment requirements
-</instructions>
-
 </step>
 
-<step number="3" name="requirements_clarification">
+<step number="3" subagent="context-fetcher" name="requirements_clarification">
 
 ### Step 3: Requirements Clarification
 
-<step_metadata>
-  <required_clarifications>
-    - scope_boundaries: string
-    - technical_considerations: array[string]
-  </required_clarifications>
-</step_metadata>
+Use the context-fetcher subagent to clarify scope boundaries and technical considerations by asking numbered questions as needed to ensure clear requirements before proceeding.
 
 <clarification_areas>
   <scope>
@@ -134,23 +94,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
     PROCEED to_date_determination
 </decision_tree>
 
-<instructions>
-  ACTION: Evaluate need for clarification
-  ASK: Numbered questions if needed
-  PROCEED: Only with clear requirements
-</instructions>
-
 </step>
 
 <step number="4" name="date_determination">
 
 ### Step 4: Date Determination
 
-<step_metadata>
-  <purpose>Ensure accurate date for folder naming</purpose>
-  <priority>high</priority>
-  <creates>temporary file for timestamp</creates>
-</step_metadata>
+Determine accurate date for folder naming by creating a temporary file to extract timestamp in YYYY-MM-DD format, falling back to asking user if needed.
 
 <date_determination_process>
   <primary_method>
@@ -194,25 +144,15 @@ Generate detailed feature specifications aligned with product roadmap and missio
     ERROR "Unable to determine current date"
 </error_handling>
 
-<instructions>
-  ACTION: Determine accurate date using file system
-  FALLBACK: Ask user if file system method fails
-  VALIDATE: Ensure YYYY-MM-DD format
-  STORE: Date for immediate use in next step
-</instructions>
-
 </step>
 
-<step number="5" name="spec_folder_creation">
+<step number="5" subagent="file-creator" name="spec_folder_creation">
 
 ### Step 5: Spec Folder Creation
 
-<step_metadata>
-  <creates>
-    - directory: .agent-os/specs/YYYY-MM-DD-spec-name/
-  </creates>
-  <uses>date from step 4</uses>
-</step_metadata>
+Use the file-creator subagent to create directory: .agent-os/specs/YYYY-MM-DD-spec-name/ using the date from step 4.
+
+Use kebab-case for spec name. Maximum 5 words in name.
 
 <folder_naming>
   <format>YYYY-MM-DD-spec-name</format>
@@ -230,28 +170,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   - 2025-03-17-api-rate-limiting
 </example_names>
 
-<instructions>
-  IF has_file_creator:
-    USE: @agent:file-creator
-    REQUEST: "Create directory: .agent-os/specs/[DATE]-[SPEC-NAME]/"
-  ELSE:
-    CREATE: Directory using mkdir -p
-  FORMAT: Use kebab-case for spec name
-  LIMIT: Maximum 5 words in name
-  VERIFY: Folder created successfully
-</instructions>
-
 </step>
 
-<step number="6" name="create_spec_md">
+<step number="6" subagent="file-creator" name="create_spec_md">
 
 ### Step 6: Create spec.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/specs/YYYY-MM-DD-spec-name/spec.md
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/specs/YYYY-MM-DD-spec-name/spec.md using this template:
 
 <file_template>
   <header>
@@ -339,24 +264,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   </constraints>
 </section>
 
-<instructions>
-  ACTION: Create spec.md with all sections
-  FILL: Use spec details from steps 1-3
-  MAINTAIN: Clear, concise descriptions
-</instructions>
-
 </step>
 
-<step number="7" name="create_spec_lite_md">
+<step number="7" subagent="file-creator" name="create_spec_lite_md">
 
 ### Step 7: Create spec-lite.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md
-  </creates>
-  <purpose>condensed spec for efficient AI context usage</purpose>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/specs/YYYY-MM-DD-spec-name/spec-lite.md for the purpose of establishing a condensed spec for efficient AI context usage.
 
 <file_template>
   <header>
@@ -380,25 +294,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   Implement secure password reset via email verification to reduce support tickets and enable self-service account recovery. Users can request a reset link, receive a time-limited token via email, and set a new password following security best practices.
 </example>
 
-<instructions>
-  ACTION: Create spec-lite.md from spec.md overview
-  EXTRACT: Core goal and objective from spec.md
-  CONDENSE: Into 1-3 sentences maximum
-  FOCUS: Essential feature purpose only
-</instructions>
-
 </step>
 
-<step number="8" name="create_technical_spec">
+<step number="8" subagent="file-creator" name="create_technical_spec">
 
 ### Step 8: Create Technical Specification
 
-<step_metadata>
-  <creates>
-    - directory: sub-specs/
-    - file: sub-specs/technical-spec.md
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the file: sub-specs/technical-spec.md using this template:
 
 <file_template>
   <header>
@@ -443,25 +345,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
     OMIT section entirely
 </conditional_logic>
 
-<instructions>
-  ACTION: Create sub-specs folder and technical-spec.md
-  DOCUMENT: Technical requirements only
-  INCLUDE: External dependencies section ONLY if new libraries needed
-  OMIT: Multiple approach options and rationale
-</instructions>
-
 </step>
 
-<step number="9" name="create_database_schema">
+<step number="9" subagent="file-creator" name="create_database_schema">
 
 ### Step 9: Create Database Schema (Conditional)
 
-<step_metadata>
-  <creates>
-    - file: sub-specs/database-schema.md
-  </creates>
-  <condition>only if database changes needed</condition>
-</step_metadata>
+Use the file-creator subagent to create the file: sub-specs/database-schema.md ONLY IF database changes needed for this task.
 
 <decision_tree>
   IF spec_requires_database_changes:
@@ -497,24 +387,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   </rationale>
 </schema_sections>
 
-<instructions>
-  ACTION: Check if database changes needed
-  CREATE: database-schema.md only if required
-  INCLUDE: Complete SQL/migration specifications
-</instructions>
-
 </step>
 
-<step number="10" name="create_api_spec">
+<step number="10" subagent="file-creator" name="create_api_spec">
 
 ### Step 10: Create API Specification (Conditional)
 
-<step_metadata>
-  <creates>
-    - file: sub-specs/api-spec.md
-  </creates>
-  <condition>only if API changes needed</condition>
-</step_metadata>
+Use the file-creator subagent to create file: sub-specs/api-spec.md ONLY IF API changes needed.
 
 <decision_tree>
   IF spec_requires_api_changes:
@@ -560,25 +439,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   **Errors:** [POSSIBLE_ERRORS]
 </endpoint_template>
 
-<instructions>
-  ACTION: Check if API changes needed
-  CREATE: api-spec.md only if required
-  DOCUMENT: All endpoints and controllers
-</instructions>
-
 </step>
 
 <step number="11" name="user_review">
 
 ### Step 11: User Review
 
-<step_metadata>
-  <action>request user review</action>
-  <reviews>
-    - spec.md
-    - all sub-specs files
-  </reviews>
-</step_metadata>
+Request user review of spec.md and all sub-specs files, waiting for approval or revision requests before proceeding to task creation.
 
 <review_request>
   I've created the spec documentation:
@@ -591,24 +458,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   Please review and let me know if any changes are needed before I create the task breakdown.
 </review_request>
 
-<instructions>
-  ACTION: Request user review of all documents
-  WAIT: For approval or revision requests
-  REVISE: Make requested changes if any
-</instructions>
-
 </step>
 
-<step number="12" name="create_tasks">
+<step number="12" subagent="file-creator" name="create_tasks">
 
 ### Step 12: Create tasks.md
 
-<step_metadata>
-  <creates>
-    - file: tasks.md
-  </creates>
-  <depends_on>user approval from step 11</depends_on>
-</step_metadata>
+Use the file-creator subagent to await user approval from step 11 and then create file: tasks.md
 
 <file_template>
   <header>
@@ -651,34 +507,22 @@ Generate detailed feature specifications aligned with product roadmap and missio
   - Build incrementally
 </ordering_principles>
 
-<instructions>
-  ACTION: Create task breakdown following TDD
-  STRUCTURE: Major tasks with subtasks
-  ORDER: Consider dependencies
-</instructions>
-
 </step>
 
 <step number="13" name="decision_documentation">
 
 ### Step 13: Decision Documentation (Conditional)
 
-<step_metadata>
-  <evaluates>strategic impact without loading decisions.md</evaluates>
-  <updates>decisions.md only if significant deviation and user approves</updates>
-</step_metadata>
+Evaluate strategic impact without loading decisions.md and update it only if there's significant deviation from mission/roadmap and user approves.
 
 <conditional_reads>
-  IF has_context_fetcher:
-    IF mission-lite.md NOT in context:
-      USE: @agent:context-fetcher
-      REQUEST: "Get product pitch from mission-lite.md"
-    IF roadmap.md NOT in context:
-      USE: @agent:context-fetcher
-      REQUEST: "Get current development phase from roadmap.md"
-  ELSE:
-    PROCEED: To manual reading below
-  
+  IF mission-lite.md NOT in context:
+    USE: context-fetcher subagent
+    REQUEST: "Get product pitch from mission-lite.md"
+  IF roadmap.md NOT in context:
+    USE: context-fetcher subagent
+    REQUEST: "Get current development phase from roadmap.md"
+
   <manual_reads>
     <mission_lite>
       - IF NOT already in context: READ @.agent-os/product/mission-lite.md
@@ -742,25 +586,13 @@ Generate detailed feature specifications aligned with product roadmap and missio
   [SPECIFIC_DEVIATION_FROM_MISSION_OR_ROADMAP]
 </decision_template>
 
-<instructions>
-  ACTION: Check if mission-lite.md and roadmap.md already in context
-  READ: Only files not already in context
-  NEVER: Load decisions.md
-  EVALUATE: Only significant deviations warrant decision entry
-  ASK: User permission before drafting any decision
-  UPDATE: decisions.md only with explicit user approval
-</instructions>
-
 </step>
 
 <step number="14" name="execution_readiness">
 
 ### Step 14: Execution Readiness Check
 
-<step_metadata>
-  <evaluates>readiness to begin implementation</evaluates>
-  <depends_on>completion of all previous steps</depends_on>
-</step_metadata>
+Evaluate readiness to begin implementation after completing all previous steps, presenting the first task summary and requesting user confirmation to proceed.
 
 <readiness_summary>
   <present_to_user>
@@ -784,18 +616,12 @@ Generate detailed feature specifications aligned with product roadmap and missio
 
 <execution_flow>
   IF user_confirms_yes:
-    REFERENCE: @~/.agent-os/instructions/execute-tasks.md
+    REFERENCE: @~/.agent-os/instructions/core/execute-tasks.md
     FOCUS: Only Task 1 and its subtasks
     CONSTRAINT: Do not proceed to additional tasks without explicit user request
   ELSE:
     WAIT: For user clarification or modifications
 </execution_flow>
-
-<instructions>
-  ACTION: Summarize first task and request user confirmation
-  REFERENCE: Use execute-tasks.md for implementation
-  SCOPE: Limit to Task 1 only unless user specifies otherwise
-</instructions>
 
 </step>
 

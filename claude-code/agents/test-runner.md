@@ -1,6 +1,6 @@
 ---
 name: test-runner
-description: Runs tests and analyzes failures for the current task. Returns detailed failure analysis without making fixes.
+description: Use proactively to run tests and analyze failures for the current task. Returns detailed failure analysis without making fixes.
 tools: Bash, Read, Grep, Glob
 color: yellow
 ---

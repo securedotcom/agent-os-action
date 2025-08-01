@@ -8,14 +8,13 @@ encoding: UTF-8
 
 # Analyze Current Product & Install Agent OS
 
-<ai_meta>
-  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
-  <format>UTF-8, LF, 2-space indent, no header indent</format>
-</ai_meta>
-
 ## Overview
 
 Install Agent OS into an existing codebase, analyze current product state and progress.  Builds on plan-product.md
+
+<pre_flight_check>
+  EXECUTE: @~/.agent-os/instructions/meta/pre-flight.md
+</pre_flight_check>
 
 <process_flow>
 
@@ -23,10 +22,7 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 
 ### Step 1: Analyze Existing Codebase
 
-<step_metadata>
-  <action>deep codebase analysis</action>
-  <purpose>understand current state before documentation</purpose>
-</step_metadata>
+Perform a deep codebase analysis of the current codebase to understand current state before documentation purposes.
 
 <analysis_areas>
   <project_structure>
@@ -65,14 +61,11 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 
 </step>
 
-<step number="2" name="gather_product_context">
+<step number="2" subagent="context-fetcher" name="gather_product_context">
 
 ### Step 2: Gather Product Context
 
-<step_metadata>
-  <supplements>codebase analysis</supplements>
-  <gathers>business context and future plans</gathers>
-</step_metadata>
+Use the context-fetcher subagent to supplement codebase analysis with business context and future plans.
 
 <context_questions>
   Based on my analysis of your codebase, I can see you're building [OBSERVED_PRODUCT_TYPE].
@@ -102,10 +95,7 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 
 ### Step 3: Execute Plan-Product with Context
 
-<step_metadata>
-  <uses>@~/.agent-os/instructions/plan-product.md</uses>
-  <modifies>standard flow for existing products</modifies>
-</step_metadata>
+Execute our standard flow for installing Agent OS in existing products
 
 <execution_parameters>
   <main_idea>[DERIVED_FROM_ANALYSIS_AND_USER_INPUT]</main_idea>
@@ -115,7 +105,7 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 </execution_parameters>
 
 <execution_prompt>
-  @~/.agent-os/instructions/plan-product.md
+  @~/.agent-os/instructions/core/plan-product.md
 
   I'm installing Agent OS into an existing product. Here's what I've gathered:
 
@@ -142,10 +132,7 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 
 ### Step 4: Customize Generated Documentation
 
-<step_metadata>
-  <refines>generated documentation</refines>
-  <ensures>accuracy for existing product</ensures>
-</step_metadata>
+Refine the generated documentation to ensure accuracy for the existing product by updating roadmap, tech stack, and decisions based on actual implementation.
 
 <customization_tasks>
   <roadmap_adjustment>
@@ -181,12 +168,6 @@ Install Agent OS into an existing codebase, analyze current product state and pr
   [CONTINUE_WITH_STANDARD_PHASES]
 </roadmap_template>
 
-<instructions>
-  ACTION: Update generated files to reflect reality
-  MODIFY: Roadmap to show completed work
-  VERIFY: Tech stack matches actual implementation
-  ADD: Historical context to decisions.md
-</instructions>
 
 </step>
 
@@ -194,10 +175,7 @@ Install Agent OS into an existing codebase, analyze current product state and pr
 
 ### Step 5: Final Verification and Summary
 
-<step_metadata>
-  <verifies>installation completeness</verifies>
-  <provides>next steps for user</provides>
-</step_metadata>
+Verify installation completeness and provide clear next steps for the user to start using Agent OS with their existing codebase.
 
 <verification_checklist>
   - [ ] .agent-os/product/ directory created
@@ -231,17 +209,12 @@ Install Agent OS into an existing codebase, analyze current product state and pr
   3. See the Agent OS README for usage instructions: https://github.com/buildermethods/agent-os
   4. Start using Agent OS for your next feature:
      ```
-     @~/.agent-os/instructions/create-spec.md
+     @~/.agent-os/instructions/core/create-spec.md
      ```
 
   Your codebase is now Agent OS-enabled! 🚀
 </summary_template>
 
-<instructions>
-  ACTION: Verify all files created correctly
-  SUMMARIZE: What was found and created
-  PROVIDE: Clear next steps for user
-</instructions>
 
 </step>
 

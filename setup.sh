@@ -50,6 +50,8 @@ echo "📁 Creating directories..."
 mkdir -p "$HOME/.agent-os/standards"
 mkdir -p "$HOME/.agent-os/standards/code-style"
 mkdir -p "$HOME/.agent-os/instructions"
+mkdir -p "$HOME/.agent-os/instructions/core"
+mkdir -p "$HOME/.agent-os/instructions/meta"
 
 # Download standards files
 echo ""
@@ -135,63 +137,82 @@ fi
 echo ""
 echo "📥 Downloading instruction files to ~/.agent-os/instructions/"
 
+# Core instruction files
+echo "  📂 Core instructions:"
+
 # plan-product.md
-if [ -f "$HOME/.agent-os/instructions/plan-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
-    echo "  ⚠️  ~/.agent-os/instructions/plan-product.md already exists - skipping"
+if [ -f "$HOME/.agent-os/instructions/core/plan-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "    ⚠️  ~/.agent-os/instructions/core/plan-product.md already exists - skipping"
 else
-    curl -s -o "$HOME/.agent-os/instructions/plan-product.md" "${BASE_URL}/instructions/plan-product.md"
-    if [ -f "$HOME/.agent-os/instructions/plan-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
-        echo "  ✓ ~/.agent-os/instructions/plan-product.md (overwritten)"
+    curl -s -o "$HOME/.agent-os/instructions/core/plan-product.md" "${BASE_URL}/instructions/core/plan-product.md"
+    if [ -f "$HOME/.agent-os/instructions/core/plan-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "    ✓ ~/.agent-os/instructions/core/plan-product.md (overwritten)"
     else
-        echo "  ✓ ~/.agent-os/instructions/plan-product.md"
+        echo "    ✓ ~/.agent-os/instructions/core/plan-product.md"
     fi
 fi
 
 # create-spec.md
-if [ -f "$HOME/.agent-os/instructions/create-spec.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
-  echo "  ⚠️  ~/.agent-os/instructions/create-spec.md already exists - skipping"
+if [ -f "$HOME/.agent-os/instructions/core/create-spec.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+  echo "    ⚠️  ~/.agent-os/instructions/core/create-spec.md already exists - skipping"
 else
-  curl -s -o "$HOME/.agent-os/instructions/create-spec.md" "${BASE_URL}/instructions/create-spec.md"
-  if [ -f "$HOME/.agent-os/instructions/create-spec.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
-    echo "  ✓ ~/.agent-os/instructions/create-spec.md (overwritten)"
+  curl -s -o "$HOME/.agent-os/instructions/core/create-spec.md" "${BASE_URL}/instructions/core/create-spec.md"
+  if [ -f "$HOME/.agent-os/instructions/core/create-spec.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+    echo "    ✓ ~/.agent-os/instructions/core/create-spec.md (overwritten)"
   else
-    echo "  ✓ ~/.agent-os/instructions/create-spec.md"
+    echo "    ✓ ~/.agent-os/instructions/core/create-spec.md"
   fi
 fi
 
 # execute-tasks.md
-if [ -f "$HOME/.agent-os/instructions/execute-tasks.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
-    echo "  ⚠️  ~/.agent-os/instructions/execute-tasks.md already exists - skipping"
+if [ -f "$HOME/.agent-os/instructions/core/execute-tasks.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "    ⚠️  ~/.agent-os/instructions/core/execute-tasks.md already exists - skipping"
 else
-    curl -s -o "$HOME/.agent-os/instructions/execute-tasks.md" "${BASE_URL}/instructions/execute-tasks.md"
-    if [ -f "$HOME/.agent-os/instructions/execute-tasks.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
-        echo "  ✓ ~/.agent-os/instructions/execute-tasks.md (overwritten)"
+    curl -s -o "$HOME/.agent-os/instructions/core/execute-tasks.md" "${BASE_URL}/instructions/core/execute-tasks.md"
+    if [ -f "$HOME/.agent-os/instructions/core/execute-tasks.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "    ✓ ~/.agent-os/instructions/core/execute-tasks.md (overwritten)"
     else
-        echo "  ✓ ~/.agent-os/instructions/execute-tasks.md"
+        echo "    ✓ ~/.agent-os/instructions/core/execute-tasks.md"
     fi
 fi
 
 # execute-task.md
-if [ -f "$HOME/.agent-os/instructions/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
-    echo "  ⚠️  ~/.agent-os/instructions/execute-task.md already exists - skipping"
+if [ -f "$HOME/.agent-os/instructions/core/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "    ⚠️  ~/.agent-os/instructions/core/execute-task.md already exists - skipping"
 else
-    curl -s -o "$HOME/.agent-os/instructions/execute-task.md" "${BASE_URL}/instructions/execute-task.md"
-    if [ -f "$HOME/.agent-os/instructions/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
-        echo "  ✓ ~/.agent-os/instructions/execute-task.md (overwritten)"
+    curl -s -o "$HOME/.agent-os/instructions/core/execute-task.md" "${BASE_URL}/instructions/core/execute-task.md"
+    if [ -f "$HOME/.agent-os/instructions/core/execute-task.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "    ✓ ~/.agent-os/instructions/core/execute-task.md (overwritten)"
     else
-        echo "  ✓ ~/.agent-os/instructions/execute-task.md"
+        echo "    ✓ ~/.agent-os/instructions/core/execute-task.md"
     fi
 fi
 
 # analyze-product.md
-if [ -f "$HOME/.agent-os/instructions/analyze-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
-    echo "  ⚠️  ~/.agent-os/instructions/analyze-product.md already exists - skipping"
+if [ -f "$HOME/.agent-os/instructions/core/analyze-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "    ⚠️  ~/.agent-os/instructions/core/analyze-product.md already exists - skipping"
 else
-    curl -s -o "$HOME/.agent-os/instructions/analyze-product.md" "${BASE_URL}/instructions/analyze-product.md"
-    if [ -f "$HOME/.agent-os/instructions/analyze-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
-        echo "  ✓ ~/.agent-os/instructions/analyze-product.md (overwritten)"
+    curl -s -o "$HOME/.agent-os/instructions/core/analyze-product.md" "${BASE_URL}/instructions/core/analyze-product.md"
+    if [ -f "$HOME/.agent-os/instructions/core/analyze-product.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "    ✓ ~/.agent-os/instructions/core/analyze-product.md (overwritten)"
     else
-        echo "  ✓ ~/.agent-os/instructions/analyze-product.md"
+        echo "    ✓ ~/.agent-os/instructions/core/analyze-product.md"
+    fi
+fi
+
+# Meta instruction files
+echo ""
+echo "  📂 Meta instructions:"
+
+# pre-flight.md
+if [ -f "$HOME/.agent-os/instructions/meta/pre-flight.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = false ]; then
+    echo "    ⚠️  ~/.agent-os/instructions/meta/pre-flight.md already exists - skipping"
+else
+    curl -s -o "$HOME/.agent-os/instructions/meta/pre-flight.md" "${BASE_URL}/instructions/meta/pre-flight.md"
+    if [ -f "$HOME/.agent-os/instructions/meta/pre-flight.md" ] && [ "$OVERWRITE_INSTRUCTIONS" = true ]; then
+        echo "    ✓ ~/.agent-os/instructions/meta/pre-flight.md (overwritten)"
+    else
+        echo "    ✓ ~/.agent-os/instructions/meta/pre-flight.md"
     fi
 fi
 
