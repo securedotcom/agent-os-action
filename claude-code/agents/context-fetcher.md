@@ -1,6 +1,6 @@
 ---
 name: context-fetcher
-description: Retrieves and extracts relevant information from Agent OS documentation files. Checks if content is already in context before returning.
+description: Use proactively to retrieve and extract relevant information from Agent OS documentation files. Checks if content is already in context before returning.
 tools: Read, Grep, Glob
 color: blue
 ---
@@ -61,7 +61,7 @@ Request: "Get Task 2.1 details from tasks.md"
 - Never modify any files
 - Keep responses concise
 
-Example usage: 
+Example usage:
 - "Get the product pitch from mission-lite.md"
 - "Find Ruby style rules from code-style.md"
 - "Extract Task 3 requirements from the password-reset spec"

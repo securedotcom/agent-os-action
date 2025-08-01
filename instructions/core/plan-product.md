@@ -8,39 +8,21 @@ encoding: UTF-8
 
 # Product Planning Rules
 
-<ai_meta>
-  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
-  <format>UTF-8, LF, 2-space indent, no header indent</format>
-</ai_meta>
-
 ## Overview
 
 Generate product docs for new projects: mission, tech-stack, roadmap, decisions files for AI agent consumption.
 
-<agent_detection>
-  <check_once>
-    AT START OF PROCESS:
-    SET has_file_creator = (Claude Code AND file-creator agent exists)
-    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
-    USE these flags throughout execution
-  </check_once>
-</agent_detection>
+<pre_flight_check>
+  EXECUTE: @~/.agent-os/instructions/meta/pre-flight.md
+</pre_flight_check>
 
 <process_flow>
 
-<step number="1" name="gather_user_input">
+<step number="1" subagent="context-fetcher" name="gather_user_input">
 
 ### Step 1: Gather User Input
 
-<step_metadata>
-  <required_inputs>
-    - main_idea: string
-    - key_features: array[string] (minimum: 3)
-    - target_users: array[string] (minimum: 1)
-    - tech_stack: object
-  </required_inputs>
-  <validation>blocking</validation>
-</step_metadata>
+Use the context-fetcher subagent to collect all required inp duts from the user including main idea, key features (minimum 3), target users (minimum 1), and tech stack preferences with blocking validation before proceeding.
 
 <data_sources>
   <primary>user_direct_input</primary>
@@ -51,15 +33,6 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   </fallback_sequence>
 </data_sources>
 
-<instructions>
-  IF has_context_fetcher:
-    USE: @agent:context-fetcher
-    REQUEST: "Get tech stack defaults from tech-stack.md"
-    PROCESS: Use returned defaults for missing items
-  ELSE:
-    PROCEED: To manual fallback checking
-</instructions>
-
 <error_template>
   Please provide the following missing information:
   1. Main idea for the product
@@ -69,25 +42,13 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   5. Has the new application been initialized yet and we're inside the project folder? (yes/no)
 </error_template>
 
-<instructions>
-  ACTION: Collect all required inputs from user
-  VALIDATION: Ensure all 4 inputs provided before proceeding
-  FALLBACK: Check configuration files for tech stack defaults
-  ERROR: Use error_template if inputs missing
-</instructions>
-
 </step>
 
-<step number="2" name="create_documentation_structure">
+<step number="2" subagent="file-creator" name="create_documentation_structure">
 
 ### Step 2: Create Documentation Structure
 
-<step_metadata>
-  <creates>
-    - directory: .agent-os/product/
-    - files: 5
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the following file_structure with validation for write permissions and protection against overwriting existing files:
 
 <file_structure>
   .agent-os/
@@ -99,33 +60,13 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
       └── decisions.md        # Decision log
 </file_structure>
 
-<git_config>
-  <commit_message>Initialize Agent OS product documentation</commit_message>
-  <tag>v0.1.0-planning</tag>
-  <gitignore_consideration>true</gitignore_consideration>
-</git_config>
-
-<instructions>
-  IF has_file_creator:
-    USE: @agent:file-creator
-    REQUEST: "Create directory: .agent-os/product/"
-  ELSE:
-    CREATE: Directory using mkdir -p .agent-os/product/
-  VALIDATION: Verify write permissions before creating
-  PROTECTION: Confirm before overwriting existing files
-</instructions>
-
 </step>
 
-<step number="3" name="create_mission_md">
+<step number="3" subagent="file-creator" name="create_mission_md">
 
 ### Step 3: Create mission.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/product/mission.md
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/product/mission.md and use the following template:
 
 <file_template>
   <header>
@@ -231,23 +172,13 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   </constraints>
 </section>
 
-<instructions>
-  ACTION: Create mission.md using all section templates
-  FILL: Use data from Step 1 user inputs
-  FORMAT: Maintain exact template structure
-</instructions>
-
 </step>
 
-<step number="4" name="create_tech_stack_md">
+<step number="4" subagent="file-creator" name="create_tech_stack_md">
 
 ### Step 4: Create tech-stack.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/product/tech-stack.md
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/product/tech-stack.md and use the following template:
 
 <file_template>
   <header>
@@ -279,7 +210,7 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
       PROCESS: Use found defaults
   ELSE:
     PROCEED: To manual resolution below
-  
+
   <manual_resolution>
     <for_each item="required_items">
       <if_not_in>user_input</if_not_in>
@@ -300,25 +231,16 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   You can respond with the technology choice or "n/a" for each item.
 </missing_items_template>
 
-<instructions>
-  ACTION: Document all tech stack choices
-  FORMAT: One item per line, no extra formatting or characters
-  RESOLUTION: Check user input first, then config files
-  REQUEST: Ask for any missing items using template
-</instructions>
 
 </step>
 
-<step number="5" name="create_mission_lite_md">
+<step number="5" subagent="file-creator" name="create_mission_lite_md">
 
 ### Step 5: Create mission-lite.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/product/mission-lite.md
-  </creates>
-  <purpose>condensed mission for efficient AI context usage</purpose>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/product/mission-lite.md for the purpose of establishing a condensed mission for efficient AI context usage.
+
+Use the following template:
 
 <file_template>
   <header>
@@ -350,24 +272,13 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   TaskFlow serves distributed software teams who need seamless task coordination across time zones. Unlike traditional project management tools, TaskFlow automatically syncs with development workflows and provides intelligent task prioritization based on team capacity and dependencies.
 </example>
 
-<instructions>
-  ACTION: Create mission-lite.md from mission.md content
-  EXTRACT: Core pitch and primary value elements
-  CONDENSE: Focus on essential information only
-  OMIT: Secondary users, features, and differentiators
-</instructions>
-
 </step>
 
-<step number="6" name="create_roadmap_md">
+<step number="6" subagent="file-creator" name="create_roadmap_md">
 
 ### Step 6: Create roadmap.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/product/roadmap.md
-  </creates>
-</step_metadata>
+Use the file-creator subagent to create the following file: .agent-os/product/roadmap.md using the following template:
 
 <file_template>
   <header>
@@ -410,25 +321,14 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   - XL: 3+ weeks
 </effort_scale>
 
-<instructions>
-  ACTION: Create 5 development phases
-  PRIORITIZE: Based on dependencies and mission importance
-  ESTIMATE: Use effort_scale for all features
-  VALIDATE: Ensure logical progression between phases
-</instructions>
 
 </step>
 
-<step number="7" name="create_decisions_md">
+<step number="7" subagent="file-creator" name="create_decisions_md">
 
 ### Step 7: Create decisions.md
 
-<step_metadata>
-  <creates>
-    - file: .agent-os/product/decisions.md
-  </creates>
-  <override_priority>highest</override_priority>
-</step_metadata>
+Use the file-creator subagent to create the file: .agent-os/product/decisions.md using the following template:
 
 <file_template>
   <header>
@@ -482,12 +382,6 @@ Generate product docs for new projects: mission, tech-stack, roadmap, decisions 
   **Negative:**
   - [KNOWN_TRADEOFFS]
 </initial_decision_template>
-
-<instructions>
-  ACTION: Create decisions.md with initial planning decision
-  DOCUMENT: Key choices from user inputs
-  ESTABLISH: Override authority for future conflicts
-</instructions>
 
 </step>
 

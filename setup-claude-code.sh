@@ -46,17 +46,6 @@ for cmd in plan-product create-spec execute-tasks analyze-product; do
     fi
 done
 
-# Download Claude Code user CLAUDE.md
-echo ""
-echo "📥 Downloading Claude Code configuration to ~/.claude/"
-
-if [ -f "$HOME/.claude/CLAUDE.md" ]; then
-    echo "  ⚠️  ~/.claude/CLAUDE.md already exists - skipping"
-else
-    curl -s -o "$HOME/.claude/CLAUDE.md" "${BASE_URL}/claude-code/user/CLAUDE.md"
-    echo "  ✓ ~/.claude/CLAUDE.md"
-fi
-
 # Download Claude Code agents
 echo ""
 echo "📥 Downloading Claude Code subagents to ~/.claude/agents/"
@@ -79,7 +68,6 @@ echo ""
 echo "📍 Files installed to:"
 echo "   ~/.claude/commands/        - Claude Code commands"
 echo "   ~/.claude/agents/          - Claude Code specialized subagents"
-echo "   ~/.claude/CLAUDE.md        - Claude Code configuration"
 echo ""
 echo "Next steps:"
 echo ""

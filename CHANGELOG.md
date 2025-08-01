@@ -5,6 +5,32 @@ All notable changes to Agent OS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-08-01
+
+### Added
+- **Pre-flight Check System** - New `meta/pre-flight.md` instruction for centralized agent detection and initialization
+- **Proactive Agent Usage** - Updated agent descriptions to encourage proactive use when appropriate
+- **Structured Instruction Organization** - New folder structure with `core/` and `meta/` subdirectories
+
+### Changed
+- **Instruction File Structure** - Reorganized all instruction files into subdirectories:
+  - Core instructions moved to `instructions/core/` (plan-product, create-spec, execute-tasks, execute-task, analyze-product)
+  - Meta instructions in `instructions/meta/` (pre-flight, more to come)
+- **Simplified XML Metadata** - Removed verbose `<ai_meta>` and `<step_metadata>` blocks for cleaner, more readable instructions
+- **Subagent Integration** - Replaced manual agent detection with centralized pre-flight check across all instruction files to enforce delegation and preserve main agent's context.
+- **Step Definitions** - Added `subagent` attribute to steps for clearer delegation of work to help enforce delegation and preserve main agent's context.
+- **Setup Script** - Updated to create subdirectories and download files to new locations
+
+### Improved
+- **Code Clarity** - Removed redundant XML instructions in favor of descriptive step purposes
+- **Agent Efficiency** - Centralized agent detection reduces repeated checks throughout workflows
+- **Maintainability** - Cleaner instruction format with less XML boilerplate
+- **User Experience** - Clearer indication of when specialized agents will be used proactively
+
+### Removed
+- **CLAUDE.md** - Removed deprecated Claude Code configuration file (functionality moved to pre-flight system, preventing over-reading instructions into context)
+- **Redundant Instructions** - Eliminated verbose ACTION/MODIFY/VERIFY instruction blocks
+
 ## [1.2.0] - 2025-07-29
 
 ### Added
@@ -100,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task management with TDD workflow
 - Spec creation and organization system
 
+[1.3.0]: https://github.com/buildermethods/agent-os/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/buildermethods/agent-os/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/buildermethods/agent-os/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/buildermethods/agent-os/releases/tag/v1.0.0

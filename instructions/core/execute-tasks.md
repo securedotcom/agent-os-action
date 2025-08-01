@@ -8,24 +8,13 @@ encoding: UTF-8
 
 # Task Execution Rules
 
-<ai_meta>
-  <rules>Process XML blocks sequentially, use exact templates, request missing data</rules>
-  <format>UTF-8, LF, 2-space indent, no header indent</format>
-</ai_meta>
-
 ## Overview
 
 Initiate execution of one or more tasks for a given spec.
 
-<agent_detection>
-  <check_once>
-    AT START OF PROCESS:
-    SET has_git_workflow = (Claude Code AND git-workflow agent exists)
-    SET has_test_runner = (Claude Code AND test-runner agent exists)
-    SET has_context_fetcher = (Claude Code AND context-fetcher agent exists)
-    USE these flags throughout execution
-  </check_once>
-</agent_detection>
+<pre_flight_check>
+  EXECUTE: @~/.agent-os/instructions/meta/pre-flight.md
+</pre_flight_check>
 
 <process_flow>
 
@@ -33,13 +22,7 @@ Initiate execution of one or more tasks for a given spec.
 
 ### Step 1: Task Assignment
 
-<step_metadata>
-  <inputs>
-    - spec_srd_reference: file path
-    - specific_tasks: array[string] (optional)
-  </inputs>
-  <default>next uncompleted parent task</default>
-</step_metadata>
+Identify which tasks to execute from the spec (using spec_srd_reference file path and optional specific_tasks array), defaulting to the next uncompleted parent task if not specified.
 
 <task_selection>
   <explicit>user specifies exact task(s)</explicit>
@@ -54,52 +37,20 @@ Initiate execution of one or more tasks for a given spec.
 
 </step>
 
-<step number="2" name="context_analysis">
+<step number="2" subagent="context-fetcher" name="context_analysis">
 
 ### Step 2: Context Analysis
 
-<step_metadata>
-  <reads_always>
-    - spec tasks.md
-  </reads_always>
-  <reads_conditionally>
-    - @.agent-os/product/mission-lite.md (if not already in context)
-    - spec-lite.md (if not already in context)
-    - sub-specs/technical-spec.md (if not already in context)
-  </reads_conditionally>
-  <purpose>minimal context for task understanding</purpose>
-</step_metadata>
+Use the context-fetcher subagent to gather minimal context for task understanding by always loading spec tasks.md, and conditionally loading @.agent-os/product/mission-lite.md, spec-lite.md, and sub-specs/technical-spec.md if not already in context.
 
 <instructions>
-  IF has_context_fetcher:
-    USE: @agent:context-fetcher for each file not in context:
+  ACTION: Use context-fetcher subagent to:
     - REQUEST: "Get product pitch from mission-lite.md"
-    - REQUEST: "Get spec summary from spec-lite.md" 
+    - REQUEST: "Get spec summary from spec-lite.md"
     - REQUEST: "Get technical approach from technical-spec.md"
-    PROCESS: Returned information
-  ELSE:
-    PROCEED: To conditional loading below
+  PROCESS: Returned information
 </instructions>
 
-<conditional-block context-check="fallback-context-loading">
-IF NOT using context-fetcher agent:
-  READ: The following fallback context loading
-
-<conditional_loading>
-  <mission_lite>
-    IF NOT already in context:
-      READ @.agent-os/product/mission-lite.md
-  </mission_lite>
-  <spec_lite>
-    IF NOT already in context:
-      READ spec-lite.md from spec folder
-  </spec_lite>
-  <technical_spec>
-    IF NOT already in context:
-      READ sub-specs/technical-spec.md
-  </technical_spec>
-</conditional_loading>
-</conditional-block>
 
 <context_gathering>
   <essential_docs>
@@ -112,25 +63,13 @@ IF NOT using context-fetcher agent:
   </conditional_docs>
 </context_gathering>
 
-<instructions>
-  ACTION: Always read tasks.md
-  CHECK: Which files are already in context
-  USE: Context-fetcher if Claude Code, else fallback
-  LOAD: Only files not already in context
-  SKIP: Other sub-specs files and best practices for now
-  ANALYZE: Requirements specific to current task
-</instructions>
-
 </step>
 
 <step number="3" name="development_server_check">
 
 ### Step 3: Check for Development Server
 
-<step_metadata>
-  <checks>running development server</checks>
-  <prevents>port conflicts</prevents>
-</step_metadata>
+Check for any running development server and ask user permission to shut it down if found to prevent port conflicts.
 
 <server_check_flow>
   <if_running>
@@ -155,30 +94,20 @@ IF NOT using context-fetcher agent:
 
 </step>
 
-<step number="4" name="git_branch_management">
+<step number="4" subagent="git-workflow" name="git_branch_management">
 
 ### Step 4: Git Branch Management
 
-<step_metadata>
-  <manages>git branches</manages>
-  <ensures>proper isolation</ensures>
-</step_metadata>
+Use the git-workflow subagent to manage git branches to ensure proper isolation by creating or switching to the appropriate branch for the spec.
 
 <instructions>
-  IF has_git_workflow:
-    USE: @agent:git-workflow
-    REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
-              - Create branch if needed
-              - Switch to correct branch
-              - Handle any uncommitted changes"
-    WAIT: For branch setup completion
-  ELSE:
-    PROCEED: To manual branch management below
+  ACTION: Use git-workflow subagent
+  REQUEST: "Check and manage branch for spec: [SPEC_FOLDER]
+            - Create branch if needed
+            - Switch to correct branch
+            - Handle any uncommitted changes"
+  WAIT: For branch setup completion
 </instructions>
-
-<conditional-block context-check="manual-branch-management">
-IF NOT using git-workflow agent:
-  READ: The following manual branch management
 
 <branch_naming>
   <source>spec folder name</source>
@@ -189,50 +118,16 @@ IF NOT using git-workflow agent:
   </example>
 </branch_naming>
 
-<branch_logic>
-  <case_a>
-    <condition>current branch matches spec name</condition>
-    <action>PROCEED immediately</action>
-  </case_a>
-  <case_b>
-    <condition>current branch is main/staging/review</condition>
-    <action>CREATE new branch and PROCEED</action>
-  </case_b>
-  <case_c>
-    <condition>current branch is different feature</condition>
-    <action>ASK permission to create new branch</action>
-  </case_c>
-</branch_logic>
-
-<case_c_prompt>
-  Current branch: [CURRENT_BRANCH]
-  This spec needs branch: [SPEC_BRANCH]
-
-  May I create a new branch for this spec? (yes/no)
-</case_c_prompt>
-
-<instructions>
-  ACTION: Check current git branch
-  EVALUATE: Which case applies
-  EXECUTE: Appropriate branch action
-  WAIT: Only for case C approval
-</instructions>
-</conditional-block>
-
 </step>
 
 <step number="5" name="task_execution_loop">
 
 ### Step 5: Task Execution Loop
 
-<step_metadata>
-  <executes>parent tasks and subtasks</executes>
-  <uses>@~/.agent-os/instructions/execute-task.md</uses>
-  <continues>until all tasks complete</continues>
-</step_metadata>
+Execute all assigned parent tasks and their subtasks using @~/.agent-os/instructions/core/execute-task.md instructions, continuing until all tasks are complete.
 
 <execution_flow>
-  LOAD @~/.agent-os/instructions/execute-task.md ONCE
+  LOAD @~/.agent-os/instructions/core/execute-task.md ONCE
 
   FOR each parent_task assigned in Step 1:
     EXECUTE instructions from execute-task.md with:
@@ -275,84 +170,51 @@ IF NOT using git-workflow agent:
 
 </step>
 
-<step number="6" name="test_suite_verification">
+<step number="6" subagent="test-runner" name="test_suite_verification">
 
 ### Step 6: Run All Tests
 
-<step_metadata>
-  <runs>entire test suite</runs>
-  <ensures>no regressions</ensures>
-</step_metadata>
+Use the test-runner subagent to run the entire test suite to ensure no regressions and fix any failures until all tests pass.
 
 <instructions>
-  IF has_test_runner:
-    USE: @agent:test-runner
-    REQUEST: "Run the full test suite"
-    WAIT: For test-runner analysis
-    PROCESS: Fix any reported failures
-    REPEAT: Until all tests pass
-  ELSE:
-    PROCEED: To fallback test execution below
+  ACTION: Use test-runner subagent
+  REQUEST: "Run the full test suite"
+  WAIT: For test-runner analysis
+  PROCESS: Fix any reported failures
+  REPEAT: Until all tests pass
 </instructions>
 
-<conditional-block context-check="fallback-full-test-execution">
-IF NOT using test-runner agent:
-  READ: The following fallback test execution instructions
+<test_execution>
+  <order>
+    1. Run entire test suite
+    2. Fix any failures
+  </order>
+  <requirement>100% pass rate</requirement>
+</test_execution>
 
-<fallback_test_execution>
-  <test_execution>
-    <order>
-      1. Run entire test suite
-      2. Fix any failures
-    </order>
-    <requirement>100% pass rate</requirement>
-  </test_execution>
-
-  <failure_handling>
-    <action>troubleshoot and fix</action>
-    <priority>before proceeding</priority>
-  </failure_handling>
-
-  <instructions>
-    ACTION: Run complete test suite
-    VERIFY: All tests pass including new ones
-    FIX: Any test failures before continuing
-    BLOCK: Do not proceed with failing tests
-  </instructions>
-</fallback_test_execution>
-</conditional-block>
+<failure_handling>
+  <action>troubleshoot and fix</action>
+  <priority>before proceeding</priority>
+</failure_handling>
 
 </step>
 
-<step number="7" name="git_workflow">
+<step number="7" subagent="git-workflow" name="git_workflow">
 
 ### Step 7: Git Workflow
 
-<step_metadata>
-  <creates>
-    - git commit
-    - github push
-    - pull request
-  </creates>
-</step_metadata>
+Use the git-workflow subagent to create git commit, push to GitHub, and create pull request for the implemented features.
 
 <instructions>
-  IF has_git_workflow:
-    USE: @agent:git-workflow
-    REQUEST: "Complete git workflow for [SPEC_NAME] feature:
-              - Spec: [SPEC_FOLDER_PATH]
-              - Changes: All modified files
-              - Target: main branch
-              - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
-    WAIT: For workflow completion
-    PROCESS: Save PR URL for summary
-  ELSE:
-    PROCEED: To manual git workflow below
+  ACTION: Use git-workflow subagent
+  REQUEST: "Complete git workflow for [SPEC_NAME] feature:
+            - Spec: [SPEC_FOLDER_PATH]
+            - Changes: All modified files
+            - Target: main branch
+            - Description: [SUMMARY_OF_IMPLEMENTED_FEATURES]"
+  WAIT: For workflow completion
+  PROCESS: Save PR URL for summary
 </instructions>
-
-<conditional-block context-check="manual-git-workflow">
-IF NOT using git-workflow agent:
-  READ: The following manual git workflow
 
 <commit_process>
   <commit>
@@ -369,40 +231,13 @@ IF NOT using git-workflow agent:
   </pull_request>
 </commit_process>
 
-<pr_template>
-  ## Summary
-
-  [BRIEF_DESCRIPTION_OF_CHANGES]
-
-  ## Changes Made
-
-  - [CHANGE_1]
-  - [CHANGE_2]
-
-  ## Testing
-
-  - [TEST_COVERAGE]
-  - All tests passing ✓
-</pr_template>
-
-<instructions>
-  ACTION: Commit all changes with descriptive message
-  PUSH: To GitHub on spec branch
-  CREATE: Pull request with detailed description
-</instructions>
-</conditional-block>
-
 </step>
 
 <step number="8" name="roadmap_progress_check">
 
 ### Step 8: Roadmap Progress Check (Conditional)
 
-<step_metadata>
-  <condition>only if tasks may have completed roadmap item</condition>
-  <checks>@.agent-os/product/roadmap.md (if not in context)</checks>
-  <updates>if spec completes roadmap item</updates>
-</step_metadata>
+Check @.agent-os/product/roadmap.md (if not in context) and update roadmap progress only if the executed tasks may have completed a roadmap item and the spec completes that item.
 
 <conditional_execution>
   <preliminary_check>
@@ -447,10 +282,7 @@ IF NOT using git-workflow agent:
 
 ### Step 9: Task Completion Notification
 
-<step_metadata>
-  <plays>system sound</plays>
-  <alerts>user of completion</alerts>
-</step_metadata>
+Play a system sound to alert the user that tasks are complete.
 
 <notification_command>
   afplay /System/Library/Sounds/Glass.aiff
@@ -467,10 +299,7 @@ IF NOT using git-workflow agent:
 
 ### Step 10: Completion Summary
 
-<step_metadata>
-  <creates>summary message</creates>
-  <format>structured with emojis</format>
-</step_metadata>
+Create a structured summary message with emojis showing what was done, any issues, testing instructions, and PR link.
 
 <summary_template>
   ## ✅ What's been done
