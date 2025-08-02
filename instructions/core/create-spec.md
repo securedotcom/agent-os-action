@@ -96,53 +96,15 @@ Use the context-fetcher subagent to clarify scope boundaries and technical consi
 
 </step>
 
-<step number="4" name="date_determination">
+<step number="4" subagent="date-checker" name="date_determination">
 
 ### Step 4: Date Determination
 
-Determine accurate date for folder naming by creating a temporary file to extract timestamp in YYYY-MM-DD format, falling back to asking user if needed.
+Use the date-checker subagent to determine the current date in YYYY-MM-DD format for folder naming. The subagent will output today's date which will be used in subsequent steps.
 
-<date_determination_process>
-  <primary_method>
-    <name>File System Timestamp</name>
-    <process>
-      1. CREATE directory if not exists: .agent-os/specs/
-      2. CREATE temporary file: .agent-os/specs/.date-check
-      3. READ file creation timestamp from filesystem
-      4. EXTRACT date in YYYY-MM-DD format
-      5. DELETE temporary file
-      6. STORE date in variable for folder naming
-    </process>
-  </primary_method>
-
-  <fallback_method>
-    <trigger>if file system method fails</trigger>
-    <name>User Confirmation</name>
-    <process>
-      1. STATE: "I need to confirm today's date for the spec folder"
-      2. ASK: "What is today's date? (YYYY-MM-DD format)"
-      3. WAIT for user response
-      4. VALIDATE format matches YYYY-MM-DD
-      5. STORE date for folder naming
-    </process>
-  </fallback_method>
-</date_determination_process>
-
-<validation>
-  <format_check>^\d{4}-\d{2}-\d{2}$</format_check>
-  <reasonableness_check>
-    - year: 2024-2030
-    - month: 01-12
-    - day: 01-31
-  </reasonableness_check>
-</validation>
-
-<error_handling>
-  IF date_invalid:
-    USE fallback_method
-  IF both_methods_fail:
-    ERROR "Unable to determine current date"
-</error_handling>
+<subagent_output>
+  The date-checker subagent will provide the current date in YYYY-MM-DD format at the end of its response. Store this date for use in folder naming in step 5.
+</subagent_output>
 
 </step>
 
@@ -184,7 +146,6 @@ Use the file-creator subagent to create the file: .agent-os/specs/YYYY-MM-DD-spe
 
     > Spec: [SPEC_NAME]
     > Created: [CURRENT_DATE]
-    > Status: Planning
   </header>
   <required_sections>
     - Overview
