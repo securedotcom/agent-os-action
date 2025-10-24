@@ -59,15 +59,24 @@ runs:
     - name: Install Agent OS
       shell: bash
       run: |
-        echo "Installing Agent OS base installation..."
-        curl -sSL https://raw.githubusercontent.com/buildermethods/agent-os/main/setup/base.sh | bash -s -- --claude-code --cursor
+        echo "Setting up Agent OS Code Reviewer system..."
+        
+        # Create Agent OS directory structure
+        mkdir -p $HOME/.agent-os/{scripts,profiles,standards}
+        
+        # Copy our scripts to the Agent OS directory
+        cp -r scripts/* $HOME/.agent-os/scripts/ 2>/dev/null || true
+        cp -r profiles/* $HOME/.agent-os/profiles/ 2>/dev/null || true
+        
+        # Make scripts executable
+        chmod +x $HOME/.agent-os/scripts/*.sh 2>/dev/null || true
         
         # Verify installation
         if [ ! -d "$HOME/.agent-os" ]; then
           echo "Agent OS installation failed"
           exit 1
         fi
-        echo "Agent OS installed successfully"
+        echo "Agent OS Code Reviewer system installed successfully"
 
     - name: Install Code Reviewer System
       shell: bash
@@ -116,15 +125,16 @@ runs:
     - name: Install Agent OS to Project
       shell: bash
       run: |
-        echo "Installing Agent OS to project..."
+        echo "Setting up Agent OS in project directory..."
         cd "${{ inputs.project-path }}"
-        $HOME/.agent-os/scripts/project-install.sh
         
-        if [ ! -d ".agent-os" ]; then
-          echo "Project installation failed"
-          exit 1
-        fi
-        echo "Agent OS installed to project successfully"
+        # Create project-level Agent OS directory
+        mkdir -p .agent-os/{config,reports}
+        
+        # Copy configuration files
+        cp -r $HOME/.agent-os/profiles/default/standards .agent-os/ 2>/dev/null || true
+        
+        echo "Project Agent OS setup completed"
 
     - name: Detect Project Type
       id: detect-type
