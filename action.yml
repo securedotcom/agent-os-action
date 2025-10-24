@@ -93,38 +93,40 @@ runs:
         mkdir -p $HOME/.agent-os/profiles/default/roles
         
         # Copy code reviewer files from this repository
-        if [ -d "profiles/default/agents" ]; then
-          cp -r profiles/default/agents/* $HOME/.agent-os/profiles/default/agents/
+        if [ -d "$GITHUB_ACTION_PATH/profiles/default/agents" ]; then
+          cp -r $GITHUB_ACTION_PATH/profiles/default/agents/* $HOME/.agent-os/profiles/default/agents/
           echo "Agents copied successfully"
         fi
         
-        if [ -d "profiles/default/workflows/review" ]; then
-          cp -r profiles/default/workflows/review $HOME/.agent-os/profiles/default/workflows/
+        if [ -d "$GITHUB_ACTION_PATH/profiles/default/workflows/review" ]; then
+          cp -r $GITHUB_ACTION_PATH/profiles/default/workflows/review $HOME/.agent-os/profiles/default/workflows/
           echo "Workflows copied successfully"
         fi
         
-        if [ -d "profiles/default/standards/review" ]; then
-          cp -r profiles/default/standards/review $HOME/.agent-os/profiles/default/standards/
+        if [ -d "$GITHUB_ACTION_PATH/profiles/default/standards/review" ]; then
+          cp -r $GITHUB_ACTION_PATH/profiles/default/standards/review $HOME/.agent-os/profiles/default/standards/
           echo "Standards copied successfully"
         fi
         
-        if [ -d "profiles/default/commands" ]; then
-          cp -r profiles/default/commands/audit-codebase $HOME/.agent-os/profiles/default/commands/
-          cp -r profiles/default/commands/review-changes $HOME/.agent-os/profiles/default/commands/
-          cp -r profiles/default/commands/security-scan $HOME/.agent-os/profiles/default/commands/
+        if [ -d "$GITHUB_ACTION_PATH/profiles/default/commands" ]; then
+          cp -r $GITHUB_ACTION_PATH/profiles/default/commands/audit-codebase $HOME/.agent-os/profiles/default/commands/
+          cp -r $GITHUB_ACTION_PATH/profiles/default/commands/review-changes $HOME/.agent-os/profiles/default/commands/
+          cp -r $GITHUB_ACTION_PATH/profiles/default/commands/security-scan $HOME/.agent-os/profiles/default/commands/
           echo "Commands copied successfully"
         fi
         
         # Copy AI audit script
-        if [ -f "scripts/run-ai-audit.py" ]; then
+        if [ -f "$GITHUB_ACTION_PATH/scripts/run-ai-audit.py" ]; then
           mkdir -p $HOME/.agent-os/scripts
-          cp scripts/run-ai-audit.py $HOME/.agent-os/scripts/
+          cp $GITHUB_ACTION_PATH/scripts/run-ai-audit.py $HOME/.agent-os/scripts/
           chmod +x $HOME/.agent-os/scripts/run-ai-audit.py
           echo "AI audit script copied successfully"
+        else
+          echo "Warning: AI audit script not found at $GITHUB_ACTION_PATH/scripts/run-ai-audit.py"
         fi
         
-        if [ -f "profiles/default/roles/reviewers.yml" ]; then
-          cp profiles/default/roles/reviewers.yml $HOME/.agent-os/profiles/default/roles/
+        if [ -f "$GITHUB_ACTION_PATH/profiles/default/roles/reviewers.yml" ]; then
+          cp $GITHUB_ACTION_PATH/profiles/default/roles/reviewers.yml $HOME/.agent-os/profiles/default/roles/
           echo "Roles copied successfully"
         fi
         
