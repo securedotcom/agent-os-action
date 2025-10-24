@@ -115,6 +115,14 @@ runs:
           echo "Commands copied successfully"
         fi
         
+        # Copy AI audit script
+        if [ -f "scripts/run-ai-audit.py" ]; then
+          mkdir -p $HOME/.agent-os/scripts
+          cp scripts/run-ai-audit.py $HOME/.agent-os/scripts/
+          chmod +x $HOME/.agent-os/scripts/run-ai-audit.py
+          echo "AI audit script copied successfully"
+        fi
+        
         if [ -f "profiles/default/roles/reviewers.yml" ]; then
           cp profiles/default/roles/reviewers.yml $HOME/.agent-os/profiles/default/roles/
           echo "Roles copied successfully"
