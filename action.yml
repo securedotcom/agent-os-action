@@ -407,26 +407,30 @@ runs:
             const latestPR = auditPRs[0];
             
             // Add a comment with new findings
+            const updateBody = [
+              '## 🔄 Updated Code Review Findings',
+              '',
+              `**Run Date:** ${new Date().toISOString()}`,
+              `**Commit:** ${context.sha}`,
+              `**Blockers Found:** ${blockerCount}`,
+              `**Suggestions:** ${suggestionCount}`,
+              '',
+              '---',
+              '',
+              reportContent,
+              '',
+              '---',
+              '',
+              '**Note:** This is an automated update from the latest code review run.',
+              `**Artifact:** code-review-reports-${context.runNumber}`,
+              `**Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`
+            ].join('\n');
+            
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: latestPR.number,
-              body: `## 🔄 Updated Code Review Findings
-              
-**Run Date:** ${new Date().toISOString()}
-**Commit:** ${context.sha}
-**Blockers Found:** ${blockerCount}
-**Suggestions:** ${suggestionCount}
-
----
-
-${reportContent}
-
----
-
-**Note:** This is an automated update from the latest code review run.
-**Artifact:** code-review-reports-${context.runNumber}
-**Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`
+              body: updateBody
             });
             
             console.log(`Updated existing PR #${latestPR.number}`);
@@ -455,33 +459,35 @@ ${reportContent}
           
           // Create PR
           const prTitle = `🔍 Code Review Findings: ${blockerCount} Blocker(s), ${suggestionCount} Suggestion(s)`;
-          const prBody = `## 📊 Automated Code Review Report
-
-**Review Date:** ${new Date().toISOString()}
-**Repository:** ${context.repo.owner}/${context.repo.repo}
-**Branch:** ${currentBranch}
-**Commit:** ${context.sha}
-**Review Type:** ${{ inputs.review-type }}
-
-### 📈 Summary
-- **Merge Blockers:** ${blockerCount} (Must fix before merge)
-- **Suggestions:** ${suggestionCount} (Recommended improvements)
-
----
-
-${reportContent}
-
----
-
-### 📁 Artifacts
-- **Report Artifact:** code-review-reports-${context.runNumber}
-- **Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}
-
-### 🤖 Automated Review
-This PR was automatically created by the Agent OS Code Reviewer system.
-Please review the findings and address the merge blockers before merging.
-
-**Note:** If you fix the issues, this PR will be automatically updated on the next review run.`;
+          const prBody = [
+            '## 📊 Automated Code Review Report',
+            '',
+            `**Review Date:** ${new Date().toISOString()}`,
+            `**Repository:** ${context.repo.owner}/${context.repo.repo}`,
+            `**Branch:** ${currentBranch}`,
+            `**Commit:** ${context.sha}`,
+            `**Review Type:** ${{ inputs.review-type }}`,
+            '',
+            '### 📈 Summary',
+            `- **Merge Blockers:** ${blockerCount} (Must fix before merge)`,
+            `- **Suggestions:** ${suggestionCount} (Recommended improvements)`,
+            '',
+            '---',
+            '',
+            reportContent,
+            '',
+            '---',
+            '',
+            '### 📁 Artifacts',
+            `- **Report Artifact:** code-review-reports-${context.runNumber}`,
+            `- **Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+            '',
+            '### 🤖 Automated Review',
+            'This PR was automatically created by the Agent OS Code Reviewer system.',
+            'Please review the findings and address the merge blockers before merging.',
+            '',
+            '**Note:** If you fix the issues, this PR will be automatically updated on the next review run.'
+          ].join('\n');
           
           const { data: pr } = await github.rest.pulls.create({
             owner: context.repo.owner,
