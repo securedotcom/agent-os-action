@@ -493,15 +493,74 @@ runs:
             parents: [refData.object.sha]
           });
           
-          // Create new branch pointing to the new commit
-          await github.rest.git.createRef({
+          // Create or update branch pointing to the new commit
+          try {
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/heads/${branchName}`,
+              sha: newCommit.sha
+            });
+          } catch (error) {
+            if (error.status === 422) {
+              // Branch already exists, update it
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branchName}`,
+                sha: newCommit.sha,
+                force: true
+              });
+            } else {
+              throw error;
+            }
+          }
+          
+          // Check if PR already exists for this branch
+          const { data: existingBranchPRs } = await github.rest.pulls.list({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            ref: `refs/heads/${branchName}`,
-            sha: newCommit.sha
+            state: 'open',
+            head: `${context.repo.owner}:${branchName}`,
+            base: currentBranch
           });
           
-          // Create PR
+          if (existingBranchPRs.length > 0) {
+            console.log(`PR already exists for branch ${branchName}. Updating it...`);
+            const existingPR = existingBranchPRs[0];
+            
+            // Add a comment with new findings
+            const updateBody = [
+              '## 🔄 Updated Code Review Findings',
+              '',
+              `**Run Date:** ${new Date().toISOString()}`,
+              `**Commit:** ${newCommit.sha}`,
+              `**Blockers Found:** ${blockerCount}`,
+              `**Suggestions:** ${suggestionCount}`,
+              '',
+              '---',
+              '',
+              reportContent,
+              '',
+              '---',
+              '',
+              '**Note:** This is an automated update from the latest code review run.',
+              `**Artifact:** code-review-reports-${context.runNumber}`,
+              `**Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`
+            ].join('\n');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingPR.number,
+              body: updateBody
+            });
+            
+            console.log(`Updated existing PR #${existingPR.number}`);
+            return;
+          }
+          
+          // Create new PR
           const prTitle = `🔍 Code Review Findings: ${blockerCount} Blocker(s), ${suggestionCount} Suggestion(s)`;
           const prBody = [
             '## 📊 Automated Code Review Report',
@@ -509,7 +568,7 @@ runs:
             `**Review Date:** ${new Date().toISOString()}`,
             `**Repository:** ${context.repo.owner}/${context.repo.repo}`,
             `**Branch:** ${currentBranch}`,
-            `**Commit:** ${context.sha}`,
+            `**Commit:** ${newCommit.sha}`,
             `**Review Type:** ${{ inputs.review-type }}`,
             '',
             '### 📈 Summary',
