@@ -351,6 +351,157 @@ runs:
         path: ${{ inputs.project-path }}/.agent-os/reviews/
         retention-days: 30
 
+    - name: Create PR with Audit Findings
+      if: ${{ github.event_name != 'pull_request' && steps.code-review.outputs.blockers > 0 }}
+      uses: actions/github-script@v7
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read the audit report
+          const reportPath = '${{ inputs.project-path }}/.agent-os/reviews/${{ inputs.review-type }}-report.md';
+          let reportContent = '';
+          
+          if (fs.existsSync(reportPath)) {
+            reportContent = fs.readFileSync(reportPath, 'utf8');
+          } else {
+            console.log('No report found at:', reportPath);
+            return;
+          }
+          
+          // Extract key findings for PR title and description
+          const blockerCount = ${{ steps.code-review.outputs.blockers }};
+          const suggestionCount = ${{ steps.code-review.outputs.suggestions }};
+          
+          // Generate branch name with timestamp
+          const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+          const branchName = `audit/code-review-findings-${timestamp}`;
+          
+          // Check for existing PRs with similar findings
+          const { data: existingPRs } = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            head: `${context.repo.owner}:${branchName}`
+          });
+          
+          // Also check for any open audit PRs
+          const { data: allOpenPRs } = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open'
+          });
+          
+          const auditPRs = allOpenPRs.filter(pr => 
+            pr.head.ref.startsWith('audit/') && 
+            pr.title.includes('Code Review Findings')
+          );
+          
+          if (auditPRs.length > 0) {
+            console.log(`Found ${auditPRs.length} existing audit PR(s). Updating the most recent one...`);
+            
+            // Update the most recent audit PR
+            const latestPR = auditPRs[0];
+            
+            // Add a comment with new findings
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: latestPR.number,
+              body: `## 🔄 Updated Code Review Findings
+              
+**Run Date:** ${new Date().toISOString()}
+**Commit:** ${context.sha}
+**Blockers Found:** ${blockerCount}
+**Suggestions:** ${suggestionCount}
+
+---
+
+${reportContent}
+
+---
+
+**Note:** This is an automated update from the latest code review run.
+**Artifact:** code-review-reports-${context.runNumber}
+**Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`
+            });
+            
+            console.log(`Updated existing PR #${latestPR.number}`);
+            return;
+          }
+          
+          // No existing PR found, create a new one
+          console.log('No existing audit PR found. Creating new PR...');
+          
+          // Get current branch
+          const currentBranch = context.ref.replace('refs/heads/', '');
+          
+          // Create new branch
+          const { data: refData } = await github.rest.git.getRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: `heads/${currentBranch}`
+          });
+          
+          await github.rest.git.createRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: `refs/heads/${branchName}`,
+            sha: refData.object.sha
+          });
+          
+          // Create PR
+          const prTitle = `🔍 Code Review Findings: ${blockerCount} Blocker(s), ${suggestionCount} Suggestion(s)`;
+          const prBody = `## 📊 Automated Code Review Report
+
+**Review Date:** ${new Date().toISOString()}
+**Repository:** ${context.repo.owner}/${context.repo.repo}
+**Branch:** ${currentBranch}
+**Commit:** ${context.sha}
+**Review Type:** ${{ inputs.review-type }}
+
+### 📈 Summary
+- **Merge Blockers:** ${blockerCount} (Must fix before merge)
+- **Suggestions:** ${suggestionCount} (Recommended improvements)
+
+---
+
+${reportContent}
+
+---
+
+### 📁 Artifacts
+- **Report Artifact:** code-review-reports-${context.runNumber}
+- **Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}
+
+### 🤖 Automated Review
+This PR was automatically created by the Agent OS Code Reviewer system.
+Please review the findings and address the merge blockers before merging.
+
+**Note:** If you fix the issues, this PR will be automatically updated on the next review run.`;
+          
+          const { data: pr } = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: prTitle,
+            head: branchName,
+            base: currentBranch,
+            body: prBody
+          });
+          
+          console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+          
+          // Add labels
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.number,
+            labels: ['automated-review', 'code-quality', 'security']
+          });
+
     - name: Comment on PR
       if: ${{ github.event_name == 'pull_request' && inputs.comment-on-pr == 'true' }}
       uses: actions/github-script@v7
