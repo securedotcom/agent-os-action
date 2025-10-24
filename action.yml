@@ -27,6 +27,14 @@ inputs:
     description: 'Upload review reports as artifacts'
     required: false
     default: 'true'
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude AI analysis'
+    required: false
+    default: ''
+  cursor-api-key:
+    description: 'Cursor API key for AI analysis'
+    required: false
+    default: ''
 
 outputs:
   review-completed:
