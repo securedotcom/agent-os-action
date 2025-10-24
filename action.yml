@@ -384,6 +384,7 @@ runs:
 
     - name: Fail on Blockers
       if: ${{ inputs.fail-on-blockers == 'true' && steps.code-review.outputs.blockers > 0 }}
+      shell: bash
       run: |
         echo "❌ Merge blockers found: ${{ steps.code-review.outputs.blockers }}"
         echo "Please fix all merge blockers before merging."
