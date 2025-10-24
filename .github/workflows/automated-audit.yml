@@ -1,0 +1,109 @@
+name: Automated Repository Audit
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+    inputs:
+      repository:
+        description: 'Repository to audit (e.g., securedotcom/Spring-Backend)'
+        required: false
+        type: string
+
+jobs:
+  audit-repositories:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repository:
+          - securedotcom/Spring-Backend
+          - securedotcom/spring-fabric
+          - securedotcom/spring-topography-apis
+          - securedotcom/platform-dashboard-apis
+          - securedotcom/siem-agent-provisioning
+          - securedotcom/case_management_pipeline
+          - securedotcom/case-management-backend
+          - securedotcom/Risk-Register
+          - securedotcom/Spring-dashboard
+          - securedotcom/Spring_CIA_algorithm
+          - securedotcom/spring-attack-surface
+          - securedotcom/secure_data_retrieval_agent
+      fail-fast: false # Continue even if one audit fails
+      
+    steps:
+      - name: Checkout Agent OS
+        uses: actions/checkout@v4
+        with:
+          repository: buildermethods/agent-os
+          path: agent-os
+          
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          path: target-repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Agent OS Dependencies
+        run: |
+          cd agent-os
+          pip install -r requirements.txt || echo "No requirements.txt found"
+          
+      - name: Run Audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd target-repo
+          # Run Agent OS audit command
+          # This assumes you have a CLI tool for Agent OS
+          agent-os audit-codebase --output audit-reports/
+          
+      - name: Create Pull Request with Audit Findings
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: target-repo
+          commit-message: |
+            Add automated codebase audit findings
+            
+            Automated audit performed by Agent OS
+            Date: ${{ github.run_id }}
+          branch: audit/automated-${{ github.run_id }}
+          title: '🔍 Automated Codebase Audit - ${{ github.run_id }}'
+          body: |
+            ## Automated Codebase Audit
+            
+            This PR contains automated audit findings from Agent OS.
+            
+            **Repository:** ${{ matrix.repository }}
+            **Audit Date:** ${{ github.event.repository.updated_at }}
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            ### Review Instructions
+            1. Review the audit reports in `audit-reports/`
+            2. Address critical and high-priority issues
+            3. Create follow-up tasks for medium and low-priority items
+            
+            ### Automated by
+            - Agent OS Multi-Agent System
+            - Workflow: `.github/workflows/automated-audit.yml`
+          labels: |
+            audit
+            automated
+            security
+            
+      - name: Upload Audit Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: audit-report-${{ matrix.repository }}
+          path: target-repo/audit-reports/
+          retention-days: 90
+
+
+
