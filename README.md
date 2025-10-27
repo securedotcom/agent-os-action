@@ -86,6 +86,14 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `fail-on-blockers` | No | `'true'` | Fail workflow if merge blockers are found |
 | `comment-on-pr` | No | `'true'` | Post review results as PR comment |
 | `upload-reports` | No | `'true'` | Upload review reports as workflow artifacts |
+| **Cost/Latency Guardrails** | | | |
+| `only-changed` | No | `'false'` | Only analyze changed files (PR mode) |
+| `include-paths` | No | `''` | Glob patterns to include: `src/**,lib/**` |
+| `exclude-paths` | No | `''` | Glob patterns to exclude: `test/**,docs/**` |
+| `max-file-size` | No | `'50000'` | Max file size in bytes (50KB) |
+| `max-files` | No | `'50'` | Max number of files to analyze |
+| `max-tokens` | No | `'8000'` | Max tokens per LLM call |
+| `cost-limit` | No | `'1.0'` | Max cost in USD per run |
 
 ### Outputs
 
@@ -95,6 +103,11 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `blockers-found` | Number of merge blocker issues found | `3` |
 | `suggestions-found` | Number of suggestion issues found | `12` |
 | `report-path` | Path to the generated markdown report | `.agent-os/reviews/audit-report.md` |
+| `sarif-path` | Path to SARIF file for Code Scanning | `.agent-os/reviews/results.sarif` |
+| `json-path` | Path to structured JSON results | `.agent-os/reviews/results.json` |
+| `cost-estimate` | Estimated cost in USD | `0.42` |
+| `files-analyzed` | Number of files analyzed | `42` |
+| `duration-seconds` | Analysis duration in seconds | `127` |
 
 ### Exit Codes
 
@@ -112,6 +125,46 @@ That's it! Check your repository's Actions tab to see the review in progress.
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     fail-on-blockers: 'true'  # Fail CI if critical issues found
 ```
+
+**Cost-Optimized Example**:
+```yaml
+- name: Run Code Review (Cost-Optimized)
+  uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    only-changed: 'true'              # Only review changed files
+    include-paths: 'src/**,lib/**'    # Only source code
+    exclude-paths: 'test/**,docs/**'  # Skip tests and docs
+    max-files: 30                     # Limit file count
+    cost-limit: '0.50'                # Cap at $0.50
+```
+
+---
+
+## 💰 Cost Estimation
+
+### Expected Cost per 1000 Lines of Code (KLOC)
+
+| Language | Avg Cost | Range |
+|----------|----------|-------|
+| JavaScript/TypeScript | $0.05 | $0.03-$0.08 |
+| Python | $0.04 | $0.02-$0.06 |
+| Java | $0.06 | $0.04-$0.10 |
+| Go | $0.03 | $0.02-$0.05 |
+
+### Cost Optimization Tips
+
+**Reduce costs by**:
+- ✅ Enable `only-changed: true` for PR reviews (~90% cost reduction)
+- ✅ Use `include-paths` to focus on source code only
+- ✅ Set `exclude-paths` to skip tests, docs, and config files
+- ✅ Reduce `max-files` from 50 to 25-30
+- ✅ Set `cost-limit` to cap spending (e.g., `'0.50'`)
+
+**Example Costs**:
+- 10K LOC full audit: ~$0.50
+- PR review (100 changed lines): ~$0.05
+- Weekly audits (4x/month): ~$2.00/month
 
 ---
 
