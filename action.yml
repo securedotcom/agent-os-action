@@ -35,6 +35,36 @@ inputs:
     description: 'Cursor API key for AI analysis'
     required: false
     default: ''
+  
+  # Cost/Latency Guardrails
+  only-changed:
+    description: 'Only analyze changed files (PR mode)'
+    required: false
+    default: 'false'
+  include-paths:
+    description: 'Glob patterns to include (comma-separated)'
+    required: false
+    default: ''
+  exclude-paths:
+    description: 'Glob patterns to exclude (comma-separated)'
+    required: false
+    default: ''
+  max-file-size:
+    description: 'Max file size in bytes'
+    required: false
+    default: '50000'
+  max-files:
+    description: 'Max files to analyze'
+    required: false
+    default: '50'
+  max-tokens:
+    description: 'Max tokens per LLM call'
+    required: false
+    default: '8000'
+  cost-limit:
+    description: 'Max cost in USD per run'
+    required: false
+    default: '1.0'
 
 outputs:
   review-completed:
@@ -49,6 +79,21 @@ outputs:
   report-path:
     description: 'Path to the generated report'
     value: ${{ steps.code-review.outputs.report-path }}
+  sarif-path:
+    description: 'Path to SARIF file for Code Scanning'
+    value: ${{ steps.code-review.outputs.sarif-path }}
+  json-path:
+    description: 'Path to structured JSON results'
+    value: ${{ steps.code-review.outputs.json-path }}
+  cost-estimate:
+    description: 'Estimated cost in USD'
+    value: ${{ steps.code-review.outputs.cost-estimate }}
+  files-analyzed:
+    description: 'Number of files analyzed'
+    value: ${{ steps.code-review.outputs.files-analyzed }}
+  duration-seconds:
+    description: 'Analysis duration in seconds'
+    value: ${{ steps.code-review.outputs.duration-seconds }}
 
 runs:
   using: 'composite'
@@ -178,6 +223,13 @@ runs:
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
+        INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
+        INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
+        INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+        INPUT_MAX_FILE_SIZE: ${{ inputs.max-file-size }}
+        INPUT_MAX_FILES: ${{ inputs.max-files }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
       run: |
         echo "🤖 Running AI-Powered Code Review with Claude Sonnet 4..."
         cd "${{ inputs.project-path }}"
@@ -189,39 +241,52 @@ runs:
         echo "📦 Installing dependencies..."
         pip install -q anthropic
         
-        # Run AI-powered audit
+        # Run AI-powered audit with guardrails
         echo "🧠 Analyzing codebase with AI..."
+        echo "⚙️  Configuration:"
+        echo "   - Only changed: ${{ inputs.only-changed }}"
+        echo "   - Max files: ${{ inputs.max-files }}"
+        echo "   - Cost limit: \$${{ inputs.cost-limit }}"
+        
         python3 $HOME/.agent-os/scripts/run-ai-audit.py "$(pwd)" "${{ inputs.review-type }}"
         
-        # Fallback to mock if AI fails
-        if [ ! -f ".agent-os/reviews/${{ inputs.review-type }}-report.md" ]; then
-          echo "⚠️  AI analysis failed, using fallback mock report..."
-          echo "# Codebase Audit Report" > .agent-os/reviews/audit-report.md
-          echo "Generated: $(date)" >> .agent-os/reviews/audit-report.md
-          echo "Repository: ${{ github.repository }}" >> .agent-os/reviews/audit-report.md
-          echo "Branch: ${{ github.ref_name }}" >> .agent-os/reviews/audit-report.md
-          echo "Commit: ${{ github.sha }}" >> .agent-os/reviews/audit-report.md
-          echo "" >> .agent-os/reviews/audit-report.md
-          echo "## Mock Report - AI Analysis Failed" >> .agent-os/reviews/audit-report.md
-          echo "**[BLOCKER]** Unable to perform AI analysis" >> .agent-os/reviews/audit-report.md
-          echo "**[BLOCKER]** Check API key configuration" >> .agent-os/reviews/audit-report.md
-        fi
-        
-        # Count blockers and suggestions from the report
+        # Check if analysis succeeded
         REPORT_FILE=".agent-os/reviews/${{ inputs.review-type }}-report.md"
-        if [ -f "$REPORT_FILE" ]; then
-          BLOCKERS=$(grep -c "\[BLOCKER\]" "$REPORT_FILE" || echo "0")
-          SUGGESTIONS=$(grep -c "\[SUGGESTION\]" "$REPORT_FILE" || echo "0")
-        else
-          BLOCKERS=0
-          SUGGESTIONS=0
+        SARIF_FILE=".agent-os/reviews/results.sarif"
+        JSON_FILE=".agent-os/reviews/results.json"
+        METRICS_FILE=".agent-os/reviews/metrics.json"
+        
+        if [ ! -f "$REPORT_FILE" ]; then
+          echo "❌ AI analysis failed - no report generated"
+          exit 2
         fi
         
-        echo "Code review completed"
+        # Extract metrics from JSON files
+        if [ -f "$METRICS_FILE" ]; then
+          COST=$(jq -r '.cost_usd' "$METRICS_FILE" 2>/dev/null || echo "0.00")
+          FILES=$(jq -r '.files_reviewed' "$METRICS_FILE" 2>/dev/null || echo "0")
+          DURATION=$(jq -r '.duration_seconds' "$METRICS_FILE" 2>/dev/null || echo "0")
+          BLOCKERS=$(jq -r '.findings.critical + .findings.high' "$METRICS_FILE" 2>/dev/null || echo "0")
+          SUGGESTIONS=$(jq -r '.findings.medium + .findings.low' "$METRICS_FILE" 2>/dev/null || echo "0")
+        else
+          # Fallback: count from report
+          BLOCKERS=$(grep -c "\[CRITICAL\]\|\[BLOCKER\]" "$REPORT_FILE" || echo "0")
+          SUGGESTIONS=$(grep -c "\[HIGH\]\|\[MEDIUM\]\|\[SUGGESTION\]" "$REPORT_FILE" || echo "0")
+          COST="0.00"
+          FILES="0"
+          DURATION="0"
+        fi
+        
+        echo "✅ Code review completed"
         echo "completed=true" >> $GITHUB_OUTPUT
         echo "blockers=$BLOCKERS" >> $GITHUB_OUTPUT
         echo "suggestions=$SUGGESTIONS" >> $GITHUB_OUTPUT
-        echo "report-path=.agent-os/reviews/" >> $GITHUB_OUTPUT
+        echo "report-path=$REPORT_FILE" >> $GITHUB_OUTPUT
+        echo "sarif-path=$SARIF_FILE" >> $GITHUB_OUTPUT
+        echo "json-path=$JSON_FILE" >> $GITHUB_OUTPUT
+        echo "cost-estimate=$COST" >> $GITHUB_OUTPUT
+        echo "files-analyzed=$FILES" >> $GITHUB_OUTPUT
+        echo "duration-seconds=$DURATION" >> $GITHUB_OUTPUT
 
     - name: Upload Review Reports
       if: ${{ inputs.upload-reports == 'true' }}

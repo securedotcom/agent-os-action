@@ -1,0 +1,233 @@
+name: Weekly Security Audit
+
+# Full codebase audit on a schedule
+# Creates PR with findings
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 2 AM UTC
+  workflow_dispatch:      # Allow manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Run Full Codebase Audit
+      id: audit
+      uses: securedotcom/agent-os-action@v1
+      with:
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+        review-type: 'audit'
+        
+        # Full audit mode
+        only-changed: 'false'
+        
+        # Focus on source code
+        include-paths: 'src/**,lib/**,app/**'
+        exclude-paths: 'test/**,tests/**,__tests__/**,*.test.*,*.spec.*,docs/**,*.md'
+        
+        # Cost controls for full audit
+        max-files: 50
+        max-file-size: '50000'
+        max-tokens: 8000
+        cost-limit: '1.0'  # Cap at $1.00 per audit
+        
+        # Don't fail workflow, just report
+        fail-on-blockers: 'false'
+        
+        # Upload detailed reports
+        upload-reports: 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload SARIF to Code Scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: .agent-os/reviews/results.sarif
+        category: weekly-audit
+    
+    - name: Create or Update Audit PR
+      if: steps.audit.outputs.blockers-found > 0
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read the audit report
+          const reportPath = '.agent-os/reviews/audit-report.md';
+          const reportContent = fs.readFileSync(reportPath, 'utf8');
+          
+          const blockers = '${{ steps.audit.outputs.blockers-found }}';
+          const suggestions = '${{ steps.audit.outputs.suggestions-found }}';
+          const cost = '${{ steps.audit.outputs.cost-estimate }}';
+          const files = '${{ steps.audit.outputs.files-analyzed }}';
+          
+          // Check for existing audit PR
+          const { data: prs } = await github.rest.pulls.list({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            head: `${context.repo.owner}:audit/weekly-findings`
+          });
+          
+          const prBody = `# 🔍 Weekly Security Audit Results
+          
+          **Audit Date**: ${new Date().toISOString().split('T')[0]}  
+          **Commit**: ${context.sha.substring(0, 7)}  
+          **Files Analyzed**: ${files}  
+          **Cost**: $${cost}
+          
+          ## Summary
+          - 🔴 **${blockers} Critical Issues** requiring immediate attention
+          - 🟡 **${suggestions} Suggestions** for improvement
+          
+          ## Detailed Report
+          
+          ${reportContent}
+          
+          ---
+          
+          *This PR is automatically created by Agent OS Code Reviewer.*  
+          *Review the findings and merge when all critical issues are resolved.*
+          `;
+          
+          if (prs.length > 0) {
+            // Update existing PR
+            const pr = prs[0];
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              body: prBody
+            });
+            
+            // Add comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: `## 🔄 Audit Updated\n\n**Date**: ${new Date().toISOString()}\n**Findings**: ${blockers} critical, ${suggestions} suggestions`
+            });
+            
+            console.log(`Updated existing PR #${pr.number}`);
+          } else {
+            // Create new branch and PR
+            const branchName = 'audit/weekly-findings';
+            
+            try {
+              // Get default branch ref
+              const { data: ref } = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${context.ref.replace('refs/heads/', '')}`
+              });
+              
+              // Create new branch
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/heads/${branchName}`,
+                sha: ref.object.sha
+              });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              // Branch exists, update it
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branchName}`,
+                sha: context.sha,
+                force: true
+              });
+            }
+            
+            // Create blob for report
+            const { data: blob } = await github.rest.git.createBlob({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              content: Buffer.from(reportContent).toString('base64'),
+              encoding: 'base64'
+            });
+            
+            // Get current tree
+            const { data: currentCommit } = await github.rest.git.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+            
+            // Create new tree
+            const { data: newTree } = await github.rest.git.createTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base_tree: currentCommit.tree.sha,
+              tree: [{
+                path: 'SECURITY_AUDIT.md',
+                mode: '100644',
+                type: 'blob',
+                sha: blob.sha
+              }]
+            });
+            
+            // Create commit
+            const { data: newCommit } = await github.rest.git.createCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              message: `chore: weekly security audit findings (${blockers} critical, ${suggestions} suggestions)`,
+              tree: newTree.sha,
+              parents: [context.sha]
+            });
+            
+            // Update branch
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branchName}`,
+              sha: newCommit.sha
+            });
+            
+            // Create PR
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔍 Weekly Security Audit - ${blockers} Critical Issues Found`,
+              head: branchName,
+              base: context.ref.replace('refs/heads/', ''),
+              body: prBody
+            });
+            
+            console.log(`Created new PR #${pr.number}`);
+          }
+    
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## 🔍 Weekly Audit Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Files Analyzed**: ${{ steps.audit.outputs.files-analyzed }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Critical Issues**: ${{ steps.audit.outputs.blockers-found }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Suggestions**: ${{ steps.audit.outputs.suggestions-found }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Cost**: \$${{ steps.audit.outputs.cost-estimate }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Duration**: ${{ steps.audit.outputs.duration-seconds }}s" >> $GITHUB_STEP_SUMMARY
+
+# Key Features:
+# - Runs weekly on schedule
+# - Full codebase analysis
+# - Creates/updates PR with findings
+# - SARIF upload to Code Scanning
+# - Cost controlled (~$0.50-$1.00 per audit)
+# - Detailed metrics and reporting
+

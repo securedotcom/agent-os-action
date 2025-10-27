@@ -1,0 +1,102 @@
+name: PR Code Review
+
+# Only analyze changed files in pull requests
+# Optimized for speed and cost
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: pr-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for changed files detection
+    
+    - name: Run Agent OS PR Review
+      id: review
+      uses: securedotcom/agent-os-action@v1
+      with:
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+        review-type: 'audit'
+        
+        # PR Mode - Only analyze changed files
+        only-changed: 'true'
+        
+        # Cost Controls
+        max-files: 25           # Limit for fast PR feedback
+        max-tokens: 6000        # Reduce tokens for speed
+        cost-limit: '0.25'      # Cap at $0.25 per PR
+        
+        # Fail on critical security issues
+        fail-on-blockers: 'true'
+        
+        # Post results to PR
+        comment-on-pr: 'true'
+        upload-reports: 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload SARIF
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: .agent-os/reviews/results.sarif
+    
+    - name: Comment on PR with Summary
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const blockers = '${{ steps.review.outputs.blockers-found }}';
+          const suggestions = '${{ steps.review.outputs.suggestions-found }}';
+          const cost = '${{ steps.review.outputs.cost-estimate }}';
+          const files = '${{ steps.review.outputs.files-analyzed }}';
+          const duration = '${{ steps.review.outputs.duration-seconds }}';
+          
+          const status = blockers > 0 ? '⚠️ Issues Found' : '✅ Looks Good';
+          const emoji = blockers > 0 ? '🔴' : '🟢';
+          
+          const body = `## ${emoji} Agent OS Code Review
+          
+          **Status**: ${status}  
+          **Analyzed**: ${files} files (changed only)  
+          **Duration**: ${duration}s | **Cost**: $${cost}
+          
+          ### Summary
+          ${blockers > 0 ? `- 🔴 **${blockers} Critical Issues** - Must fix before merge` : ''}
+          ${suggestions > 0 ? `- 🟡 **${suggestions} Suggestions** - Consider fixing` : ''}
+          ${blockers == 0 && suggestions == 0 ? '- ✅ No issues found!' : ''}
+          
+          📄 [View Full Report](../actions/runs/${{ github.run_id }})
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+# Key Features:
+# - Only analyzes changed files (90% cost reduction)
+# - Fast feedback (<5 minutes typical)
+# - Low cost ($0.05-$0.25 per PR)
+# - Blocks merge on critical issues
+# - Posts summary comment on PR
+
