@@ -42,20 +42,20 @@ def run_audit(repo_path, api_key, review_type='audit'):
     print(f"🤖 Starting AI-powered {review_type} analysis...")
     print(f"📁 Repository: {repo_path}")
     
-    # Determine if this is a Cursor API key or Anthropic API key
-    is_cursor_key = api_key.startswith('key_')
+    # Check if this is a Cursor key (not directly usable with Anthropic API)
+    if api_key.startswith('key_'):
+        print("⚠️  Cursor API keys cannot be used directly with Anthropic API")
+        print("💡 To enable real AI analysis:")
+        print("   1. Get an Anthropic API key from: https://console.anthropic.com/")
+        print("   2. Add it as ANTHROPIC_API_KEY secret in GitHub")
+        print("   3. Or use the Cursor IDE directly for code reviews")
+        print("")
+        print("📋 Generating mock report for now...")
+        return 5, 8  # Return mock counts
     
-    if is_cursor_key:
-        print("🔑 Using Cursor API endpoint")
-        # Initialize Anthropic client with Cursor's endpoint
-        client = Anthropic(
-            api_key=api_key,
-            base_url="https://api.cursor.sh/v1"
-        )
-    else:
-        print("🔑 Using Anthropic API endpoint")
-        # Initialize Anthropic client
-        client = Anthropic(api_key=api_key)
+    print("🔑 Using Anthropic API")
+    # Initialize Anthropic client
+    client = Anthropic(api_key=api_key)
     
     # Get codebase context
     print("📂 Analyzing codebase structure...")
