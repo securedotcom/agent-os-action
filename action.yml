@@ -238,11 +238,11 @@ runs:
       id: code-review
       shell: bash
       env:
-      INPUT_AI_PROVIDER: ${{ inputs.ai-provider }}
-      ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-      OPENAI_API_KEY: ${{ inputs.openai-api-key }}
-      OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
-      INPUT_MODEL: ${{ inputs.model }}
+        INPUT_AI_PROVIDER: ${{ inputs.ai-provider }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
+        INPUT_MODEL: ${{ inputs.model }}
         INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
         INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
         INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
