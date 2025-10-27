@@ -1,0 +1,170 @@
+# Go Test Coverage Gate
+# Fails PR if coverage drops below threshold
+
+name: Go Coverage Gate
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Test Coverage Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Go
+      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
+      with:
+        go-version: '1.21'
+        cache: true
+    
+    - name: Run tests with coverage
+      run: |
+        go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        go tool cover -html=coverage.out -o coverage.html
+        go tool cover -func=coverage.out -o coverage.txt
+    
+    # Parse coverage percentage
+    - name: Parse Coverage
+      if: always()
+      run: |
+        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+        echo "Coverage: $COVERAGE%"
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+        
+        # Determine badge color
+        if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+          COLOR="brightgreen"
+        elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+          COLOR="green"
+        elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+          COLOR="yellow"
+        else
+          COLOR="red"
+        fi
+        echo "BADGE_COLOR=$COLOR" >> $GITHUB_ENV
+    
+    # Upload coverage reports
+    - name: Upload Coverage HTML
+      if: always()
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: coverage-report
+        path: |
+          coverage.html
+          coverage.out
+          coverage.txt
+        retention-days: 30
+    
+    # Comment on PR with coverage
+    - name: Comment Coverage on PR
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+      with:
+        script: |
+          const fs = require('fs');
+          const coverageText = fs.readFileSync('coverage.txt', 'utf8');
+          
+          // Parse coverage by file
+          const lines = coverageText.split('\n').filter(line => line.trim() && !line.includes('total'));
+          const files = lines.map(line => {
+            const parts = line.trim().split(/\s+/);
+            return {
+              file: parts[0],
+              coverage: parseFloat(parts[2])
+            };
+          }).sort((a, b) => a.coverage - b.coverage);
+          
+          const totalLine = coverageText.split('\n').find(line => line.includes('total'));
+          const totalCoverage = parseFloat(totalLine.split(/\s+/)[2]);
+          
+          const emoji = totalCoverage >= 90 ? '🟢' : totalCoverage >= 80 ? '🟡' : '🔴';
+          
+          const body = `## ${emoji} Test Coverage Report
+          
+          **Overall Coverage**: ${totalCoverage}%
+          
+          **Threshold**: 80%  
+          **Status**: ${totalCoverage >= 80 ? '✅ PASS' : '❌ FAIL'}
+          
+          ### Coverage by Package (Lowest 10)
+          
+          | Package | Coverage |
+          |---------|----------|
+          ${files.slice(0, 10).map(f => {
+            const icon = f.coverage >= 80 ? '✅' : f.coverage >= 60 ? '⚠️' : '❌';
+            return `| ${icon} \`${f.file}\` | ${f.coverage}% |`;
+          }).join('\n')}
+          
+          ${totalCoverage < 80 ? '⚠️ **Coverage is below threshold (80%). Please add tests for uncovered code.**' : ''}
+          
+          [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.name,
+            body: body
+          });
+    
+    # Fail if coverage is below threshold
+    - name: Check Coverage Threshold
+      if: always()
+      run: |
+        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+        THRESHOLD=80
+        
+        echo "Coverage: $COVERAGE%"
+        echo "Threshold: $THRESHOLD%"
+        
+        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+          echo "❌ Coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
+          echo ""
+          echo "Packages with low coverage:"
+          go tool cover -func=coverage.out | grep -v total | awk -v threshold=$THRESHOLD '$3+0 < threshold {print "  - " $1 ": " $3}' | sort -t: -k2 -n
+          exit 1
+        else
+          echo "✅ Coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
+        fi
+    
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Coverage**: ${{ env.COVERAGE }}%" >> $GITHUB_STEP_SUMMARY
+        echo "**Threshold**: 80%" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: $([ $(echo "${{ env.COVERAGE }} >= 80" | bc -l) -eq 1 ] && echo "✅ PASS" || echo "❌ FAIL")" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Top Uncovered Packages" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        go tool cover -func=coverage.out | grep -v total | sort -t: -k3 -n | head -10 >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[View Detailed Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+# Configuration Notes:
+# 1. Adjust THRESHOLD variable to your desired coverage percentage
+# 2. Use -race flag to detect race conditions
+# 3. Use -covermode=atomic for accurate concurrent coverage
+# 4. Exclude vendor and test files from coverage if needed:
+#    go test -coverprofile=coverage.out $(go list ./... | grep -v /vendor/)
+

@@ -1,0 +1,92 @@
+{
+  "name": "eslint-config-performance",
+  "description": "ESLint configuration for performance and complexity linting",
+  "version": "1.0.0",
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2021": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:sonarjs/recommended"
+    ],
+    "plugins": [
+      "sonarjs",
+      "complexity"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2021,
+      "sourceType": "module"
+    },
+    "rules": {
+      "complexity": ["error", { "max": 10 }],
+      "max-depth": ["error", { "max": 4 }],
+      "max-lines-per-function": ["warn", { "max": 50, "skipBlankLines": true, "skipComments": true }],
+      "max-nested-callbacks": ["error", { "max": 3 }],
+      "max-params": ["warn", { "max": 4 }],
+      "max-statements": ["warn", { "max": 15 }],
+      "no-await-in-loop": "error",
+      "no-console": "warn",
+      "no-constant-condition": "error",
+      "no-dupe-else-if": "error",
+      "no-duplicate-case": "error",
+      "no-empty": "error",
+      "no-extra-boolean-cast": "error",
+      "no-inner-declarations": "error",
+      "no-irregular-whitespace": "error",
+      "no-loss-of-precision": "error",
+      "no-misleading-character-class": "error",
+      "no-promise-executor-return": "error",
+      "no-prototype-builtins": "error",
+      "no-template-curly-in-string": "error",
+      "no-unreachable": "error",
+      "no-unreachable-loop": "error",
+      "no-unsafe-finally": "error",
+      "no-unsafe-optional-chaining": "error",
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "no-useless-backreference": "error",
+      "require-atomic-updates": "error",
+      "use-isnan": "error",
+      "valid-typeof": "error",
+      "sonarjs/cognitive-complexity": ["error", 15],
+      "sonarjs/no-collapsible-if": "error",
+      "sonarjs/no-collection-size-mischeck": "error",
+      "sonarjs/no-duplicate-string": ["error", { "threshold": 3 }],
+      "sonarjs/no-duplicated-branches": "error",
+      "sonarjs/no-identical-conditions": "error",
+      "sonarjs/no-identical-expressions": "error",
+      "sonarjs/no-identical-functions": "error",
+      "sonarjs/no-inverted-boolean-check": "error",
+      "sonarjs/no-nested-switch": "error",
+      "sonarjs/no-nested-template-literals": "error",
+      "sonarjs/no-redundant-boolean": "error",
+      "sonarjs/no-redundant-jump": "error",
+      "sonarjs/no-same-line-conditional": "error",
+      "sonarjs/no-small-switch": "error",
+      "sonarjs/no-unused-collection": "error",
+      "sonarjs/no-use-of-empty-return-value": "error",
+      "sonarjs/no-useless-catch": "error",
+      "sonarjs/prefer-immediate-return": "error",
+      "sonarjs/prefer-object-literal": "error",
+      "sonarjs/prefer-single-boolean-return": "error",
+      "sonarjs/prefer-while": "error"
+    }
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "eslint-plugin-sonarjs": "^0.21.0",
+    "eslint-plugin-complexity": "^1.0.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:report": "eslint . --format json --output-file eslint-report.json"
+  },
+  "instructions": {
+    "install": "npm install --save-dev eslint eslint-plugin-sonarjs",
+    "run": "npm run lint",
+    "ci": "npm run lint:report"
+  }
+}
+
