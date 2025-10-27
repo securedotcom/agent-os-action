@@ -368,41 +368,46 @@ runs:
             pr.title.includes('Code Review Findings')
           );
           
-          // Always create a new PR with unique timestamp
-          // If there are existing open audit PRs, add a comment to them and create a new one
+          // If there's an existing OPEN audit PR, update it instead of creating a new one
           if (auditPRs.length > 0) {
-            console.log(`Found ${auditPRs.length} existing audit PR(s). Will create a new PR with updated findings.`);
+            console.log(`Found ${auditPRs.length} existing OPEN audit PR(s). Updating the most recent one...`);
             
-            // Optionally add a comment to the most recent PR pointing to the new one
+            // Update the most recent audit PR
             const latestPR = auditPRs[0];
-            const newPRNote = [
-              '## 🔄 New Code Review Available',
+            
+            // Add a comment with new findings
+            const updateBody = [
+              '## 🔄 Updated Code Review Findings',
               '',
-              `A new code review has been completed with updated findings.`,
               `**Run Date:** ${new Date().toISOString()}`,
               `**Commit:** ${context.sha}`,
-              `**New Blockers:** ${blockerCount}`,
-              `**New Suggestions:** ${suggestionCount}`,
+              `**Blockers Found:** ${blockerCount}`,
+              `**Suggestions:** ${suggestionCount}`,
               '',
-              `A new PR will be created with the latest findings.`,
+              '---',
+              '',
+              reportContent,
+              '',
+              '---',
+              '',
+              '**Note:** This is an automated update from the latest code review run.',
+              `**Artifact:** code-review-reports-${context.runId}-${context.runAttempt}`,
               `**Run URL:** ${context.payload.repository.html_url}/actions/runs/${context.runId}`
             ].join('\n');
             
-            try {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: latestPR.number,
-                body: newPRNote
-              });
-              console.log(`Added comment to existing PR #${latestPR.number}`);
-            } catch (error) {
-              console.log(`Could not comment on PR #${latestPR.number}: ${error.message}`);
-            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: latestPR.number,
+              body: updateBody
+            });
+            
+            console.log(`✅ Updated existing PR #${latestPR.number} with new findings`);
+            return; // Exit early - don't create a new PR
           }
           
-          // No existing PR found, create a new one
-          console.log('No existing audit PR found. Creating new PR...');
+          // No existing OPEN PR found, create a new one
+          console.log('No existing OPEN audit PR found. Creating new PR...');
           
           // Get current branch
           const currentBranch = context.ref.replace('refs/heads/', '');
