@@ -368,49 +368,81 @@ def generate_sarif(findings, repo_path):
 
 def parse_findings_from_report(report_text):
     """Parse findings from markdown report"""
+    import re
     findings = []
     lines = report_text.split('\n')
     
-    current_file = None
-    current_line = None
+    # Track current section for categorization
+    current_section = None
+    current_severity = None
     
-    for line in lines:
-        # Look for severity markers
-        if '[BLOCKER]' in line or '[CRITICAL]' in line:
-            severity = 'critical'
-        elif '[HIGH]' in line:
-            severity = 'high'
-        elif '[MEDIUM]' in line or '[SUGGESTION]' in line:
-            severity = 'medium'
-        elif '[LOW]' in line:
-            severity = 'low'
-        else:
+    for i, line in enumerate(lines):
+        # Detect sections
+        if '## Critical Issues' in line or '## Critical' in line:
+            current_severity = 'critical'
+            continue
+        elif '## High Priority' in line or '## High' in line:
+            current_severity = 'high'
+            continue
+        elif '## Medium Priority' in line or '## Medium' in line:
+            current_severity = 'medium'
+            continue
+        elif '## Low Priority' in line or '## Low' in line:
+            current_severity = 'low'
             continue
         
-        # Extract file path and line number if present
-        import re
-        match = re.search(r'`([^`]+):(\d+)`', line)
-        if match:
-            current_file = match.group(1)
-            current_line = int(match.group(2))
+        # Detect category subsections
+        if '### Security' in line:
+            current_section = 'security'
+            continue
+        elif '### Performance' in line:
+            current_section = 'performance'
+            continue
+        elif '### Testing' in line or '### Test' in line:
+            current_section = 'testing'
+            continue
+        elif '### Code Quality' in line or '### Quality' in line:
+            current_section = 'quality'
+            continue
         
-        # Determine category
-        category = 'quality'
-        if 'security' in line.lower() or 'sql' in line.lower() or 'xss' in line.lower():
-            category = 'security'
-        elif 'performance' in line.lower() or 'n+1' in line.lower() or 'memory' in line.lower():
-            category = 'performance'
-        elif 'test' in line.lower() or 'coverage' in line.lower():
-            category = 'testing'
-        
-        findings.append({
-            'severity': severity,
-            'category': category,
-            'message': line.strip(),
-            'file_path': current_file or 'unknown',
-            'line_number': current_line or 1,
-            'rule_id': f'{category.upper()}-001'
-        })
+        # Look for numbered findings (e.g., "1. **Issue Name**" or "14. **Issue Name**")
+        numbered_match = re.match(r'^\d+\.\s+\*\*(.+?)\*\*\s*-?\s*`?([^`\n]+\.(?:ts|js|py|java|go|rs|rb|php|cs))?:?(\d+)?', line)
+        if numbered_match:
+            issue_name = numbered_match.group(1)
+            file_path = numbered_match.group(2) if numbered_match.group(2) else 'unknown'
+            line_num = int(numbered_match.group(3)) if numbered_match.group(3) else 1
+            
+            # Get description from next lines
+            description_lines = []
+            for j in range(i+1, min(i+5, len(lines))):
+                if lines[j].strip() and not lines[j].startswith('#') and not re.match(r'^\d+\.', lines[j]):
+                    description_lines.append(lines[j].strip())
+                elif lines[j].startswith('#') or re.match(r'^\d+\.', lines[j]):
+                    break
+            
+            description = ' '.join(description_lines[:2]) if description_lines else issue_name
+            
+            # Determine category and severity
+            category = current_section or 'quality'
+            severity = current_severity or 'medium'
+            
+            # Override category based on keywords
+            lower_text = (issue_name + ' ' + description).lower()
+            if any(kw in lower_text for kw in ['security', 'sql', 'xss', 'csrf', 'auth', 'jwt', 'secret', 'injection']):
+                category = 'security'
+            elif any(kw in lower_text for kw in ['performance', 'n+1', 'memory', 'leak', 'slow', 'inefficient']):
+                category = 'performance'
+            elif any(kw in lower_text for kw in ['test', 'coverage', 'testing']):
+                category = 'testing'
+            
+            findings.append({
+                'severity': severity,
+                'category': category,
+                'message': f"{issue_name}: {description[:200]}",
+                'file_path': file_path,
+                'line_number': line_num,
+                'rule_id': f'{category.upper()}-{len([f for f in findings if f["category"] == category]) + 1:03d}'
+            })
     
     return findings
 
