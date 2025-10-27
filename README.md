@@ -150,7 +150,6 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `openai-api-key` | No | `''` | OpenAI API key for GPT-4 ([Get one](https://platform.openai.com/api-keys)) |
 | `ollama-endpoint` | No | `''` | Ollama endpoint for local LLM (e.g., `http://localhost:11434`) |
 | `model` | No | `'auto'` | AI model: `claude-sonnet-4`, `gpt-4-turbo-preview`, `llama3`, or `auto` |
-| `cursor-api-key` | No | `''` | Cursor API key (deprecated, use `anthropic-api-key`) |
 | `review-type` | No | `'audit'` | Type of review: `audit`, `security`, `review` |
 | `project-path` | No | `'.'` | Path to project directory to review |
 | `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
@@ -557,7 +556,7 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 ### Planned Improvements
 - OpenAI API support (GPT-4 alternative)
 - Local LLM support (Ollama)
-- IDE extensions (VS Code, Cursor)
+- IDE extensions (VS Code)
 - Custom rules engine
 - Real-time dashboard
 - More language support
