@@ -115,6 +115,30 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `files-analyzed` | Number of files analyzed | `42` |
 | `duration-seconds` | Analysis duration in seconds | `127` |
 
+### Uploading SARIF to Security Tab
+
+To surface findings in GitHub's Security tab, upload the SARIF output:
+
+```yaml
+- name: Run Code Review
+  id: agent
+  uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+- name: Upload SARIF to Code Scanning
+  if: always()
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.agent.outputs.sarif-path }}
+    category: agent-os-code-review
+```
+
+This makes findings visible in:
+- **Security** → **Code scanning** tab
+- Pull request checks
+- Security overview dashboard
+
 ### Exit Codes
 
 | Code | Meaning | When It Occurs |
