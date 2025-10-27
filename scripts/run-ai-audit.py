@@ -666,6 +666,34 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"⏱️  Duration: {metrics.metrics['duration_seconds']}s")
         print(f"🔧 Provider: {provider} ({model})")
         
+        # Check fail-on conditions
+        fail_on = config.get('fail_on', '')
+        should_fail = False
+        
+        if fail_on:
+            print(f"\n🚦 Checking fail conditions: {fail_on}")
+            conditions = [c.strip() for c in fail_on.split(',') if c.strip()]
+            
+            for condition in conditions:
+                if ':' in condition:
+                    category, severity = condition.split(':', 1)
+                    category = category.strip().lower()
+                    severity = severity.strip().lower()
+                    
+                    # Check if condition is met
+                    if category == 'any':
+                        # any:critical means any category with critical severity
+                        if severity in metrics.metrics['findings'] and metrics.metrics['findings'][severity] > 0:
+                            print(f"   ❌ FAIL: Found {metrics.metrics['findings'][severity]} {severity} issues")
+                            should_fail = True
+                    else:
+                        # Check specific category:severity combination
+                        matching_findings = [f for f in findings 
+                                           if f['category'] == category and f['severity'] == severity]
+                        if matching_findings:
+                            print(f"   ❌ FAIL: Found {len(matching_findings)} {category}:{severity} issues")
+                            should_fail = True
+        
         # Output for GitHub Actions
         print(f"\n::set-output name=blockers::{blocker_count}")
         print(f"::set-output name=suggestions::{suggestion_count}")
@@ -675,6 +703,11 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"::set-output name=cost-estimate::{metrics.metrics['cost_usd']:.2f}")
         print(f"::set-output name=files-analyzed::{metrics.metrics['files_reviewed']}")
         print(f"::set-output name=duration-seconds::{metrics.metrics['duration_seconds']}")
+        
+        # Exit with appropriate code
+        if should_fail:
+            print(f"\n❌ Failing due to fail-on conditions")
+            sys.exit(1)
         
         return blocker_count, suggestion_count, metrics
         
@@ -704,6 +737,7 @@ if __name__ == '__main__':
         'max_files': os.environ.get('INPUT_MAX_FILES', '100'),
         'max_tokens': os.environ.get('INPUT_MAX_TOKENS', '8000'),
         'cost_limit': os.environ.get('INPUT_COST_LIMIT', '1.0'),
+        'fail_on': os.environ.get('INPUT_FAIL_ON', ''),
     }
     
     run_audit(repo_path, config, review_type)
