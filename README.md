@@ -209,6 +209,75 @@ This makes findings visible in:
 
 > **Note**: Code Scanning must be enabled first. See [Enable Code Scanning Guide](docs/ENABLE_CODE_SCANNING.md) for setup instructions.
 
+#### Troubleshooting SARIF Uploads
+
+If SARIF upload fails, check these common issues:
+
+**1. Code Scanning Not Enabled**
+```
+Error: Code Security must be enabled for this repository to use code scanning
+```
+**Solution**: Enable Code Scanning in repository settings:
+- Go to **Settings** → **Code security and analysis**
+- Click **Set up** next to "Code scanning"
+- Choose "Default" or "Advanced" setup
+
+**2. Missing Permissions**
+```
+Error: Resource not accessible by integration
+```
+**Solution**: Add required permissions to workflow:
+```yaml
+permissions:
+  contents: read
+  security-events: write  # Required for SARIF upload
+  actions: read           # Required for Code Scanning
+```
+
+**3. SARIF File Not Found**
+```
+Error: Unable to find SARIF file
+```
+**Solution**: Ensure the review completed successfully:
+```yaml
+- name: Upload SARIF
+  if: always() && steps.review.outputs.sarif-path != ''
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.review.outputs.sarif-path }}
+```
+
+**4. Invalid SARIF Format**
+```
+Error: Invalid SARIF file
+```
+**Solution**: The action generates valid SARIF 2.1.0. If you see this error, check:
+- File wasn't corrupted during upload
+- No custom modifications to SARIF output
+- GitHub Actions runner has sufficient disk space
+
+**5. Rate Limiting**
+```
+Error: You have exceeded a secondary rate limit
+```
+**Solution**: Add delays between uploads or reduce frequency:
+```yaml
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.review.outputs.sarif-path }}
+    wait-for-processing: true  # Wait for GitHub to process
+```
+
+**Debugging Tips**:
+```yaml
+- name: Debug SARIF
+  run: |
+    echo "SARIF path: ${{ steps.review.outputs.sarif-path }}"
+    ls -la .agent-os/reviews/
+    cat .agent-os/reviews/results.sarif | jq .version
+```
+
 ### Exit Codes
 
 | Code | Meaning | When It Occurs |
@@ -244,7 +313,7 @@ This makes findings visible in:
 **Cost-Optimized Example**:
 ```yaml
 - name: Run Code Review (Cost-Optimized)
-  uses: securedotcom/agent-os-action@v1
+  uses: securedotcom/agent-os-action@v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     only-changed: 'true'              # Only review changed files
@@ -252,6 +321,126 @@ This makes findings visible in:
     exclude-paths: 'test/**,docs/**'  # Skip tests and docs
     max-files: 30                     # Limit file count
     cost-limit: '0.50'                # Cap at $0.50
+```
+
+---
+
+## 📁 Changed-Files Mode (PR Optimization)
+
+For large repositories, analyzing only changed files dramatically reduces cost and latency.
+
+### How It Works
+
+When `only-changed: 'true'`, Agent OS:
+1. Runs `git diff` to find changed files between PR base and head
+2. Filters to only code files (`.js`, `.ts`, `.py`, `.java`, etc.)
+3. Analyzes only those files instead of entire codebase
+4. Typical reduction: **90-95% fewer files analyzed**
+
+### Configuration
+
+```yaml
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pr-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git diff
+      
+      - name: Review Changed Files Only
+        uses: securedotcom/agent-os-action@v2.1.0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          only-changed: 'true'  # ← Enable changed-files mode
+          fail-on: 'security:critical,security:high'
+```
+
+### Cost Comparison
+
+**Full Codebase** (10,000 LOC):
+- Files analyzed: ~200
+- Duration: 2-3 minutes
+- Cost: ~$0.50
+
+**Changed Files Only** (typical PR with 500 LOC changed):
+- Files analyzed: ~10
+- Duration: 20-30 seconds
+- Cost: ~$0.03
+
+**Savings**: 94% cost reduction, 90% faster
+
+### Best Practices
+
+#### 1. Use for PR Reviews
+```yaml
+on:
+  pull_request:  # ← Perfect for PRs
+jobs:
+  pr-review:
+    steps:
+      - uses: securedotcom/agent-os-action@v2.1.0
+        with:
+          only-changed: 'true'
+```
+
+#### 2. Combine with Path Filters
+```yaml
+- uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    only-changed: 'true'
+    include-paths: 'src/**,lib/**'  # Only source directories
+    exclude-paths: 'test/**,docs/**,*.md'  # Skip non-code
+```
+
+#### 3. Full Audit on Schedule
+```yaml
+# PR reviews: changed files only
+on:
+  pull_request:
+    # only-changed: 'true'
+
+# Weekly audit: full codebase
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+    # only-changed: 'false'
+```
+
+### Limitations
+
+**Changed-files mode may miss**:
+- Issues in unchanged files that interact with changes
+- Systemic issues across the codebase
+- Architecture-level problems
+
+**Recommendation**: Use changed-files for PRs, full audit weekly/monthly.
+
+### Troubleshooting
+
+**Issue**: "No changed files found"
+```
+Warning: No files to analyze after applying filters
+```
+**Solution**: Ensure `fetch-depth: 0` in checkout step:
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0  # Required for git diff
+```
+
+**Issue**: Changed files not detected
+**Solution**: Check that PR has a valid base branch:
+```yaml
+on:
+  pull_request:
+    branches: [ main, develop ]  # Specify base branches
 ```
 
 ---
@@ -302,6 +491,98 @@ with:
 | **Anthropic** | ⭐⭐⭐⭐⭐ | $0.05 | Fast | Cloud | Easy |
 | **OpenAI** | ⭐⭐⭐⭐ | $0.15 | Fast | Cloud | Easy |
 | **Ollama** | ⭐⭐⭐ | $0.00 | Medium | Local | Medium |
+
+### Enterprise API Gateway Support
+
+Agent OS supports enterprise API gateways and custom endpoints for enhanced security, compliance, and cost management.
+
+#### Anthropic via AWS Bedrock
+
+```yaml
+- name: Run Code Review (AWS Bedrock)
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    ai-provider: 'anthropic'
+    anthropic-api-key: ${{ secrets.AWS_BEDROCK_API_KEY }}
+  env:
+    ANTHROPIC_BASE_URL: 'https://bedrock-runtime.us-east-1.amazonaws.com'
+    AWS_REGION: 'us-east-1'
+```
+
+#### OpenAI via Azure OpenAI
+
+```yaml
+- name: Run Code Review (Azure OpenAI)
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    ai-provider: 'openai'
+    openai-api-key: ${{ secrets.AZURE_OPENAI_API_KEY }}
+  env:
+    OPENAI_BASE_URL: 'https://your-resource.openai.azure.com'
+    OPENAI_API_VERSION: '2024-02-15-preview'
+```
+
+#### Anthropic via Google Vertex AI
+
+```yaml
+- name: Run Code Review (Vertex AI)
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    ai-provider: 'anthropic'
+    anthropic-api-key: ${{ secrets.VERTEX_API_KEY }}
+  env:
+    ANTHROPIC_BASE_URL: 'https://us-central1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT/locations/us-central1/publishers/anthropic/models'
+    GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+```
+
+#### Custom API Gateway (Enterprise)
+
+For organizations with custom API gateways:
+
+```yaml
+- name: Run Code Review (Custom Gateway)
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    ai-provider: 'anthropic'
+    anthropic-api-key: ${{ secrets.GATEWAY_API_KEY }}
+  env:
+    ANTHROPIC_BASE_URL: 'https://api-gateway.your-company.com/ai/anthropic'
+    # Optional: Custom headers for authentication/routing
+    ANTHROPIC_HEADERS: '{"X-Custom-Auth": "bearer-token", "X-Tenant-ID": "your-tenant"}'
+```
+
+#### Self-Hosted Ollama (Air-Gapped)
+
+For air-gapped or highly secure environments:
+
+```yaml
+- name: Run Code Review (Self-Hosted)
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    ai-provider: 'ollama'
+    ollama-endpoint: 'http://internal-ollama.company.local:11434'
+    model: 'llama3:70b'  # Use your deployed model
+```
+
+#### Enterprise Benefits
+
+✅ **Data Sovereignty**: Keep data within your cloud/region  
+✅ **Compliance**: Meet HIPAA, SOC 2, GDPR requirements  
+✅ **Cost Control**: Use reserved capacity or committed spend  
+✅ **Network Security**: Route through private VPCs/VPNs  
+✅ **Audit Trail**: Centralized logging and monitoring  
+✅ **Rate Limiting**: Org-wide quota management  
+
+#### Environment Variables Reference
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `ANTHROPIC_BASE_URL` | Custom Anthropic endpoint | `https://bedrock-runtime.us-east-1.amazonaws.com` |
+| `OPENAI_BASE_URL` | Custom OpenAI endpoint | `https://your-resource.openai.azure.com` |
+| `OPENAI_API_VERSION` | Azure OpenAI API version | `2024-02-15-preview` |
+| `OLLAMA_ENDPOINT` | Ollama server URL | `http://localhost:11434` |
+| `AWS_REGION` | AWS region for Bedrock | `us-east-1` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | GCP credentials path | `/path/to/credentials.json` |
 
 ---
 
