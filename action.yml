@@ -53,6 +53,12 @@ inputs:
     required: false
     default: 'auto'
   
+  # Multi-Agent Configuration
+  multi-agent-mode:
+    description: 'Enable multi-agent mode: single, sequential, or parallel'
+    required: false
+    default: 'single'
+  
   # Cost/Latency Guardrails
   only-changed:
     description: 'Only analyze changed files (PR mode)'
@@ -243,6 +249,7 @@ runs:
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
         INPUT_MODEL: ${{ inputs.model }}
+        INPUT_MULTI_AGENT_MODE: ${{ inputs.multi-agent-mode }}
         INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
         INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
         INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}

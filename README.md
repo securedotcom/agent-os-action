@@ -150,6 +150,8 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `openai-api-key` | No | `''` | OpenAI API key for GPT-4 ([Get one](https://platform.openai.com/api-keys)) |
 | `ollama-endpoint` | No | `''` | Ollama endpoint for local LLM (e.g., `http://localhost:11434`) |
 | `model` | No | `'auto'` | AI model: `claude-sonnet-4`, `gpt-4-turbo-preview`, `llama3`, or `auto` |
+| **Multi-Agent Mode** | | | |
+| `multi-agent-mode` | No | `'single'` | Review mode: `single` (1 agent, fast), `sequential` (5 agents, deep) |
 | `review-type` | No | `'audit'` | Type of review: `audit`, `security`, `review` |
 | `project-path` | No | `'.'` | Path to project directory to review |
 | `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
@@ -300,6 +302,153 @@ with:
 | **Anthropic** | ⭐⭐⭐⭐⭐ | $0.05 | Fast | Cloud | Easy |
 | **OpenAI** | ⭐⭐⭐⭐ | $0.15 | Fast | Cloud | Easy |
 | **Ollama** | ⭐⭐⭐ | $0.00 | Medium | Local | Medium |
+
+---
+
+## 🤖 Multi-Agent Mode
+
+Agent OS supports **two review modes** with different trade-offs:
+
+### Single-Agent Mode (Default)
+- **Agents**: 1 unified agent
+- **Duration**: 1-2 minutes
+- **Cost**: ~$0.15 per run
+- **Quality**: Good - comprehensive analysis
+- **Best For**: PR reviews, daily CI, cost-conscious teams
+
+### Multi-Agent Sequential Mode
+- **Agents**: 5 specialized agents + orchestrator
+- **Duration**: 5-10 minutes  
+- **Cost**: ~$0.75 per run (5x agents)
+- **Quality**: Excellent - deep, focused analysis
+- **Best For**: Weekly audits, pre-release reviews, compliance
+
+### The 5 Specialized Agents
+
+1. **🔴 Security Reviewer**
+   - SQL injection, XSS, CSRF
+   - Authentication & authorization flaws
+   - Hardcoded secrets
+   - Cryptographic issues
+   - Dependency vulnerabilities
+
+2. **🟠 Performance Reviewer**
+   - N+1 query problems
+   - Memory leaks
+   - Inefficient algorithms
+   - Blocking I/O operations
+   - Resource management issues
+
+3. **🟢 Testing Reviewer**
+   - Critical path coverage gaps
+   - Missing edge case tests
+   - Untested error scenarios
+   - Integration test gaps
+   - Test quality issues
+
+4. **🔵 Code Quality Reviewer**
+   - High complexity functions
+   - Missing error handling
+   - Code duplication
+   - Documentation gaps
+   - Architecture issues
+
+5. **🟣 Review Orchestrator**
+   - Deduplicates findings across agents
+   - Prioritizes by business impact
+   - Creates actionable plan
+   - Makes APPROVED/REQUIRES FIXES decision
+
+### Comparison Table
+
+| Aspect | Single-Agent | Multi-Agent Sequential |
+|--------|--------------|------------------------|
+| **Agents** | 1 | 5 |
+| **Duration** | 1-2 min | 5-10 min |
+| **Cost** | ~$0.15 | ~$0.75 |
+| **Depth** | Comprehensive | Deep + Specialized |
+| **Deduplication** | N/A | Orchestrator handles |
+| **Reports** | 1 main report | 5 agent + 1 orchestrated |
+| **Best For** | Fast feedback | Thorough audits |
+
+### Usage Example
+
+```yaml
+name: Weekly Deep Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9 AM
+
+jobs:
+  deep-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Multi-Agent Code Review
+        uses: securedotcom/agent-os-action@v2.1.0
+        with:
+          multi-agent-mode: 'sequential'
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          cost-limit: '5.0'  # Higher limit for multi-agent
+          fail-on: 'security:critical,security:high'
+```
+
+### Output Structure
+
+Multi-agent mode generates additional reports:
+
+```
+.agent-os/reviews/
+├── audit-report.md          # Final orchestrated report
+├── results.sarif            # SARIF for Code Scanning
+├── results.json             # Structured findings
+├── metrics.json             # Cost/time metrics
+└── agents/                  # Individual agent reports
+    ├── security-report.md
+    ├── performance-report.md
+    ├── testing-report.md
+    ├── quality-report.md
+    └── metrics.json         # Per-agent metrics
+```
+
+### When to Use Each Mode
+
+**Use Single-Agent Mode for**:
+- ✅ Pull request reviews (fast feedback)
+- ✅ Daily CI checks
+- ✅ Cost-conscious teams
+- ✅ Small-medium codebases (<10K LOC)
+- ✅ Quick iteration cycles
+
+**Use Multi-Agent Sequential for**:
+- ✅ Weekly/monthly deep audits
+- ✅ Pre-release security reviews
+- ✅ Compliance audits (SOC 2, HIPAA, etc.)
+- ✅ Large enterprise codebases (>50K LOC)
+- ✅ High-stakes production code
+- ✅ When you need detailed per-category analysis
+
+### Cost Optimization
+
+**For Regular Use** (Daily/PR):
+```yaml
+multi-agent-mode: 'single'
+cost-limit: '0.50'
+only-changed: 'true'
+```
+
+**For Deep Audits** (Weekly):
+```yaml
+multi-agent-mode: 'sequential'
+cost-limit: '5.0'
+only-changed: 'false'
+```
+
+---
 
 ## 💰 Cost Estimation
 
