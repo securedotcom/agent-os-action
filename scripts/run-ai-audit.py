@@ -689,15 +689,28 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
                             print(f"   ❌ FAIL: Found {len(matching_findings)} {category}:{severity} issues")
                             should_fail = True
         
-        # Output for GitHub Actions
-        print(f"\n::set-output name=blockers::{blocker_count}")
-        print(f"::set-output name=suggestions::{suggestion_count}")
-        print(f"::set-output name=report-path::{report_file}")
-        print(f"::set-output name=sarif-path::{sarif_file}")
-        print(f"::set-output name=json-path::{json_file}")
-        print(f"::set-output name=cost-estimate::{metrics.metrics['cost_usd']:.2f}")
-        print(f"::set-output name=files-analyzed::{metrics.metrics['files_reviewed']}")
-        print(f"::set-output name=duration-seconds::{metrics.metrics['duration_seconds']}")
+        # Output for GitHub Actions (using GITHUB_OUTPUT)
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"blockers={blocker_count}\n")
+                f.write(f"suggestions={suggestion_count}\n")
+                f.write(f"report-path={report_file}\n")
+                f.write(f"sarif-path={sarif_file}\n")
+                f.write(f"json-path={json_file}\n")
+                f.write(f"cost-estimate={metrics.metrics['cost_usd']:.2f}\n")
+                f.write(f"files-analyzed={metrics.metrics['files_reviewed']}\n")
+                f.write(f"duration-seconds={metrics.metrics['duration_seconds']}\n")
+        else:
+            # Fallback for local testing
+            print(f"\nblockers={blocker_count}")
+            print(f"suggestions={suggestion_count}")
+            print(f"report-path={report_file}")
+            print(f"sarif-path={sarif_file}")
+            print(f"json-path={json_file}")
+            print(f"cost-estimate={metrics.metrics['cost_usd']:.2f}")
+            print(f"files-analyzed={metrics.metrics['files_reviewed']}")
+            print(f"duration-seconds={metrics.metrics['duration_seconds']}")
         
         # Exit with appropriate code
         if should_fail:
