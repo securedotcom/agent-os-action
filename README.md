@@ -72,6 +72,49 @@ That's it! Check your repository's Actions tab to see the review in progress.
 
 ---
 
+## 📥 Action Inputs & Outputs
+
+### Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `anthropic-api-key` | No | `''` | Anthropic API key for Claude AI analysis ([Get one](https://console.anthropic.com/)) |
+| `cursor-api-key` | No | `''` | Cursor API key (alternative to Anthropic) |
+| `review-type` | No | `'audit'` | Type of review: `audit`, `security`, `review` |
+| `project-path` | No | `'.'` | Path to project directory to review |
+| `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
+| `fail-on-blockers` | No | `'true'` | Fail workflow if merge blockers are found |
+| `comment-on-pr` | No | `'true'` | Post review results as PR comment |
+| `upload-reports` | No | `'true'` | Upload review reports as workflow artifacts |
+
+### Outputs
+
+| Output | Description | Example Value |
+|--------|-------------|---------------|
+| `review-completed` | Whether the review completed successfully | `true` |
+| `blockers-found` | Number of merge blocker issues found | `3` |
+| `suggestions-found` | Number of suggestion issues found | `12` |
+| `report-path` | Path to the generated markdown report | `.agent-os/reviews/audit-report.md` |
+
+### Exit Codes
+
+| Code | Meaning | When It Occurs |
+|------|---------|----------------|
+| `0` | Success | No blockers found, or blockers found but `fail-on-blockers: false` |
+| `1` | Failure | Blockers found and `fail-on-blockers: true` |
+| `2` | Error | Configuration error, API failure, or system error |
+
+**CI Gating Example**:
+```yaml
+- name: Run Code Review
+  uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    fail-on-blockers: 'true'  # Fail CI if critical issues found
+```
+
+---
+
 ## 📚 Documentation
 
 ### Getting Started

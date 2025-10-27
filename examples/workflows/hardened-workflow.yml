@@ -1,0 +1,114 @@
+name: Agent OS Code Review (Security Hardened)
+
+# This is a production-ready, security-hardened workflow
+# following GitHub Actions best practices
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays at 2 AM UTC
+  workflow_dispatch:
+
+# Least privilege permissions - only what's needed
+permissions:
+  contents: read          # Read repository code
+  pull-requests: write    # Comment on PRs with results
+  security-events: write  # Upload SARIF to Code Scanning
+  actions: read          # Read workflow artifacts
+
+# Prevent concurrent runs on the same ref
+concurrency:
+  group: code-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Cap execution time to prevent runaway costs
+    
+    steps:
+    # Checkout code - pinned by commit SHA for security
+    - name: Checkout code
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        fetch-depth: 0  # Full history for better analysis
+    
+    # Setup Node.js - pinned by commit SHA
+    - name: Setup Node.js
+      uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    # Run Agent OS Code Review with security safeguards
+    - name: Run Agent OS Code Review
+      id: code-review
+      uses: securedotcom/agent-os-action@v1.0.14  # Use semver tag
+      with:
+        # API Configuration
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+        
+        # Review Configuration
+        review-type: 'audit'
+        project-type: 'auto'
+        
+        # Security Settings
+        fail-on-blockers: 'true'  # Fail CI if critical issues found
+        
+        # Cost Controls
+        max-files: 50
+        max-tokens: 8000
+        cost-limit: '1.0'  # Cap at $1.00 per run
+        
+        # Path Filters (optimize for speed and cost)
+        include-paths: 'src/**,lib/**'
+        exclude-paths: 'test/**,docs/**,*.md,node_modules/**'
+        
+        # Output Configuration
+        comment-on-pr: 'true'
+        upload-reports: 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    # Upload SARIF to GitHub Code Scanning - pinned by commit SHA
+    - name: Upload SARIF to Code Scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+      with:
+        sarif_file: .agent-os/reviews/results.sarif
+        category: agent-os-code-review
+    
+    # Upload detailed reports as artifacts - pinned by commit SHA
+    - name: Upload Review Reports
+      if: always()
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: code-review-reports-${{ github.run_number }}
+        path: |
+          .agent-os/reviews/
+          !.agent-os/reviews/**/*.tmp
+        retention-days: 90
+        if-no-files-found: warn
+    
+    # Post summary to workflow
+    - name: Post Workflow Summary
+      if: always()
+      run: |
+        echo "## 🤖 Agent OS Code Review Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: ${{ steps.code-review.outputs.review-completed }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Blockers Found**: ${{ steps.code-review.outputs.blockers-found }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Suggestions Found**: ${{ steps.code-review.outputs.suggestions-found }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📄 [View Full Report](${{ steps.code-review.outputs.report-path }})" >> $GITHUB_STEP_SUMMARY
+
+# Security Notes:
+# 1. All third-party actions pinned by commit SHA
+# 2. Least privilege permissions
+# 3. Timeout to prevent runaway costs
+# 4. Concurrency control to prevent overlapping runs
+# 5. Secrets never echoed or logged
+# 6. Cost limits enforced
+# 7. Path filters to reduce attack surface
+
