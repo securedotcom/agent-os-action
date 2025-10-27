@@ -27,12 +27,29 @@ inputs:
     description: 'Upload review reports as artifacts'
     required: false
     default: 'true'
+  # AI Provider Configuration
+  ai-provider:
+    description: 'AI provider to use: anthropic, openai, ollama, or auto'
+    required: false
+    default: 'auto'
   anthropic-api-key:
     description: 'Anthropic API key for Claude AI analysis'
     required: false
     default: ''
+  openai-api-key:
+    description: 'OpenAI API key for GPT-4 analysis'
+    required: false
+    default: ''
+  ollama-endpoint:
+    description: 'Ollama endpoint URL for local LLM (e.g., http://localhost:11434)'
+    required: false
+    default: ''
+  model:
+    description: 'AI model to use (e.g., claude-sonnet-4, gpt-4, llama3)'
+    required: false
+    default: 'auto'
   cursor-api-key:
-    description: 'Cursor API key for AI analysis'
+    description: 'Cursor API key for AI analysis (deprecated, use anthropic-api-key)'
     required: false
     default: ''
   
@@ -221,8 +238,12 @@ runs:
       id: code-review
       shell: bash
       env:
+        INPUT_AI_PROVIDER: ${{ inputs.ai-provider }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
         CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
+        INPUT_MODEL: ${{ inputs.model }}
         INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
         INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
         INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
@@ -231,7 +252,7 @@ runs:
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
       run: |
-        echo "🤖 Running AI-Powered Code Review with Claude Sonnet 4..."
+        echo "🤖 Running AI-Powered Code Review..."
         cd "${{ inputs.project-path }}"
         
         # Create reviews directory
@@ -239,7 +260,7 @@ runs:
         
         # Install Python dependencies
         echo "📦 Installing dependencies..."
-        pip install -q anthropic
+        pip install -q anthropic openai
         
         # Run AI-powered audit with guardrails
         echo "🧠 Analyzing codebase with AI..."

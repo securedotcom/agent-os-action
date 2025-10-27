@@ -78,8 +78,13 @@ That's it! Check your repository's Actions tab to see the review in progress.
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `anthropic-api-key` | No | `''` | Anthropic API key for Claude AI analysis ([Get one](https://console.anthropic.com/)) |
-| `cursor-api-key` | No | `''` | Cursor API key (alternative to Anthropic) |
+| **AI Provider** | | | |
+| `ai-provider` | No | `'auto'` | AI provider: `anthropic`, `openai`, `ollama`, or `auto` |
+| `anthropic-api-key` | No | `''` | Anthropic API key for Claude AI ([Get one](https://console.anthropic.com/)) |
+| `openai-api-key` | No | `''` | OpenAI API key for GPT-4 ([Get one](https://platform.openai.com/api-keys)) |
+| `ollama-endpoint` | No | `''` | Ollama endpoint for local LLM (e.g., `http://localhost:11434`) |
+| `model` | No | `'auto'` | AI model: `claude-sonnet-4`, `gpt-4-turbo-preview`, `llama3`, or `auto` |
+| `cursor-api-key` | No | `''` | Cursor API key (deprecated, use `anthropic-api-key`) |
 | `review-type` | No | `'audit'` | Type of review: `audit`, `security`, `review` |
 | `project-path` | No | `'.'` | Path to project directory to review |
 | `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
@@ -141,16 +146,65 @@ That's it! Check your repository's Actions tab to see the review in progress.
 
 ---
 
+## 🤖 AI Provider Options
+
+Agent OS supports **3 AI providers** to reduce dependency on any single API:
+
+### 1. Anthropic Claude (Recommended)
+- **Model**: Claude Sonnet 4
+- **Quality**: ⭐⭐⭐⭐⭐ (Best)
+- **Cost**: $3/1M input, $15/1M output (~$0.05/KLOC)
+- **Setup**: Get API key from [console.anthropic.com](https://console.anthropic.com/)
+
+```yaml
+with:
+  anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+### 2. OpenAI GPT-4
+- **Model**: GPT-4 Turbo
+- **Quality**: ⭐⭐⭐⭐ (Excellent)
+- **Cost**: $10/1M input, $30/1M output (~$0.15/KLOC)
+- **Setup**: Get API key from [platform.openai.com](https://platform.openai.com/api-keys)
+
+```yaml
+with:
+  ai-provider: 'openai'
+  openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+### 3. Ollama (Local, Free)
+- **Model**: Llama 3, CodeLlama, etc.
+- **Quality**: ⭐⭐⭐ (Good)
+- **Cost**: $0 (runs locally)
+- **Setup**: Install [Ollama](https://ollama.ai/) locally
+
+```yaml
+with:
+  ai-provider: 'ollama'
+  ollama-endpoint: 'http://localhost:11434'
+```
+
+### Provider Comparison
+
+| Provider | Quality | Cost/KLOC | Speed | Privacy | Setup |
+|----------|---------|-----------|-------|---------|-------|
+| **Anthropic** | ⭐⭐⭐⭐⭐ | $0.05 | Fast | Cloud | Easy |
+| **OpenAI** | ⭐⭐⭐⭐ | $0.15 | Fast | Cloud | Easy |
+| **Ollama** | ⭐⭐⭐ | $0.00 | Medium | Local | Medium |
+
 ## 💰 Cost Estimation
 
 ### Expected Cost per 1000 Lines of Code (KLOC)
 
-| Language | Avg Cost | Range |
-|----------|----------|-------|
-| JavaScript/TypeScript | $0.05 | $0.03-$0.08 |
-| Python | $0.04 | $0.02-$0.06 |
-| Java | $0.06 | $0.04-$0.10 |
-| Go | $0.03 | $0.02-$0.05 |
+| Provider | Language | Avg Cost | Range |
+|----------|----------|----------|-------|
+| **Anthropic** | JavaScript/TypeScript | $0.05 | $0.03-$0.08 |
+| **Anthropic** | Python | $0.04 | $0.02-$0.06 |
+| **Anthropic** | Java | $0.06 | $0.04-$0.10 |
+| **Anthropic** | Go | $0.03 | $0.02-$0.05 |
+| **OpenAI** | All Languages | $0.15 | $0.10-$0.20 |
+| **Ollama** | All Languages | $0.00 | Free |
 
 ### Cost Optimization Tips
 

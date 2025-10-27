@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 Agent OS AI-Powered Code Audit Script
-Uses Anthropic Claude API to perform real code analysis with:
-- Cost/latency guardrails
-- SARIF and JSON output
-- Observability metrics
+Supports multiple LLM providers: Anthropic, OpenAI, Ollama
+With cost guardrails, SARIF/JSON output, and observability
 """
 
 import os
@@ -15,14 +13,13 @@ import glob
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from anthropic import Anthropic
 
 class ReviewMetrics:
     """Track observability metrics for the review"""
     def __init__(self):
         self.start_time = time.time()
         self.metrics = {
-            "version": "1.0.14",
+            "version": "1.0.15",
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
@@ -32,7 +29,8 @@ class ReviewMetrics:
             "tokens_output": 0,
             "cost_usd": 0.0,
             "duration_seconds": 0,
-            "model": "claude-sonnet-4-20250514",
+            "model": "",
+            "provider": "",
             "findings": {
                 "critical": 0,
                 "high": 0,
@@ -52,12 +50,24 @@ class ReviewMetrics:
         self.metrics["files_reviewed"] += 1
         self.metrics["lines_analyzed"] += lines
     
-    def record_llm_call(self, input_tokens, output_tokens):
+    def record_llm_call(self, input_tokens, output_tokens, provider):
         self.metrics["tokens_input"] += input_tokens
         self.metrics["tokens_output"] += output_tokens
-        # Claude Sonnet 4 pricing: $3/1M input, $15/1M output
-        input_cost = (input_tokens / 1_000_000) * 3.0
-        output_cost = (output_tokens / 1_000_000) * 15.0
+        
+        # Calculate cost based on provider
+        if provider == 'anthropic':
+            # Claude Sonnet 4: $3/1M input, $15/1M output
+            input_cost = (input_tokens / 1_000_000) * 3.0
+            output_cost = (output_tokens / 1_000_000) * 15.0
+        elif provider == 'openai':
+            # GPT-4: $10/1M input, $30/1M output
+            input_cost = (input_tokens / 1_000_000) * 10.0
+            output_cost = (output_tokens / 1_000_000) * 30.0
+        else:
+            # Ollama: Free (local)
+            input_cost = 0.0
+            output_cost = 0.0
+        
         self.metrics["cost_usd"] += input_cost + output_cost
     
     def record_finding(self, severity, category):
@@ -74,6 +84,88 @@ class ReviewMetrics:
         with open(path, 'w') as f:
             json.dump(self.metrics, f, indent=2)
         print(f"📊 Metrics saved to: {path}")
+
+def detect_ai_provider(config):
+    """Auto-detect which AI provider to use based on available keys"""
+    provider = config.get('ai_provider', 'auto')
+    
+    if provider != 'auto':
+        return provider
+    
+    # Auto-detect based on available API keys
+    if config.get('anthropic_api_key'):
+        return 'anthropic'
+    elif config.get('openai_api_key'):
+        return 'openai'
+    elif config.get('ollama_endpoint'):
+        return 'ollama'
+    else:
+        print("⚠️  No AI provider configured")
+        print("💡 Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, or OLLAMA_ENDPOINT")
+        return None
+
+def get_ai_client(provider, config):
+    """Get AI client for the specified provider"""
+    if provider == 'anthropic':
+        try:
+            from anthropic import Anthropic
+            api_key = config.get('anthropic_api_key') or config.get('cursor_api_key')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not set")
+            
+            # Check if Cursor API key
+            if api_key.startswith('key_'):
+                print("🔑 Using Cursor API endpoint")
+                return Anthropic(api_key=api_key, base_url="https://api.cursor.sh/v1"), 'anthropic'
+            else:
+                print("🔑 Using Anthropic API endpoint")
+                return Anthropic(api_key=api_key), 'anthropic'
+        except ImportError:
+            print("❌ anthropic package not installed. Run: pip install anthropic")
+            sys.exit(2)
+    
+    elif provider == 'openai':
+        try:
+            from openai import OpenAI
+            api_key = config.get('openai_api_key')
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY not set")
+            
+            print("🔑 Using OpenAI API endpoint")
+            return OpenAI(api_key=api_key), 'openai'
+        except ImportError:
+            print("❌ openai package not installed. Run: pip install openai")
+            sys.exit(2)
+    
+    elif provider == 'ollama':
+        try:
+            from openai import OpenAI
+            endpoint = config.get('ollama_endpoint', 'http://localhost:11434')
+            print(f"🔑 Using Ollama endpoint: {endpoint}")
+            return OpenAI(base_url=f"{endpoint}/v1", api_key="ollama"), 'ollama'
+        except ImportError:
+            print("❌ openai package not installed. Run: pip install openai")
+            sys.exit(2)
+    
+    else:
+        print(f"❌ Unknown AI provider: {provider}")
+        sys.exit(2)
+
+def get_model_name(provider, config):
+    """Get the appropriate model name for the provider"""
+    model = config.get('model', 'auto')
+    
+    if model != 'auto':
+        return model
+    
+    # Default models for each provider
+    defaults = {
+        'anthropic': 'claude-sonnet-4-20250514',
+        'openai': 'gpt-4-turbo-preview',
+        'ollama': 'llama3'
+    }
+    
+    return defaults.get(provider, 'claude-sonnet-4-20250514')
 
 def get_changed_files():
     """Get list of changed files in PR"""
@@ -101,14 +193,27 @@ def matches_glob_patterns(file_path, patterns):
 def get_codebase_context(repo_path, config):
     """Get relevant codebase files for analysis with cost guardrails"""
     important_files = []
-    extensions = {'.py', '.js', '.ts', '.java', '.go', '.rs', '.rb', '.php', '.cs', '.jsx', '.tsx'}
+    
+    # Extended language support for polyglot codebases
+    extensions = {
+        # Web/Frontend
+        '.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte',
+        # Backend
+        '.py', '.java', '.go', '.rs', '.rb', '.php', '.cs', '.scala', '.kt',
+        # Systems
+        '.c', '.cpp', '.h', '.hpp', '.swift',
+        # Data/Config
+        '.sql', '.graphql', '.proto',
+        # Infrastructure
+        '.tf', '.yaml', '.yml'
+    }
     
     # Parse configuration
     only_changed = config.get('only_changed', False)
     include_patterns = [p.strip() for p in config.get('include_paths', '').split(',') if p.strip()]
     exclude_patterns = [p.strip() for p in config.get('exclude_paths', '').split(',') if p.strip()]
     max_file_size = int(config.get('max_file_size', 50000))
-    max_files = int(config.get('max_files', 50))
+    max_files = int(config.get('max_files', 100))  # Increased for large codebases
     
     # Get changed files if in PR mode
     changed_files = []
@@ -117,10 +222,14 @@ def get_codebase_context(repo_path, config):
         print(f"📝 PR mode: Found {len(changed_files)} changed files")
     
     total_lines = 0
+    file_priorities = []  # (priority, file_info)
     
     for root, dirs, files in os.walk(repo_path):
         # Skip common directories
-        dirs[:] = [d for d in dirs if d not in {'.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build', '.next', 'target'}]
+        dirs[:] = [d for d in dirs if d not in {
+            '.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build', 
+            '.next', 'target', 'vendor', '.gradle', '.idea', '.vscode'
+        }]
         
         for file in files:
             if any(file.endswith(ext) for ext in extensions):
@@ -143,40 +252,68 @@ def get_codebase_context(repo_path, config):
                         print(f"⏭️  Skipping {rel_path} (too large: {file_size} bytes)")
                         continue
                     
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                         lines = len(content.split('\n'))
                         
-                        if len(content) < max_file_size:
-                            important_files.append({
-                                'path': rel_path,
-                                'content': content[:10000],  # Limit content size
-                                'lines': lines
-                            })
-                            total_lines += lines
-                            
-                            if len(important_files) >= max_files:
-                                print(f"⚠️  Reached max files limit ({max_files})")
-                                break
-                                
+                        # Prioritize files based on criticality
+                        priority = 0
+                        
+                        # High priority: Security-sensitive files
+                        if any(keyword in rel_path.lower() for keyword in ['auth', 'security', 'password', 'token', 'secret', 'crypto']):
+                            priority += 100
+                        
+                        # High priority: API/Controllers
+                        if any(keyword in rel_path.lower() for keyword in ['controller', 'api', 'route', 'handler', 'endpoint']):
+                            priority += 50
+                        
+                        # Medium priority: Business logic
+                        if any(keyword in rel_path.lower() for keyword in ['service', 'model', 'repository', 'dao']):
+                            priority += 30
+                        
+                        # Changed files get highest priority
+                        if only_changed:
+                            priority += 200
+                        
+                        file_priorities.append((priority, {
+                            'path': rel_path,
+                            'content': content[:10000],  # Limit content size
+                            'lines': lines,
+                            'size': file_size
+                        }))
+                        
                 except Exception as e:
                     print(f"Warning: Could not read {file_path}: {e}")
-        
-        if len(important_files) >= max_files:
-            break
+    
+    # Sort by priority and take top N files
+    file_priorities.sort(reverse=True, key=lambda x: x[0])
+    important_files = [f[1] for f in file_priorities[:max_files]]
+    
+    total_lines = sum(f['lines'] for f in important_files)
     
     print(f"✅ Selected {len(important_files)} files ({total_lines} lines)")
+    if file_priorities and len(file_priorities) > max_files:
+        print(f"⚠️  {len(file_priorities) - max_files} files skipped (priority-based selection)")
+    
     return important_files
 
-def estimate_cost(files, max_tokens):
+def estimate_cost(files, max_tokens, provider):
     """Estimate cost before running analysis"""
     total_chars = sum(len(f['content']) for f in files)
     # Rough estimate: 4 chars per token
     estimated_input_tokens = total_chars // 4
     estimated_output_tokens = max_tokens
     
-    input_cost = (estimated_input_tokens / 1_000_000) * 3.0
-    output_cost = (estimated_output_tokens / 1_000_000) * 15.0
+    if provider == 'anthropic':
+        input_cost = (estimated_input_tokens / 1_000_000) * 3.0
+        output_cost = (estimated_output_tokens / 1_000_000) * 15.0
+    elif provider == 'openai':
+        input_cost = (estimated_input_tokens / 1_000_000) * 10.0
+        output_cost = (estimated_output_tokens / 1_000_000) * 30.0
+    else:  # ollama
+        input_cost = 0.0
+        output_cost = 0.0
+    
     total_cost = input_cost + output_cost
     
     return total_cost, estimated_input_tokens, estimated_output_tokens
@@ -190,7 +327,7 @@ def generate_sarif(findings, repo_path):
             "tool": {
                 "driver": {
                     "name": "Agent OS Code Reviewer",
-                    "version": "1.0.14",
+                    "version": "1.0.15",
                     "informationUri": "https://github.com/securedotcom/agent-os-action",
                     "rules": []
                 }
@@ -256,7 +393,6 @@ def parse_findings_from_report(report_text):
             continue
         
         # Extract file path and line number if present
-        # Format: file.js:123
         import re
         match = re.search(r'`([^`]+):(\d+)`', line)
         if match:
@@ -283,30 +419,67 @@ def parse_findings_from_report(report_text):
     
     return findings
 
-def run_audit(repo_path, api_key, config, review_type='audit'):
-    """Run AI-powered code audit with guardrails"""
+def call_llm_api(client, provider, model, prompt, max_tokens):
+    """Call LLM API with provider-specific handling"""
+    if provider == 'anthropic':
+        message = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return message.content[0].text, message.usage.input_tokens, message.usage.output_tokens
+    
+    elif provider in ['openai', 'ollama']:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens
+        )
+        input_tokens = response.usage.prompt_tokens
+        output_tokens = response.usage.completion_tokens
+        return response.choices[0].message.content, input_tokens, output_tokens
+    
+    else:
+        raise ValueError(f"Unknown provider: {provider}")
+
+def run_audit(repo_path, config, review_type='audit'):
+    """Run AI-powered code audit with multi-LLM support"""
     
     metrics = ReviewMetrics()
     
     print(f"🤖 Starting AI-powered {review_type} analysis...")
     print(f"📁 Repository: {repo_path}")
     
+    # Detect AI provider
+    provider = detect_ai_provider(config)
+    if not provider:
+        print("❌ No AI provider available")
+        print("\n💡 Available options:")
+        print("   1. Anthropic Claude (Best quality)")
+        print("      Get key: https://console.anthropic.com/")
+        print("      Set: ANTHROPIC_API_KEY")
+        print("\n   2. OpenAI GPT-4 (Good quality)")
+        print("      Get key: https://platform.openai.com/api-keys")
+        print("      Set: OPENAI_API_KEY")
+        print("\n   3. Ollama (Free, local)")
+        print("      Install: https://ollama.ai/")
+        print("      Set: OLLAMA_ENDPOINT=http://localhost:11434")
+        sys.exit(2)
+    
+    print(f"🔧 Provider: {provider}")
+    metrics.metrics["provider"] = provider
+    
+    # Get AI client
+    client, actual_provider = get_ai_client(provider, config)
+    
+    # Get model name
+    model = get_model_name(provider, config)
+    print(f"🧠 Model: {model}")
+    metrics.metrics["model"] = model
+    
     # Check cost limit
     cost_limit = float(config.get('cost_limit', 1.0))
     max_tokens = int(config.get('max_tokens', 8000))
-    
-    # Determine if this is a Cursor API key or Anthropic API key
-    is_cursor_key = api_key.startswith('key_')
-    
-    if is_cursor_key:
-        print("🔑 Using Cursor API endpoint")
-        client = Anthropic(
-            api_key=api_key,
-            base_url="https://api.cursor.sh/v1"
-        )
-    else:
-        print("🔑 Using Anthropic API endpoint")
-        client = Anthropic(api_key=api_key)
     
     # Get codebase context with guardrails
     print("📂 Analyzing codebase structure...")
@@ -321,15 +494,18 @@ def run_audit(repo_path, api_key, config, review_type='audit'):
         metrics.record_file(f['lines'])
     
     # Estimate cost
-    estimated_cost, est_input, est_output = estimate_cost(files, max_tokens)
-    print(f"💰 Estimated cost: ${estimated_cost:.2f}")
+    estimated_cost, est_input, est_output = estimate_cost(files, max_tokens, provider)
+    if provider == 'ollama':
+        print(f"💰 Estimated cost: $0.00 (local Ollama)")
+    else:
+        print(f"💰 Estimated cost: ${estimated_cost:.2f}")
     
-    if estimated_cost > cost_limit:
+    if estimated_cost > cost_limit and provider != 'ollama':
         print(f"⚠️  Estimated cost ${estimated_cost:.2f} exceeds limit ${cost_limit:.2f}")
         print(f"💡 Reduce max-files, use path filters, or increase cost-limit")
         sys.exit(2)
     
-    # Build context for Claude
+    # Build context for LLM
     codebase_context = "\n\n".join([
         f"File: {f['path']}\n```\n{f['content']}\n```"
         for f in files
@@ -353,6 +529,15 @@ For each issue found, classify it as:
 - [HIGH] - Important issue that should be fixed soon
 - [MEDIUM] - Moderate issue, good to fix
 - [LOW] - Minor issue or suggestion
+
+⚠️ IMPORTANT: This is AI-assisted code review. While AI can identify many issues,
+human oversight is essential for:
+- Architectural decisions and trade-offs
+- Business logic correctness
+- Context-specific security considerations
+- Code maintainability and team conventions
+
+Use this as a starting point for human review, not a replacement.
 """
     
     # Create prompt
@@ -407,28 +592,20 @@ Numbered list of high priority improvements
 ## Recommendation
 Final recommendation: APPROVED / REQUIRES FIXES / DO NOT MERGE
 
+## Human Review Required
+Note any areas where human judgment is essential (architecture, business logic, etc.)
+
 Be specific with file names and line numbers. Use format: `filename.ext:123` for references.
 """
     
-    print("🧠 Analyzing code with Claude Sonnet 4...")
+    print(f"🧠 Analyzing code with {provider} ({model})...")
     
     try:
-        # Call Claude API
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=max_tokens,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
+        # Call LLM API
+        report, input_tokens, output_tokens = call_llm_api(client, provider, model, prompt, max_tokens)
         
         # Record LLM metrics
-        metrics.record_llm_call(
-            message.usage.input_tokens,
-            message.usage.output_tokens
-        )
-        
-        report = message.content[0].text
+        metrics.record_llm_call(input_tokens, output_tokens, provider)
         
         # Save markdown report
         report_dir = Path(repo_path) / '.agent-os/reviews'
@@ -456,10 +633,12 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         
         # Generate structured JSON
         json_output = {
-            "version": "1.0.14",
+            "version": "1.0.15",
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
+            "provider": provider,
+            "model": model,
             "summary": metrics.metrics,
             "findings": findings
         }
@@ -475,8 +654,8 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         metrics.save(metrics_file)
         
         # Count blockers and suggestions
-        blocker_count = report.count('[CRITICAL]') + report.count('[BLOCKER]')
-        suggestion_count = report.count('[HIGH]') + report.count('[MEDIUM]') + report.count('[SUGGESTION]')
+        blocker_count = metrics.metrics['findings']['critical'] + metrics.metrics['findings']['high']
+        suggestion_count = metrics.metrics['findings']['medium'] + metrics.metrics['findings']['low']
         
         print(f"\n📊 Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
@@ -485,6 +664,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"   Low: {metrics.metrics['findings']['low']}")
         print(f"\n💰 Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Duration: {metrics.metrics['duration_seconds']}s")
+        print(f"🔧 Provider: {provider} ({model})")
         
         # Output for GitHub Actions
         print(f"\n::set-output name=blockers::{blocker_count}")
@@ -501,28 +681,29 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
     except Exception as e:
         print(f"❌ Error during AI analysis: {e}")
         print(f"Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':
     repo_path = sys.argv[1] if len(sys.argv) > 1 else '.'
     review_type = sys.argv[2] if len(sys.argv) > 2 else 'audit'
     
-    # Get API key from environment
-    api_key = os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('CURSOR_API_KEY')
-    
-    if not api_key:
-        print("❌ Error: ANTHROPIC_API_KEY or CURSOR_API_KEY environment variable not set")
-        sys.exit(1)
-    
     # Get configuration from environment
     config = {
+        'ai_provider': os.environ.get('INPUT_AI_PROVIDER', 'auto'),
+        'anthropic_api_key': os.environ.get('ANTHROPIC_API_KEY', ''),
+        'openai_api_key': os.environ.get('OPENAI_API_KEY', ''),
+        'ollama_endpoint': os.environ.get('OLLAMA_ENDPOINT', ''),
+        'cursor_api_key': os.environ.get('CURSOR_API_KEY', ''),
+        'model': os.environ.get('INPUT_MODEL', 'auto'),
         'only_changed': os.environ.get('INPUT_ONLY_CHANGED', 'false').lower() == 'true',
         'include_paths': os.environ.get('INPUT_INCLUDE_PATHS', ''),
         'exclude_paths': os.environ.get('INPUT_EXCLUDE_PATHS', ''),
         'max_file_size': os.environ.get('INPUT_MAX_FILE_SIZE', '50000'),
-        'max_files': os.environ.get('INPUT_MAX_FILES', '50'),
+        'max_files': os.environ.get('INPUT_MAX_FILES', '100'),
         'max_tokens': os.environ.get('INPUT_MAX_TOKENS', '8000'),
         'cost_limit': os.environ.get('INPUT_COST_LIMIT', '1.0'),
     }
     
-    run_audit(repo_path, api_key, config, review_type)
+    run_audit(repo_path, config, review_type)
