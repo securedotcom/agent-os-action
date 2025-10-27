@@ -7,6 +7,10 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Ready-success.svg)](https://github.com/securedotcom/agent-os-action)
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/securedotcom/agent-os-action/badge)](https://securityscorecards.dev/viewer/?uri=github.com/securedotcom/agent-os-action)
+[![CodeQL](https://github.com/securedotcom/agent-os-action/workflows/CodeQL%20Analysis/badge.svg)](https://github.com/securedotcom/agent-os-action/actions/workflows/codeql.yml)
+[![Gitleaks](https://github.com/securedotcom/agent-os-action/workflows/Gitleaks%20Secret%20Scanning/badge.svg)](https://github.com/securedotcom/agent-os-action/actions/workflows/gitleaks.yml)
+
 ---
 
 ## 🎯 What Is Agent OS Code Reviewer?
@@ -24,8 +28,36 @@ Agent OS is an **intelligent code review system** that acts as your 24/7 virtual
 ✅ **Smart PR Management** - Creates/updates PRs with findings, avoids duplicates  
 ✅ **Multi-Agent AI Architecture** - Specialized reviewers for each concern  
 ✅ **Project-Type Awareness** - Adapts standards for Backend, Frontend, Data, Infrastructure  
-✅ **Slack Notifications** - Real-time alerts for critical issues  
+✅ **Layered Security Detection** - AI + SAST + Secret Scanning + Repo Hygiene  
+✅ **Supply Chain Integrity** - Signed attestations with SLSA provenance  
 ✅ **Comprehensive Reports** - Downloadable audit artifacts  
+
+### 🛡️ Security & Trust
+
+Agent OS employs **defense-in-depth** with multiple security layers:
+
+| Layer | Tool | Purpose | Frequency |
+|-------|------|---------|-----------|
+| **AI Analysis** | Claude Sonnet 4 | Complex security issues, logic flaws | On-demand |
+| **SAST** | CodeQL | Common vulnerabilities (injection, XSS) | Every push |
+| **Secret Scanning** | Gitleaks | Hardcoded secrets, API keys | Daily |
+| **Repo Hygiene** | OpenSSF Scorecard | Security best practices | Weekly |
+| **Supply Chain** | GitHub Attestations | Verifiable release integrity | Every release |
+
+**View our security posture**: [SECURITY.md](SECURITY.md) | [Security Tab](https://github.com/securedotcom/agent-os-action/security)
+
+#### 🔐 Verifying Release Integrity
+
+All releases are signed with SLSA provenance. Verify before use:
+
+```bash
+# Download release
+gh release download v1.0.0 --repo securedotcom/agent-os-action
+
+# Verify attestation
+gh attestation verify agent-os-action-v1.0.0.tar.gz \
+  --owner securedotcom
+```
 
 ---
 

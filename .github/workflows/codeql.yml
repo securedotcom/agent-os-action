@@ -1,0 +1,81 @@
+name: "CodeQL Analysis"
+
+# SAST scanning with GitHub CodeQL
+# Detects security vulnerabilities, bugs, and code quality issues
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run every Monday at 6 AM UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Minimal permissions - elevate per job
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    permissions:
+      # Required for CodeQL
+      actions: read
+      contents: read
+      security-events: write
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        # Analyze Python (for scripts/run-ai-audit.py)
+        # Analyze JavaScript (for action.yml shell scripts and examples)
+        language: [ 'python', 'javascript' ]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        fetch-depth: 0
+    
+    # Initialize CodeQL tools for scanning
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+      with:
+        languages: ${{ matrix.language }}
+        # Use default queries + security-extended for deeper analysis
+        queries: security-extended,security-and-quality
+    
+    # Autobuild attempts to build any compiled languages
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+    
+    # Perform CodeQL Analysis
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+      with:
+        category: "/language:${{matrix.language}}"
+        upload: true
+    
+    # Post results summary
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## 🔍 CodeQL Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Language**: ${{ matrix.language }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: Analysis complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View results in the Security tab → Code scanning alerts" >> $GITHUB_STEP_SUMMARY
+
+# Security Notes:
+# 1. All actions pinned by commit SHA
+# 2. Least privilege permissions per job
+# 3. Timeout to prevent runaway scans
+# 4. Results uploaded to Security tab
+# 5. Runs on schedule for continuous monitoring
+
