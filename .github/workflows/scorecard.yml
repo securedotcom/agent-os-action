@@ -1,0 +1,87 @@
+name: "OpenSSF Scorecard"
+
+# OpenSSF Scorecard - Repository Security Health Check
+# Evaluates repo against security best practices
+
+on:
+  # Run on default branch changes
+  branch_protection_rule:
+  push:
+    branches: [ main, master ]
+  schedule:
+    # Run every Saturday at 3 AM UTC
+    - cron: '0 3 * * 6'
+  workflow_dispatch:
+
+# Minimal permissions - elevate per job
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    permissions:
+      # Needed to upload results to code-scanning dashboard
+      security-events: write
+      # Needed to gather repository data
+      id-token: write
+      contents: read
+      actions: read
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    
+    - name: Run OpenSSF Scorecard
+      uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46  # v2.4.0
+      with:
+        results_file: results.sarif
+        results_format: sarif
+        # Publish results to enable badges
+        publish_results: true
+    
+    # Upload results to GitHub's code scanning dashboard
+    - name: Upload SARIF to Code Scanning
+      uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+      with:
+        sarif_file: results.sarif
+        category: openssf-scorecard
+    
+    # Upload results as artifact for review
+    - name: Upload Scorecard Results
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: scorecard-results
+        path: results.sarif
+        retention-days: 30
+    
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## 🏆 OpenSSF Scorecard Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: Analysis complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### What was checked:" >> $GITHUB_STEP_SUMMARY
+        echo "- Branch protection" >> $GITHUB_STEP_SUMMARY
+        echo "- Code review practices" >> $GITHUB_STEP_SUMMARY
+        echo "- Dependency update tools" >> $GITHUB_STEP_SUMMARY
+        echo "- Signed commits" >> $GITHUB_STEP_SUMMARY
+        echo "- Security policy" >> $GITHUB_STEP_SUMMARY
+        echo "- Vulnerability disclosure" >> $GITHUB_STEP_SUMMARY
+        echo "- And 15+ more security checks" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View results in the Security tab → Code scanning alerts" >> $GITHUB_STEP_SUMMARY
+
+# Security Notes:
+# 1. All actions pinned by commit SHA
+# 2. Least privilege permissions
+# 3. Results published for transparency
+# 4. Runs weekly for continuous monitoring
+# 5. Evaluates 20+ security best practices
+

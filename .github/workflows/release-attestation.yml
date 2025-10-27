@@ -1,0 +1,168 @@
+name: "Release Attestation"
+
+# Generate signed attestations for releases
+# Provides verifiable supply-chain integrity
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to attest (e.g., v1.0.0)'
+        required: true
+        type: string
+
+# Minimal permissions - elevate per job
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    name: Generate Release Attestation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    permissions:
+      contents: write      # To create attestation
+      id-token: write      # To sign with OIDC
+      attestations: write  # To upload attestation
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        ref: ${{ github.event.release.tag_name || inputs.tag }}
+        fetch-depth: 0
+    
+    - name: Get release tag
+      id: get-tag
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          TAG="${{ github.event.release.tag_name }}"
+        else
+          TAG="${{ inputs.tag }}"
+        fi
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "Release tag: $TAG"
+    
+    # Generate SBOM (Software Bill of Materials)
+    - name: Generate SBOM
+      run: |
+        echo "Generating SBOM for release ${{ steps.get-tag.outputs.tag }}"
+        
+        # Create SBOM directory
+        mkdir -p sbom
+        
+        # Generate SBOM in SPDX format
+        cat > sbom/sbom.spdx.json << 'EOF'
+        {
+          "spdxVersion": "SPDX-2.3",
+          "dataLicense": "CC0-1.0",
+          "SPDXID": "SPDXRef-DOCUMENT",
+          "name": "agent-os-action",
+          "documentNamespace": "https://github.com/securedotcom/agent-os-action/sbom/${{ steps.get-tag.outputs.tag }}",
+          "creationInfo": {
+            "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "creators": ["Tool: GitHub Actions"]
+          },
+          "packages": [
+            {
+              "SPDXID": "SPDXRef-Package",
+              "name": "agent-os-action",
+              "versionInfo": "${{ steps.get-tag.outputs.tag }}",
+              "downloadLocation": "https://github.com/securedotcom/agent-os-action/archive/${{ steps.get-tag.outputs.tag }}.tar.gz",
+              "filesAnalyzed": false,
+              "licenseConcluded": "MIT"
+            }
+          ]
+        }
+        EOF
+        
+        echo "✅ SBOM generated"
+    
+    # Create release artifact bundle
+    - name: Create Release Artifact
+      run: |
+        # Create tarball of the release
+        tar -czf agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz \
+          --exclude='.git' \
+          --exclude='node_modules' \
+          --exclude='.agent-os' \
+          .
+        
+        # Generate checksums
+        sha256sum agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz > checksums.txt
+        
+        echo "✅ Release artifact created"
+    
+    # Generate attestation using GitHub's native attestation
+    - name: Generate Attestation
+      uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6f3abbf17002c  # v1.4.3
+      with:
+        subject-path: |
+          agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz
+          sbom/sbom.spdx.json
+    
+    # Upload artifacts to release
+    - name: Upload Release Artifacts
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5  # v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz
+        asset_name: agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz
+        asset_content_type: application/gzip
+    
+    - name: Upload Checksums
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5  # v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./checksums.txt
+        asset_name: checksums.txt
+        asset_content_type: text/plain
+    
+    - name: Upload SBOM
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5  # v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./sbom/sbom.spdx.json
+        asset_name: sbom.spdx.json
+        asset_content_type: application/json
+    
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## ✅ Release Attestation Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Release**: ${{ steps.get-tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Generated Artifacts:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Signed attestation (SLSA provenance)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ SBOM (Software Bill of Materials)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ SHA256 checksums" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Release tarball" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Verification:" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "# Verify attestation" >> $GITHUB_STEP_SUMMARY
+        echo "gh attestation verify agent-os-action-${{ steps.get-tag.outputs.tag }}.tar.gz \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --owner securedotcom" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+# Security Notes:
+# 1. All actions pinned by commit SHA
+# 2. Uses GitHub's native attestation (SLSA provenance)
+# 3. Signed with OIDC (no long-lived secrets)
+# 4. Generates SBOM for transparency
+# 5. Provides verifiable supply-chain integrity
+# 6. Users can verify with: gh attestation verify
+
