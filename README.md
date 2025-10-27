@@ -128,7 +128,7 @@ To surface findings in GitHub's Security tab, upload the SARIF output:
 
 - name: Upload SARIF to Code Scanning
   if: always()
-  uses: github/codeql-action/upload-sarif@v3
+  uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
   with:
     sarif_file: ${{ steps.agent.outputs.sarif-path }}
     category: agent-os-code-review
