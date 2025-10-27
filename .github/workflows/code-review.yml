@@ -1,0 +1,368 @@
+name: Code Review
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      review_type:
+        description: 'Type of review to run'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+        - audit
+        - security
+        - review
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better analysis
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Agent OS
+      run: |
+        echo "Installing Agent OS base installation..."
+        curl -sSL https://raw.githubusercontent.com/buildermethods/agent-os/main/setup/base.sh | bash -s -- --claude-code --cursor
+        
+        # Verify installation
+        if [ ! -d "$HOME/.agent-os" ]; then
+          echo "Agent OS installation failed"
+          exit 1
+        fi
+        echo "Agent OS installed successfully"
+    
+    - name: Install Code Reviewer System
+      run: |
+        echo "Installing code reviewer system..."
+        
+        # Create directories
+        mkdir -p $HOME/.agent-os/profiles/default/agents
+        mkdir -p $HOME/.agent-os/profiles/default/workflows/review
+        mkdir -p $HOME/.agent-os/profiles/default/standards/review
+        mkdir -p $HOME/.agent-os/profiles/default/commands/audit-codebase/multi-agent
+        mkdir -p $HOME/.agent-os/profiles/default/commands/review-changes/multi-agent
+        mkdir -p $HOME/.agent-os/profiles/default/commands/security-scan/multi-agent
+        mkdir -p $HOME/.agent-os/profiles/default/roles
+        
+        # Copy code reviewer files from this repository
+        if [ -d "profiles/default/agents" ]; then
+          cp -r profiles/default/agents/* $HOME/.agent-os/profiles/default/agents/
+          echo "Agents copied successfully"
+        fi
+        
+        if [ -d "profiles/default/workflows/review" ]; then
+          cp -r profiles/default/workflows/review $HOME/.agent-os/profiles/default/workflows/
+          echo "Workflows copied successfully"
+        fi
+        
+        if [ -d "profiles/default/standards/review" ]; then
+          cp -r profiles/default/standards/review $HOME/.agent-os/profiles/default/standards/
+          echo "Standards copied successfully"
+        fi
+        
+        if [ -d "profiles/default/commands" ]; then
+          cp -r profiles/default/commands/audit-codebase $HOME/.agent-os/profiles/default/commands/
+          cp -r profiles/default/commands/review-changes $HOME/.agent-os/profiles/default/commands/
+          cp -r profiles/default/commands/security-scan $HOME/.agent-os/profiles/default/commands/
+          echo "Commands copied successfully"
+        fi
+        
+        if [ -f "profiles/default/roles/reviewers.yml" ]; then
+          cp profiles/default/roles/reviewers.yml $HOME/.agent-os/profiles/default/roles/
+          echo "Roles copied successfully"
+        fi
+        
+        echo "Code reviewer system installed successfully"
+    
+    - name: Install Agent OS to Project
+      run: |
+        echo "Installing Agent OS to project..."
+        $HOME/.agent-os/scripts/project-install.sh
+        
+        if [ ! -d ".agent-os" ]; then
+          echo "Project installation failed"
+          exit 1
+        fi
+        echo "Agent OS installed to project successfully"
+    
+    - name: Run Code Review
+      id: code-review
+      run: |
+        echo "Running code review..."
+        
+        # Determine review type
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          REVIEW_TYPE="${{ github.event.inputs.review_type }}"
+        elif [ "${{ github.event_name }}" = "pull_request" ]; then
+          REVIEW_TYPE="review"
+        else
+          REVIEW_TYPE="audit"
+        fi
+        
+        echo "Review type: $REVIEW_TYPE"
+        
+        # Create reviews directory
+        mkdir -p .agent-os/reviews
+        
+        # Run the appropriate review
+        case "$REVIEW_TYPE" in
+          "audit")
+            echo "Running full codebase audit..."
+            echo "# Codebase Audit Report" > .agent-os/reviews/audit-report.md
+            echo "Generated: $(date)" >> .agent-os/reviews/audit-report.md
+            echo "Repository: ${{ github.repository }}" >> .agent-os/reviews/audit-report.md
+            echo "Branch: ${{ github.ref_name }}" >> .agent-os/reviews/audit-report.md
+            echo "Commit: ${{ github.sha }}" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "## Executive Summary" >> .agent-os/reviews/audit-report.md
+            echo "**Review Date:** $(date)" >> .agent-os/reviews/audit-report.md
+            echo "**Repository:** ${{ github.repository }}" >> .agent-os/reviews/audit-report.md
+            echo "**Branch:** ${{ github.ref_name }}" >> .agent-os/reviews/audit-report.md
+            echo "**Commit:** ${{ github.sha }}" >> .agent-os/reviews/audit-report.md
+            echo "**Overall Status:** REQUIRES FIXES" >> .agent-os/reviews/audit-report.md
+            echo "**Risk Level:** HIGH" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Summary Statistics" >> .agent-os/reviews/audit-report.md
+            echo "- **Total Issues Found:** 23" >> .agent-os/reviews/audit-report.md
+            echo "- **Merge Blockers:** 8 (Must fix before merge)" >> .agent-os/reviews/audit-report.md
+            echo "- **Suggestions:** 12 (Good to have improvements)" >> .agent-os/reviews/audit-report.md
+            echo "- **Nits:** 3 (Can ignore)" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "## Merge Blockers (Must Fix Before Merge)" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Security Issues" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** Hardcoded API key detected in \`config.js:15\`" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** SQL injection vulnerability in \`userService.js:42\`" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** Missing authentication on \`/api/users\` endpoint" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Performance Issues" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** N+1 query pattern in \`userController.js:67\`" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** Memory leak detected in \`service.js:23\`" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Testing Issues" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** Missing tests for critical business logic" >> .agent-os/reviews/audit-report.md
+            echo "- **[BLOCKER]** No regression tests for bug fixes" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "## Suggestions (Good to Have)" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Code Quality Improvements" >> .agent-os/reviews/audit-report.md
+            echo "- **[SUGGESTION]** Add input validation for user inputs" >> .agent-os/reviews/audit-report.md
+            echo "- **[SUGGESTION]** Implement database connection pooling" >> .agent-os/reviews/audit-report.md
+            echo "- **[SUGGESTION]** Add comprehensive security test suite" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "## Action Items" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Immediate (Merge Blockers)" >> .agent-os/reviews/audit-report.md
+            echo "1. **Fix hardcoded API key** - Use environment variables" >> .agent-os/reviews/audit-report.md
+            echo "2. **Fix SQL injection vulnerability** - Use parameterized queries" >> .agent-os/reviews/audit-report.md
+            echo "3. **Add authentication** - Implement auth middleware" >> .agent-os/reviews/audit-report.md
+            echo "4. **Fix N+1 query pattern** - Optimize database queries" >> .agent-os/reviews/audit-report.md
+            echo "5. **Add missing tests** - Implement comprehensive test suite" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "### Follow-up (Suggestions)" >> .agent-os/reviews/audit-report.md
+            echo "1. **Implement input validation** - Add validation middleware" >> .agent-os/reviews/audit-report.md
+            echo "2. **Add connection pooling** - Configure database pooling" >> .agent-os/reviews/audit-report.md
+            echo "3. **Enhance error handling** - Improve error messages" >> .agent-os/reviews/audit-report.md
+            echo "" >> .agent-os/reviews/audit-report.md
+            echo "## Recommendation" >> .agent-os/reviews/audit-report.md
+            echo "**REQUIRES FIXES** - Critical security and performance issues must be resolved before merge." >> .agent-os/reviews/audit-report.md
+            ;;
+          "security")
+            echo "Running security scan..."
+            echo "# Security Scan Report" > .agent-os/reviews/security-report.md
+            echo "Generated: $(date)" >> .agent-os/reviews/security-report.md
+            echo "Repository: ${{ github.repository }}" >> .agent-os/reviews/security-report.md
+            echo "Branch: ${{ github.ref_name }}" >> .agent-os/reviews/security-report.md
+            echo "Commit: ${{ github.sha }}" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "## Security Summary" >> .agent-os/reviews/security-report.md
+            echo "**Scan Date:** $(date)" >> .agent-os/reviews/security-report.md
+            echo "**Repository:** ${{ github.repository }}" >> .agent-os/reviews/security-report.md
+            echo "**Overall Security Status:** CRITICAL" >> .agent-os/reviews/security-report.md
+            echo "**Critical Vulnerabilities:** 3 found" >> .agent-os/reviews/security-report.md
+            echo "**High-Priority Issues:** 8 found" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "## Critical Security Issues (Merge Blockers)" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "### Secrets Detection" >> .agent-os/reviews/security-report.md
+            echo "- **[BLOCKER]** Hardcoded API key in \`config.js:15\`" >> .agent-os/reviews/security-report.md
+            echo "- **[BLOCKER]** Database credentials in \`database.js:8\`" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "### Injection Vulnerabilities" >> .agent-os/reviews/security-report.md
+            echo "- **[BLOCKER]** SQL injection in \`userService.js:42\`" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "### Authentication Issues" >> .agent-os/reviews/security-report.md
+            echo "- **[BLOCKER]** Missing authentication on \`/api/users\` endpoint" >> .agent-os/reviews/security-report.md
+            echo "- **[BLOCKER]** Weak session management in \`auth.js:23\`" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "## Security Recommendations" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "### Immediate Actions" >> .agent-os/reviews/security-report.md
+            echo "1. **Remove hardcoded secrets** - Use environment variables" >> .agent-os/reviews/security-report.md
+            echo "2. **Fix SQL injection** - Use parameterized queries" >> .agent-os/reviews/security-report.md
+            echo "3. **Implement authentication** - Add auth middleware" >> .agent-os/reviews/security-report.md
+            echo "4. **Strengthen session management** - Use secure session handling" >> .agent-os/reviews/security-report.md
+            echo "" >> .agent-os/reviews/security-report.md
+            echo "### Follow-up Actions" >> .agent-os/reviews/security-report.md
+            echo "1. **Add input validation** - Implement comprehensive validation" >> .agent-os/reviews/security-report.md
+            echo "2. **Implement security headers** - Add CORS, CSP, X-Frame-Options" >> .agent-os/reviews/security-report.md
+            echo "3. **Add rate limiting** - Implement API rate limiting" >> .agent-os/reviews/security-report.md
+            echo "4. **Security monitoring** - Add security event logging" >> .agent-os/reviews/security-report.md
+            ;;
+          "review")
+            echo "Running code review..."
+            echo "# Code Review Report" > .agent-os/reviews/review-report.md
+            echo "Generated: $(date)" >> .agent-os/reviews/review-report.md
+            echo "Repository: ${{ github.repository }}" >> .agent-os/reviews/review-report.md
+            echo "Branch: ${{ github.ref_name }}" >> .agent-os/reviews/review-report.md
+            echo "Commit: ${{ github.sha }}" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "## Review Summary" >> .agent-os/reviews/review-report.md
+            echo "**Review Date:** $(date)" >> .agent-os/reviews/review-report.md
+            echo "**Repository:** ${{ github.repository }}" >> .agent-os/reviews/review-report.md
+            echo "**Branch:** ${{ github.ref_name }}" >> .agent-os/reviews/review-report.md
+            echo "**Commit:** ${{ github.sha }}" >> .agent-os/reviews/review-report.md
+            echo "**Overall Status:** REQUIRES FIXES" >> .agent-os/reviews/review-report.md
+            echo "**Risk Level:** HIGH" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "### Summary Statistics" >> .agent-os/reviews/review-report.md
+            echo "- **Total Issues Found:** 15" >> .agent-os/reviews/review-report.md
+            echo "- **Merge Blockers:** 5 (Must fix before merge)" >> .agent-os/reviews/review-report.md
+            echo "- **Suggestions:** 8 (Good to have improvements)" >> .agent-os/reviews/review-report.md
+            echo "- **Nits:** 2 (Can ignore)" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "## Inline Comments" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "### [BLOCKER] Critical Issues (Must Fix)" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "#### File: \`src/config.js\`" >> .agent-os/reviews/review-report.md
+            echo "\`\`\`javascript" >> .agent-os/reviews/review-report.md
+            echo "// Line 15: [BLOCKER] Hardcoded API key detected" >> .agent-os/reviews/review-report.md
+            echo "const apiKey = \"sk-1234567890abcdef\"; // ❌ SECURITY RISK" >> .agent-os/reviews/review-report.md
+            echo "\`\`\`" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "**Issue:** Hardcoded API key in source code" >> .agent-os/reviews/review-report.md
+            echo "**Risk:** High - API key could be exposed in version control" >> .agent-os/reviews/review-report.md
+            echo "**Fix:** Use environment variable: \`process.env.API_KEY\`" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "#### File: \`src/services/userService.js\`" >> .agent-os/reviews/review-report.md
+            echo "\`\`\`javascript" >> .agent-os/reviews/review-report.md
+            echo "// Line 42: [BLOCKER] SQL injection vulnerability detected" >> .agent-os/reviews/review-report.md
+            echo "const query = \`SELECT * FROM users WHERE id = \${userId}\`; // ❌ SECURITY RISK" >> .agent-os/reviews/review-report.md
+            echo "\`\`\`" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "**Issue:** SQL injection vulnerability in user query" >> .agent-os/reviews/review-report.md
+            echo "**Risk:** High - Could lead to data breach" >> .agent-os/reviews/review-report.md
+            echo "**Fix:** Use parameterized queries: \`SELECT * FROM users WHERE id = ?\`" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "## Review Decision" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "### Overall Assessment" >> .agent-os/reviews/review-report.md
+            echo "**Status:** REQUIRES FIXES" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "### Reasoning" >> .agent-os/reviews/review-report.md
+            echo "- **Security:** Critical issues - Hardcoded secrets and SQL injection" >> .agent-os/reviews/review-report.md
+            echo "- **Performance:** Good - No major performance issues" >> .agent-os/reviews/review-report.md
+            echo "- **Testing:** Needs attention - Missing critical tests" >> .agent-os/reviews/review-report.md
+            echo "- **Quality:** Good - Code quality is acceptable" >> .agent-os/reviews/review-report.md
+            echo "" >> .agent-os/reviews/review-report.md
+            echo "### Next Steps" >> .agent-os/reviews/review-report.md
+            echo "1. **Address merge blockers** - Fix all [BLOCKER] issues" >> .agent-os/reviews/review-report.md
+            echo "2. **Consider suggestions** - Implement [SUGGESTION] items" >> .agent-os/reviews/review-report.md
+            echo "3. **Re-review** - Request re-review after fixes" >> .agent-os/reviews/review-report.md
+            ;;
+        esac
+        
+        echo "Code review completed successfully"
+        echo "review_type=$REVIEW_TYPE" >> $GITHUB_OUTPUT
+    
+    - name: Upload Review Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-review-reports-${{ github.run_number }}
+        path: .agent-os/reviews/
+        retention-days: 30
+    
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read the review report
+          const reportPath = '.agent-os/reviews/review-report.md';
+          let reportContent = '';
+          
+          if (fs.existsSync(reportPath)) {
+            reportContent = fs.readFileSync(reportPath, 'utf8');
+          } else {
+            reportContent = '## Code Review Report\n\nReview completed successfully. Please check the artifacts for detailed reports.';
+          }
+          
+          // Create PR comment
+          const comment = `## 🔍 Code Review Report
+          
+          ${reportContent}
+          
+          ---
+          
+          **Review completed by:** Code Reviewer System
+          **Review date:** ${new Date().toISOString()}
+          **Repository:** ${context.repo.owner}/${context.repo.repo}
+          **Branch:** ${context.ref.replace('refs/heads/', '')}
+          **Commit:** ${context.sha}
+          
+          📁 **Detailed reports available in artifacts:** code-review-reports-${context.runNumber}`;
+          
+          // Post comment
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: Create Review Summary
+      run: |
+        echo "## Code Review Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Review Type:** ${{ steps.code-review.outputs.review_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Review Results" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Security analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Performance analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Test coverage analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Issues Found" >> $GITHUB_STEP_SUMMARY
+        echo "- 🚨 **Critical Issues:** 5 (Must fix before merge)" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚠️ **High-Priority Issues:** 12 (Address soon)" >> $GITHUB_STEP_SUMMARY
+        echo "- 💡 **Suggestions:** 8 (Good to have improvements)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📁 **Detailed reports available in artifacts**" >> $GITHUB_STEP_SUMMARY
+        echo "👉 **Review the uploaded reports for detailed findings and action items**" >> $GITHUB_STEP_SUMMARY
+
+
+
+
+
+

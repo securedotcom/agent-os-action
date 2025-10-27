@@ -1,0 +1,94 @@
+name: Agent OS Code Review (Advanced)
+
+on:
+  # Multiple triggers
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays
+  
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+  
+  workflow_dispatch:
+    inputs:
+      review_type:
+        description: 'Type of review'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+        - audit
+        - security
+        - review
+      project_type:
+        description: 'Project type'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+        - auto
+        - backend-api
+        - dashboard-ui
+        - data-pipeline
+        - infrastructure
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Run Agent OS Code Review
+      uses: securedotcom/agent-os-action@v1.0.14
+      with:
+        review-type: ${{ github.event.inputs.review_type || 'audit' }}
+        project-path: '.'
+        project-type: ${{ github.event.inputs.project_type || 'auto' }}
+        fail-on-blockers: 'false'
+        comment-on-pr: 'true'
+        upload-reports: 'true'
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Review Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-review-reports-${{ github.run_number }}
+        path: .agent-os/reviews/
+        retention-days: 90
+    
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const reportPath = '.agent-os/reviews/audit-report.md';
+          
+          if (fs.existsSync(reportPath)) {
+            const report = fs.readFileSync(reportPath, 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🤖 Agent OS Code Review\n\n${report}`
+            });
+          }
+

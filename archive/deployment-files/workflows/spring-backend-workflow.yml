@@ -1,0 +1,221 @@
+name: Agent OS Code Review
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly comprehensive audit - Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      review_type:
+        description: 'Type of review to run'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+        - audit
+        - security
+        - review
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better analysis
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Run Agent OS Code Review
+      uses: securedotcom/agent-os-action@v1
+      with:
+        review-type: ${{ github.event.inputs.review_type || (github.event_name == 'pull_request' && 'review' || 'audit') }}
+        project-path: '.'
+        project-type: 'backend-api'  # Explicitly set for Spring-Backend
+        fail-on-blockers: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+        comment-on-pr: 'true'
+        upload-reports: 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Post Metrics to Dashboard
+      if: always()
+      env:
+        METRICS_API_TOKEN: ${{ secrets.METRICS_API_TOKEN }}
+      run: |
+        # Post metrics to agent-os-metrics repository
+        REPO_NAME="${{ github.repository }}"
+        REVIEW_TYPE="${{ github.event.inputs.review_type || (github.event_name == 'pull_request' && 'review' || 'audit') }}"
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        
+        # Extract metrics from review reports (mock for now, will be enhanced)
+        BLOCKERS=0
+        SUGGESTIONS=0
+        STATUS="pass"
+        
+        if [ -f ".agent-os/reviews/audit-report.md" ]; then
+          BLOCKERS=$(grep -c "\[BLOCKER\]" .agent-os/reviews/audit-report.md || echo "0")
+          SUGGESTIONS=$(grep -c "\[SUGGESTION\]" .agent-os/reviews/audit-report.md || echo "0")
+        fi
+        
+        if [ "$BLOCKERS" -gt 0 ]; then
+          STATUS="fail"
+        fi
+        
+        # Create metrics JSON
+        METRICS_JSON=$(cat <<EOF
+        {
+          "repository": "$REPO_NAME",
+          "timestamp": "$TIMESTAMP",
+          "review_type": "$REVIEW_TYPE",
+          "blockers_found": $BLOCKERS,
+          "suggestions_found": $SUGGESTIONS,
+          "status": "$STATUS",
+          "commit": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "actor": "${{ github.actor }}"
+        }
+        EOF
+        )
+        
+        echo "Metrics: $METRICS_JSON"
+        
+        # TODO: Post to metrics repository API endpoint
+        # curl -X POST -H "Authorization: Bearer $METRICS_API_TOKEN" \
+        #   -H "Content-Type: application/json" \
+        #   -d "$METRICS_JSON" \
+        #   https://api.github.com/repos/securedotcom/agent-os-metrics/dispatches
+    
+    - name: Send Slack Notification
+      if: always() && env.SLACK_WEBHOOK_URL != ''
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_ALERT_WEBHOOK_URL: ${{ secrets.SLACK_ALERT_WEBHOOK_URL }}
+      run: |
+        # Determine notification webhook and message
+        BLOCKERS=0
+        if [ -f ".agent-os/reviews/audit-report.md" ]; then
+          BLOCKERS=$(grep -c "\[BLOCKER\]" .agent-os/reviews/audit-report.md || echo "0")
+        fi
+        
+        # Base notification message
+        MESSAGE=$(cat <<EOF
+        {
+          "text": "Code Review Complete: ${{ github.repository }}",
+          "blocks": [
+            {
+              "type": "header",
+              "text": {
+                "type": "plain_text",
+                "text": "🔍 Code Review Complete"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Repository:*\n${{ github.repository }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Branch:*\n${{ github.ref_name }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Review Type:*\n${{ github.event.inputs.review_type || 'audit' }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Blockers Found:*\n$BLOCKERS"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Full Report>"
+              }
+            }
+          ]
+        }
+        EOF
+        )
+        
+        # Send to #code-reviews channel
+        curl -X POST -H 'Content-type: application/json' \
+          --data "$MESSAGE" \
+          "$SLACK_WEBHOOK_URL"
+        
+        # If critical blockers found, alert to #security-alerts
+        if [ "$BLOCKERS" -gt 0 ] && [ -n "$SLACK_ALERT_WEBHOOK_URL" ]; then
+          ALERT_MESSAGE=$(cat <<EOF
+          {
+            "text": "🚨 Critical Issues Found in ${{ github.repository }}",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚨 Critical Security Alert"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Critical Issues:*\n$BLOCKERS"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "⚠️ *Action Required:* Review and fix critical issues before merging.\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                }
+              }
+            ]
+          }
+        EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$ALERT_MESSAGE" \
+            "$SLACK_ALERT_WEBHOOK_URL"
+        fi
+    
+    - name: Create Workflow Summary
+      if: always()
+      run: |
+        echo "## 📊 Code Review Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Review Type:** ${{ github.event.inputs.review_type || 'audit' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Review Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Security analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Performance analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Test coverage analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📁 **Detailed reports available in artifacts**" >> $GITHUB_STEP_SUMMARY
+
