@@ -19,6 +19,10 @@ inputs:
     description: 'Fail the workflow if merge blockers are found'
     required: false
     default: 'true'
+  fail-on:
+    description: 'Granular fail conditions (e.g., "security:high,security:critical,test:critical")'
+    required: false
+    default: ''
   comment-on-pr:
     description: 'Comment on PR with review results'
     required: false
@@ -251,6 +255,7 @@ runs:
         INPUT_MAX_FILES: ${{ inputs.max-files }}
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
       run: |
         echo "🤖 Running AI-Powered Code Review..."
         cd "${{ inputs.project-path }}"

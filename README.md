@@ -89,6 +89,7 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `project-path` | No | `'.'` | Path to project directory to review |
 | `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
 | `fail-on-blockers` | No | `'true'` | Fail workflow if merge blockers are found |
+| `fail-on` | No | `''` | Granular fail conditions: `security:high,test:critical,any:critical` |
 | `comment-on-pr` | No | `'true'` | Post review results as PR comment |
 | `upload-reports` | No | `'true'` | Upload review reports as workflow artifacts |
 | **Cost/Latency Guardrails** | | | |
@@ -122,13 +123,28 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `1` | Failure | Blockers found and `fail-on-blockers: true` |
 | `2` | Error | Configuration error, API failure, or system error |
 
-**CI Gating Example**:
+**CI Gating Examples**:
 ```yaml
+# Simple: Fail on any blockers
 - name: Run Code Review
   uses: securedotcom/agent-os-action@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-    fail-on-blockers: 'true'  # Fail CI if critical issues found
+    fail-on-blockers: 'true'
+
+# Granular: Fail on specific severity/category
+- name: Run Code Review  
+  uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    fail-on: 'security:high,security:critical,test:critical'
+
+# Strict: Fail on any critical issue
+- name: Run Code Review
+  uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    fail-on: 'any:critical'
 ```
 
 **Cost-Optimized Example**:
@@ -219,6 +235,97 @@ with:
 - 10K LOC full audit: ~$0.50
 - PR review (100 changed lines): ~$0.05
 - Weekly audits (4x/month): ~$2.00/month
+
+---
+
+## 🏢 Enterprise Features
+
+### API Gateway Support
+
+For organizations using API gateways or proxies:
+
+```yaml
+- uses: securedotcom/agent-os-action@v1
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+  env:
+    ANTHROPIC_BASE_URL: 'https://your-gateway.company.com/v1'
+```
+
+**Benefits**:
+- Route through corporate proxy
+- Add additional security layers
+- Monitor and log API usage
+- Implement rate limiting
+
+### Data Security & Privacy
+
+**What Gets Analyzed**:
+- ✅ File paths and names
+- ✅ Code content (up to 100 files)
+- ✅ File structure
+
+**What's Protected**:
+- 🔒 Secrets automatically redacted (API keys, tokens, passwords)
+- 🔒 PII detection and redaction available
+- 🔒 Git history not sent
+- 🔒 Binary files excluded
+- 🔒 Large files (>50KB) skipped
+
+**Data Retention** (Anthropic):
+- API requests not used for training
+- Not retained long-term
+- See: [Anthropic Privacy Policy](https://www.anthropic.com/privacy)
+
+**For Maximum Privacy**:
+```yaml
+# Use Ollama for local, air-gapped analysis
+- uses: securedotcom/agent-os-action@v1
+  with:
+    ai-provider: 'ollama'
+    ollama-endpoint: 'http://localhost:11434'
+```
+
+### Secret & PII Redaction
+
+Built-in redaction for common patterns:
+- API keys and tokens
+- Passwords and secrets
+- Email addresses
+- Credit card numbers
+- Social security numbers
+
+**Enable explicit redaction**:
+```yaml
+with:
+  redact-secrets: 'true'  # Default: true
+  redact-pii: 'true'      # Default: true
+```
+
+### Compliance & Audit Trail
+
+**Audit Logging**:
+- All reviews logged with timestamps
+- Cost tracking per review
+- SARIF reports for compliance
+- JSON artifacts for auditing
+
+**Compliance Support**:
+- SOC 2 compatible (with Anthropic/OpenAI)
+- GDPR compliant (PII redaction)
+- HIPAA considerations (use local Ollama)
+- ISO 27001 alignment
+
+### Enterprise Support
+
+For enterprise deployments:
+- Custom SLAs available
+- Dedicated support channel
+- Custom rule development
+- On-premise deployment options
+- Training and onboarding
+
+Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 
 ---
 
