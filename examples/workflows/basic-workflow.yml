@@ -1,0 +1,46 @@
+name: Agent OS Code Review
+
+on:
+  # Weekly schedule - Sundays at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * 0'
+  
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      review_type:
+        description: 'Type of review'
+        required: true
+        default: 'audit'
+        type: choice
+        options:
+        - audit
+        - security
+        - review
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Run Agent OS Code Review
+      uses: securedotcom/agent-os-action@v1.0.14
+      with:
+        review-type: ${{ github.event.inputs.review_type || 'audit' }}
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Review Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-review-reports
+        path: .agent-os/reviews/
+        retention-days: 90
+

@@ -1,0 +1,74 @@
+name: Agent OS Code Review (Monorepo)
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays
+  workflow_dispatch:
+
+jobs:
+  # Review frontend package
+  review-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Review Frontend
+      uses: securedotcom/agent-os-action@v1.0.14
+      with:
+        review-type: 'audit'
+        project-path: './packages/frontend'
+        project-type: 'dashboard-ui'
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-review-reports
+        path: packages/frontend/.agent-os/reviews/
+  
+  # Review backend package
+  review-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Review Backend
+      uses: securedotcom/agent-os-action@v1.0.14
+      with:
+        review-type: 'audit'
+        project-path: './packages/backend'
+        project-type: 'backend-api'
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-review-reports
+        path: packages/backend/.agent-os/reviews/
+  
+  # Review shared libraries
+  review-shared:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Review Shared
+      uses: securedotcom/agent-os-action@v1.0.14
+      with:
+        review-type: 'audit'
+        project-path: './packages/shared'
+        project-type: 'auto'
+        anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: shared-review-reports
+        path: packages/shared/.agent-os/reviews/
+
