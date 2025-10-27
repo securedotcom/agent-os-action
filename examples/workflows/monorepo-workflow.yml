@@ -10,10 +10,11 @@ jobs:
   review-frontend:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    # Checkout - pinned by SHA for security
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
     - name: Review Frontend
-      uses: securedotcom/agent-os-action@v1.0.14
+      uses: securedotcom/agent-os-action@v1  # Our action - use semver tag
       with:
         review-type: 'audit'
         project-path: './packages/frontend'
@@ -22,7 +23,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - uses: actions/upload-artifact@v4
+    # Upload artifacts - pinned by SHA
+    - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
       if: always()
       with:
         name: frontend-review-reports
@@ -32,10 +34,11 @@ jobs:
   review-backend:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    # Checkout - pinned by SHA for security
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
     - name: Review Backend
-      uses: securedotcom/agent-os-action@v1.0.14
+      uses: securedotcom/agent-os-action@v1  # Our action - use semver tag
       with:
         review-type: 'audit'
         project-path: './packages/backend'
@@ -44,7 +47,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - uses: actions/upload-artifact@v4
+    # Upload artifacts - pinned by SHA
+    - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
       if: always()
       with:
         name: backend-review-reports
@@ -54,10 +58,11 @@ jobs:
   review-shared:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    # Checkout - pinned by SHA for security
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
     - name: Review Shared
-      uses: securedotcom/agent-os-action@v1.0.14
+      uses: securedotcom/agent-os-action@v1  # Our action - use semver tag
       with:
         review-type: 'audit'
         project-path: './packages/shared'
@@ -66,7 +71,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - uses: actions/upload-artifact@v4
+    # Upload artifacts - pinned by SHA
+    - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
       if: always()
       with:
         name: shared-review-reports
