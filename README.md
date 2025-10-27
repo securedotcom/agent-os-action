@@ -102,6 +102,8 @@ curl -o .github/workflows/semgrep.yml https://raw.githubusercontent.com/securedo
 - GitHub Actions enabled
 - Anthropic API key ([Get one here](https://console.anthropic.com/))
 
+> **⚠️ Runner Security**: For public repositories, **always use GitHub-hosted runners** (ubuntu-latest, macos-latest, windows-latest). Self-hosted runners on public repos pose significant security risks. For private repos, use locked-down, ephemeral self-hosted runners with network isolation and no persistent state.
+
 ### Installation
 
 1. **Get Your API Key**
@@ -189,7 +191,7 @@ To surface findings in GitHub's Security tab, upload the SARIF output:
 ```yaml
 - name: Run Code Review
   id: agent
-  uses: securedotcom/agent-os-action@v2
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -242,7 +244,7 @@ Error: Unable to find SARIF file
 ```yaml
 - name: Upload SARIF
   if: always() && steps.review.outputs.sarif-path != ''
-  uses: github/codeql-action/upload-sarif@v3
+  uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
   with:
     sarif_file: ${{ steps.review.outputs.sarif-path }}
 ```
@@ -263,7 +265,7 @@ Error: You have exceeded a secondary rate limit
 **Solution**: Add delays between uploads or reduce frequency:
 ```yaml
 - name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
+  uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
   with:
     sarif_file: ${{ steps.review.outputs.sarif-path }}
     wait-for-processing: true  # Wait for GitHub to process
@@ -290,21 +292,21 @@ Error: You have exceeded a secondary rate limit
 ```yaml
 # Simple: Fail on any blockers
 - name: Run Code Review
-  uses: securedotcom/agent-os-action@v1
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     fail-on-blockers: 'true'
 
 # Granular: Fail on specific severity/category
 - name: Run Code Review  
-  uses: securedotcom/agent-os-action@v1
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     fail-on: 'security:high,security:critical,test:critical'
 
 # Strict: Fail on any critical issue
 - name: Run Code Review
-  uses: securedotcom/agent-os-action@v1
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     fail-on: 'any:critical'
@@ -313,7 +315,7 @@ Error: You have exceeded a secondary rate limit
 **Cost-Optimized Example**:
 ```yaml
 - name: Run Code Review (Cost-Optimized)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     only-changed: 'true'              # Only review changed files
@@ -350,12 +352,12 @@ jobs:
     timeout-minutes: 10
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         with:
           fetch-depth: 0  # Required for git diff
       
       - name: Review Changed Files Only
-        uses: securedotcom/agent-os-action@v2.1.0
+        uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           only-changed: 'true'  # ← Enable changed-files mode
@@ -385,14 +387,14 @@ on:
 jobs:
   pr-review:
     steps:
-      - uses: securedotcom/agent-os-action@v2.1.0
+      - uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
         with:
           only-changed: 'true'
 ```
 
 #### 2. Combine with Path Filters
 ```yaml
-- uses: securedotcom/agent-os-action@v2.1.0
+- uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     only-changed: 'true'
     include-paths: 'src/**,lib/**'  # Only source directories
@@ -430,7 +432,7 @@ Warning: No files to analyze after applying filters
 ```
 **Solution**: Ensure `fetch-depth: 0` in checkout step:
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
   with:
     fetch-depth: 0  # Required for git diff
 ```
@@ -500,7 +502,7 @@ Agent OS supports enterprise API gateways and custom endpoints for enhanced secu
 
 ```yaml
 - name: Run Code Review (AWS Bedrock)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     ai-provider: 'anthropic'
     anthropic-api-key: ${{ secrets.AWS_BEDROCK_API_KEY }}
@@ -513,7 +515,7 @@ Agent OS supports enterprise API gateways and custom endpoints for enhanced secu
 
 ```yaml
 - name: Run Code Review (Azure OpenAI)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     ai-provider: 'openai'
     openai-api-key: ${{ secrets.AZURE_OPENAI_API_KEY }}
@@ -526,7 +528,7 @@ Agent OS supports enterprise API gateways and custom endpoints for enhanced secu
 
 ```yaml
 - name: Run Code Review (Vertex AI)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     ai-provider: 'anthropic'
     anthropic-api-key: ${{ secrets.VERTEX_API_KEY }}
@@ -541,7 +543,7 @@ For organizations with custom API gateways:
 
 ```yaml
 - name: Run Code Review (Custom Gateway)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     ai-provider: 'anthropic'
     anthropic-api-key: ${{ secrets.GATEWAY_API_KEY }}
@@ -557,7 +559,7 @@ For air-gapped or highly secure environments:
 
 ```yaml
 - name: Run Code Review (Self-Hosted)
-  uses: securedotcom/agent-os-action@v2.1.0
+  uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
   with:
     ai-provider: 'ollama'
     ollama-endpoint: 'http://internal-ollama.company.local:11434'
@@ -667,10 +669,10 @@ jobs:
     timeout-minutes: 30
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
       
       - name: Multi-Agent Code Review
-        uses: securedotcom/agent-os-action@v2.1.0
+        uses: securedotcom/agent-os-action@a03c88d  # v2.1.0
         with:
           multi-agent-mode: 'sequential'
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
