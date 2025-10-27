@@ -109,19 +109,12 @@ def get_ai_client(provider, config):
     if provider == 'anthropic':
         try:
             from anthropic import Anthropic
-            api_key = config.get('anthropic_api_key') or config.get('cursor_api_key')
+            api_key = config.get('anthropic_api_key')
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY not set")
             
-            # Check if Cursor API key - but use standard Anthropic endpoint
-            # Cursor keys work with the standard Anthropic API
-            if api_key.startswith('key_'):
-                print("🔑 Detected Cursor API key - using standard Anthropic endpoint")
-                print("ℹ️  Cursor API keys are compatible with Anthropic's API")
-                return Anthropic(api_key=api_key), 'anthropic'
-            else:
-                print("🔑 Using Anthropic API endpoint")
-                return Anthropic(api_key=api_key), 'anthropic'
+            print("🔑 Using Anthropic API")
+            return Anthropic(api_key=api_key), 'anthropic'
         except ImportError:
             print("❌ anthropic package not installed. Run: pip install anthropic")
             sys.exit(2)
@@ -730,7 +723,6 @@ if __name__ == '__main__':
         'anthropic_api_key': os.environ.get('ANTHROPIC_API_KEY', ''),
         'openai_api_key': os.environ.get('OPENAI_API_KEY', ''),
         'ollama_endpoint': os.environ.get('OLLAMA_ENDPOINT', ''),
-        'cursor_api_key': os.environ.get('CURSOR_API_KEY', ''),
         'model': os.environ.get('INPUT_MODEL', 'auto'),
         'only_changed': os.environ.get('INPUT_ONLY_CHANGED', 'false').lower() == 'true',
         'include_paths': os.environ.get('INPUT_INCLUDE_PATHS', ''),
