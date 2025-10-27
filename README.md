@@ -10,6 +10,7 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/securedotcom/agent-os-action/badge)](https://securityscorecards.dev/viewer/?uri=github.com/securedotcom/agent-os-action)
 [![CodeQL](https://github.com/securedotcom/agent-os-action/workflows/CodeQL%20Analysis/badge.svg)](https://github.com/securedotcom/agent-os-action/actions/workflows/codeql.yml)
 [![Gitleaks](https://github.com/securedotcom/agent-os-action/workflows/Gitleaks%20Secret%20Scanning/badge.svg)](https://github.com/securedotcom/agent-os-action/actions/workflows/gitleaks.yml)
+[![Semgrep](https://github.com/securedotcom/agent-os-action/workflows/Semgrep%20Analysis/badge.svg)](https://github.com/securedotcom/agent-os-action/actions/workflows/semgrep.yml)
 
 ---
 
@@ -57,6 +58,39 @@ gh release download v1.0.0 --repo securedotcom/agent-os-action
 # Verify attestation
 gh attestation verify agent-os-action-v1.0.0.tar.gz \
   --owner securedotcom
+```
+
+#### 🛠️ Enable Security Scanning for Your Repository
+
+**Adopt these security tools by default** for comprehensive protection:
+
+1. **CodeQL (SAST)** - [Enable in 2 clicks](https://docs.github.com/en/code-security/code-scanning/enabling-code-scanning/configuring-default-setup-for-code-scanning)
+   - Go to: Repository → Settings → Code security → CodeQL analysis
+   - Click "Set up" → "Default"
+   - GitHub auto-detects languages and schedules scans
+
+2. **OpenSSF Scorecard** - [Add workflow](https://github.com/ossf/scorecard-action#installation)
+   - Copy [our scorecard.yml](.github/workflows/scorecard.yml) to your repo
+   - Evaluates 20+ security best practices
+   - Public badge shows security health
+
+3. **Gitleaks (Secret Scanning)** - [Add workflow](https://github.com/gitleaks/gitleaks-action#usage)
+   - Copy [our gitleaks.yml](.github/workflows/gitleaks.yml) to your repo
+   - Scans for hardcoded secrets in code and history
+   - Fails CI if secrets detected
+
+4. **Semgrep (Performance & Correctness)** - [Add workflow](https://semgrep.dev/docs/semgrep-ci/overview/)
+   - Copy [our semgrep.yml](.github/workflows/semgrep.yml) to your repo
+   - Detects performance anti-patterns and bugs
+   - Fast, customizable rules
+
+**Copy all workflows at once**:
+```bash
+# Copy security workflows to your repository
+curl -o .github/workflows/codeql.yml https://raw.githubusercontent.com/securedotcom/agent-os-action/main/.github/workflows/codeql.yml
+curl -o .github/workflows/scorecard.yml https://raw.githubusercontent.com/securedotcom/agent-os-action/main/.github/workflows/scorecard.yml
+curl -o .github/workflows/gitleaks.yml https://raw.githubusercontent.com/securedotcom/agent-os-action/main/.github/workflows/gitleaks.yml
+curl -o .github/workflows/semgrep.yml https://raw.githubusercontent.com/securedotcom/agent-os-action/main/.github/workflows/semgrep.yml
 ```
 
 ---

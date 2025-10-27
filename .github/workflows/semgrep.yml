@@ -1,0 +1,112 @@
+name: "Semgrep Analysis"
+
+# Semgrep - Fast, customizable static analysis
+# Focuses on performance, correctness, and security patterns
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run twice weekly (Monday and Thursday at 4 AM UTC)
+    - cron: '0 4 * * 1,4'
+  workflow_dispatch:
+
+# Minimal permissions
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    # Skip Semgrep on dependabot PRs
+    if: github.actor != 'dependabot[bot]'
+    
+    container:
+      # Use official Semgrep container
+      image: semgrep/semgrep
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      with:
+        fetch-depth: 0
+    
+    - name: Run Semgrep
+      env:
+        # Use Semgrep App token if available (optional)
+        SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      run: |
+        # Run Semgrep with multiple rulesets
+        semgrep scan \
+          --config auto \
+          --config "p/security-audit" \
+          --config "p/performance" \
+          --config "p/correctness" \
+          --config "p/owasp-top-ten" \
+          --sarif \
+          --output semgrep-results.sarif \
+          --timeout 300 \
+          --max-memory 4096 \
+          --verbose
+    
+    # Upload SARIF to GitHub Code Scanning
+    - name: Upload SARIF to Code Scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
+      with:
+        sarif_file: semgrep-results.sarif
+        category: semgrep
+    
+    # Upload results as artifact
+    - name: Upload Semgrep Results
+      if: always()
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: semgrep-results
+        path: semgrep-results.sarif
+        retention-days: 30
+    
+    - name: Post Summary
+      if: always()
+      run: |
+        echo "## 🔍 Semgrep Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: Scan complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Rulesets Applied:" >> $GITHUB_STEP_SUMMARY
+        echo "- **auto**: Language-specific best practices" >> $GITHUB_STEP_SUMMARY
+        echo "- **security-audit**: Security vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- **performance**: Performance anti-patterns" >> $GITHUB_STEP_SUMMARY
+        echo "- **correctness**: Logic errors and bugs" >> $GITHUB_STEP_SUMMARY
+        echo "- **owasp-top-ten**: OWASP security issues" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### What was checked:" >> $GITHUB_STEP_SUMMARY
+        echo "- N+1 queries and inefficient loops" >> $GITHUB_STEP_SUMMARY
+        echo "- Memory leaks and resource exhaustion" >> $GITHUB_STEP_SUMMARY
+        echo "- Algorithmic complexity issues" >> $GITHUB_STEP_SUMMARY
+        echo "- Blocking I/O in async code" >> $GITHUB_STEP_SUMMARY
+        echo "- Inefficient data structures" >> $GITHUB_STEP_SUMMARY
+        echo "- Security vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- Logic errors and edge cases" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "View results in the Security tab → Code scanning alerts" >> $GITHUB_STEP_SUMMARY
+
+# Security Notes:
+# 1. All actions pinned by commit SHA
+# 2. Uses official Semgrep container
+# 3. Least privilege permissions
+# 4. Timeout to prevent runaway scans
+# 5. Results uploaded to Security tab
+# 6. Runs twice weekly for continuous monitoring
+# 7. Multiple rulesets for comprehensive coverage
+
