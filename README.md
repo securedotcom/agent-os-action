@@ -187,12 +187,13 @@ To surface findings in GitHub's Security tab, upload the SARIF output:
 ```yaml
 - name: Run Code Review
   id: agent
-  uses: securedotcom/agent-os-action@v1
+  uses: securedotcom/agent-os-action@v2
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
 - name: Upload SARIF to Code Scanning
-  if: always()
+  if: always() && steps.agent.outputs.sarif-path != ''
+  continue-on-error: true  # Don't fail if Code Scanning not enabled
   uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
   with:
     sarif_file: ${{ steps.agent.outputs.sarif-path }}
@@ -203,6 +204,8 @@ This makes findings visible in:
 - **Security** → **Code scanning** tab
 - Pull request checks
 - Security overview dashboard
+
+> **Note**: Code Scanning must be enabled first. See [Enable Code Scanning Guide](docs/ENABLE_CODE_SCANNING.md) for setup instructions.
 
 ### Exit Codes
 
