@@ -469,6 +469,278 @@ def call_llm_api(client, provider, model, prompt, max_tokens):
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
+def load_agent_prompt(agent_name):
+    """Load specialized agent prompt from profiles"""
+    agent_prompts = {
+        'security': 'security-agent-prompt.md',
+        'performance': 'performance-agent-prompt.md',
+        'testing': 'testing-agent-prompt.md',
+        'quality': 'quality-agent-prompt.md',
+        'orchestrator': 'orchestrator-agent-prompt.md'
+    }
+    
+    prompt_file = agent_prompts.get(agent_name)
+    if not prompt_file:
+        raise ValueError(f"Unknown agent: {agent_name}")
+    
+    prompt_path = Path.home() / f'.agent-os/profiles/default/agents/{prompt_file}'
+    if prompt_path.exists():
+        with open(prompt_path, 'r') as f:
+            return f.read()
+    else:
+        print(f"⚠️  Agent prompt not found: {prompt_path}")
+        return f"You are a {agent_name} code reviewer. Analyze the code for {agent_name}-related issues."
+
+def run_multi_agent_sequential(repo_path, config, review_type, client, provider, model, max_tokens, files, metrics):
+    """Run multi-agent sequential review with specialized agents"""
+    
+    print("\n" + "="*80)
+    print("🤖 MULTI-AGENT SEQUENTIAL MODE")
+    print("="*80)
+    print("Running 5 specialized agents in sequence:")
+    print("  1️⃣  Security Reviewer")
+    print("  2️⃣  Performance Reviewer")
+    print("  3️⃣  Testing Reviewer")
+    print("  4️⃣  Code Quality Reviewer")
+    print("  5️⃣  Review Orchestrator")
+    print("="*80 + "\n")
+    
+    # Build codebase context once
+    codebase_context = "\n\n".join([
+        f"File: {f['path']}\n```\n{f['content']}\n```"
+        for f in files
+    ])
+    
+    # Store agent findings
+    agent_reports = {}
+    agent_metrics = {}
+    
+    # Define agents in execution order
+    agents = ['security', 'performance', 'testing', 'quality']
+    
+    # Run each specialized agent
+    for i, agent_name in enumerate(agents, 1):
+        print(f"\n{'─'*80}")
+        print(f"🔍 Agent {i}/5: {agent_name.upper()} REVIEWER")
+        print(f"{'─'*80}")
+        
+        agent_start = time.time()
+        
+        # Load agent-specific prompt
+        agent_prompt_template = load_agent_prompt(agent_name)
+        
+        # Create agent-specific prompt
+        agent_prompt = f"""{agent_prompt_template}
+
+## Codebase to Analyze
+
+{codebase_context}
+
+## Your Task
+
+Analyze the above codebase from your specialized perspective as a {agent_name} reviewer.
+Focus ONLY on {agent_name}-related issues. Do not analyze areas outside your responsibility.
+
+Provide your findings in this format:
+
+# {agent_name.title()} Review Report
+
+## Summary
+- Total {agent_name} issues found: X
+- Critical: X
+- High: X
+- Medium: X
+- Low: X
+
+## Critical Issues
+
+### [CRITICAL] Issue Title - `file.ext:line`
+**Category**: [Specific subcategory]
+**Impact**: Description of impact
+**Evidence**: Code snippet
+**Recommendation**: Fix with code example
+
+[Repeat for each critical issue]
+
+## High Priority Issues
+
+[Same format as critical]
+
+## Medium Priority Issues
+
+[Same format]
+
+## Low Priority Issues
+
+[Same format]
+
+Be specific with file paths and line numbers. Focus on actionable, real issues.
+"""
+        
+        try:
+            print(f"   🧠 Analyzing with {model}...")
+            report, input_tokens, output_tokens = call_llm_api(
+                client, provider, model, agent_prompt, max_tokens
+            )
+            
+            agent_duration = time.time() - agent_start
+            
+            # Record metrics for this agent
+            metrics.record_llm_call(input_tokens, output_tokens, provider)
+            agent_metrics[agent_name] = {
+                'duration_seconds': round(agent_duration, 2),
+                'input_tokens': input_tokens,
+                'output_tokens': output_tokens,
+                'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
+            }
+            
+            # Store report
+            agent_reports[agent_name] = report
+            
+            # Parse findings for metrics
+            findings = parse_findings_from_report(report)
+            finding_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+            for finding in findings:
+                if finding['severity'] in finding_counts:
+                    finding_counts[finding['severity']] += 1
+                    metrics.record_finding(finding['severity'], agent_name)
+            
+            print(f"   ✅ Complete: {finding_counts['critical']} critical, {finding_counts['high']} high, {finding_counts['medium']} medium, {finding_counts['low']} low")
+            print(f"   ⏱️  Duration: {agent_duration:.1f}s | 💰 Cost: ${agent_metrics[agent_name]['cost_usd']:.4f}")
+            
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+            agent_reports[agent_name] = f"# {agent_name.title()} Review Failed\n\nError: {str(e)}"
+            agent_metrics[agent_name] = {'error': str(e)}
+    
+    # Run orchestrator agent
+    print(f"\n{'─'*80}")
+    print(f"🎯 Agent 5/5: ORCHESTRATOR")
+    print(f"{'─'*80}")
+    print("   🔄 Aggregating findings from all agents...")
+    
+    orchestrator_start = time.time()
+    
+    # Load orchestrator prompt
+    orchestrator_prompt_template = load_agent_prompt('orchestrator')
+    
+    # Combine all agent reports
+    combined_reports = "\n\n" + "="*80 + "\n\n".join([
+        f"# {name.upper()} AGENT FINDINGS\n\n{report}"
+        for name, report in agent_reports.items()
+    ])
+    
+    # Create orchestrator prompt
+    orchestrator_prompt = f"""{orchestrator_prompt_template}
+
+## Agent Reports to Synthesize
+
+You have received findings from 4 specialized agents:
+
+{combined_reports}
+
+## Your Task
+
+Synthesize these findings into a comprehensive, actionable audit report.
+
+1. **Deduplicate**: Remove identical issues reported by multiple agents
+2. **Prioritize**: Order by business impact
+3. **Aggregate**: Combine related findings
+4. **Decide**: Make clear APPROVED / REQUIRES FIXES / DO NOT MERGE recommendation
+5. **Action Plan**: Create sequenced, logical action items
+
+Generate the complete audit report as specified in your instructions.
+"""
+    
+    try:
+        print(f"   🧠 Synthesizing with {model}...")
+        final_report, input_tokens, output_tokens = call_llm_api(
+            client, provider, model, orchestrator_prompt, max_tokens
+        )
+        
+        orchestrator_duration = time.time() - orchestrator_start
+        
+        # Record orchestrator metrics
+        metrics.record_llm_call(input_tokens, output_tokens, provider)
+        agent_metrics['orchestrator'] = {
+            'duration_seconds': round(orchestrator_duration, 2),
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
+            'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
+        }
+        
+        print(f"   ✅ Synthesis complete")
+        print(f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}")
+        
+    except Exception as e:
+        print(f"   ❌ Error: {e}")
+        # Fallback: concatenate all reports
+        final_report = f"""# Codebase Audit Report (Multi-Agent Sequential)
+
+## Note
+Orchestrator synthesis failed. Below are individual agent reports.
+
+{combined_reports}
+"""
+        agent_metrics['orchestrator'] = {'error': str(e)}
+    
+    # Add multi-agent metadata to final report
+    total_cost = sum(m.get('cost_usd', 0) for m in agent_metrics.values())
+    total_duration = sum(m.get('duration_seconds', 0) for m in agent_metrics.values())
+    
+    multi_agent_summary = f"""
+---
+
+## Multi-Agent Review Metrics
+
+**Mode**: Sequential (5 agents)
+**Total Duration**: {total_duration:.1f}s
+**Total Cost**: ${total_cost:.4f}
+
+### Agent Performance
+| Agent | Duration | Cost | Status |
+|-------|----------|------|--------|
+| Security | {agent_metrics.get('security', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('security', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('security', {}) else '❌'} |
+| Performance | {agent_metrics.get('performance', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('performance', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('performance', {}) else '❌'} |
+| Testing | {agent_metrics.get('testing', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('testing', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('testing', {}) else '❌'} |
+| Quality | {agent_metrics.get('quality', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('quality', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('quality', {}) else '❌'} |
+| Orchestrator | {agent_metrics.get('orchestrator', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('orchestrator', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('orchestrator', {}) else '❌'} |
+
+---
+
+*This report was generated by Agent OS Multi-Agent Sequential Review System*
+"""
+    
+    final_report += multi_agent_summary
+    
+    # Save individual agent reports
+    report_dir = Path(repo_path) / '.agent-os/reviews'
+    report_dir.mkdir(parents=True, exist_ok=True)
+    
+    agents_dir = report_dir / 'agents'
+    agents_dir.mkdir(exist_ok=True)
+    
+    for agent_name, report in agent_reports.items():
+        agent_file = agents_dir / f'{agent_name}-report.md'
+        with open(agent_file, 'w') as f:
+            f.write(report)
+        print(f"   📄 Saved: {agent_file}")
+    
+    # Save agent metrics
+    agent_metrics_file = agents_dir / 'metrics.json'
+    with open(agent_metrics_file, 'w') as f:
+        json.dump(agent_metrics, f, indent=2)
+    
+    print(f"\n{'='*80}")
+    print(f"✅ MULTI-AGENT REVIEW COMPLETE")
+    print(f"{'='*80}")
+    print(f"📊 Total Cost: ${total_cost:.4f}")
+    print(f"⏱️  Total Duration: {total_duration:.1f}s")
+    print(f"🤖 Agents: 5 (Security, Performance, Testing, Quality, Orchestrator)")
+    print(f"{'='*80}\n")
+    
+    return final_report
+
 def run_audit(repo_path, config, review_type='audit'):
     """Run AI-powered code audit with multi-LLM support"""
     
@@ -531,6 +803,118 @@ def run_audit(repo_path, config, review_type='audit'):
         print(f"⚠️  Estimated cost ${estimated_cost:.2f} exceeds limit ${cost_limit:.2f}")
         print(f"💡 Reduce max-files, use path filters, or increase cost-limit")
         sys.exit(2)
+    
+    # Check multi-agent mode
+    multi_agent_mode = config.get('multi_agent_mode', 'single')
+    
+    if multi_agent_mode == 'sequential':
+        # Run multi-agent sequential review
+        report = run_multi_agent_sequential(
+            repo_path, config, review_type, 
+            client, provider, model, max_tokens, 
+            files, metrics
+        )
+        
+        # Skip to saving reports (multi-agent handles its own analysis)
+        report_dir = Path(repo_path) / '.agent-os/reviews'
+        report_dir.mkdir(parents=True, exist_ok=True)
+        
+        report_file = report_dir / f'{review_type}-report.md'
+        with open(report_file, 'w') as f:
+            f.write(report)
+        
+        print(f"✅ Multi-agent audit complete! Report saved to: {report_file}")
+        
+        # Parse findings from final orchestrated report
+        findings = parse_findings_from_report(report)
+        
+        # Generate SARIF
+        sarif = generate_sarif(findings, repo_path)
+        sarif_file = report_dir / 'results.sarif'
+        with open(sarif_file, 'w') as f:
+            json.dump(sarif, f, indent=2)
+        print(f"📄 SARIF saved to: {sarif_file}")
+        
+        # Generate structured JSON
+        json_output = {
+            "version": "2.1.0",
+            "mode": "multi-agent-sequential",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
+            "commit": os.environ.get('GITHUB_SHA', 'unknown'),
+            "provider": provider,
+            "model": model,
+            "summary": metrics.metrics,
+            "findings": findings
+        }
+        
+        json_file = report_dir / 'results.json'
+        with open(json_file, 'w') as f:
+            json.dump(json_output, f, indent=2)
+        print(f"📊 JSON saved to: {json_file}")
+        
+        # Save metrics
+        metrics_file = report_dir / 'metrics.json'
+        metrics.finalize()
+        metrics.save(metrics_file)
+        
+        # Count blockers and suggestions
+        blocker_count = metrics.metrics['findings']['critical'] + metrics.metrics['findings']['high']
+        suggestion_count = metrics.metrics['findings']['medium'] + metrics.metrics['findings']['low']
+        
+        print(f"\n📊 Final Results:")
+        print(f"   Critical: {metrics.metrics['findings']['critical']}")
+        print(f"   High: {metrics.metrics['findings']['high']}")
+        print(f"   Medium: {metrics.metrics['findings']['medium']}")
+        print(f"   Low: {metrics.metrics['findings']['low']}")
+        print(f"\n💰 Total Cost: ${metrics.metrics['cost_usd']:.2f}")
+        print(f"⏱️  Total Duration: {metrics.metrics['duration_seconds']}s")
+        print(f"🤖 Mode: Multi-Agent Sequential (5 agents)")
+        
+        # Output for GitHub Actions
+        print(f"completed=true")
+        print(f"blockers={blocker_count}")
+        print(f"suggestions={suggestion_count}")
+        print(f"report-path={report_file}")
+        print(f"sarif-path={sarif_file}")
+        print(f"json-path={json_file}")
+        print(f"cost-estimate={metrics.metrics['cost_usd']:.4f}")
+        print(f"files-analyzed={metrics.metrics['files_reviewed']}")
+        print(f"duration-seconds={metrics.metrics['duration_seconds']}")
+        
+        # Check fail-on conditions
+        fail_on = config.get('fail_on', '')
+        should_fail = False
+        
+        if fail_on:
+            print(f"\n🚦 Checking fail conditions: {fail_on}")
+            conditions = [c.strip() for c in fail_on.split(',') if c.strip()]
+            
+            for condition in conditions:
+                if ':' in condition:
+                    category, severity = condition.split(':', 1)
+                    category = category.strip().lower()
+                    severity = severity.strip().lower()
+                    
+                    if category == 'any':
+                        if severity in metrics.metrics['findings'] and metrics.metrics['findings'][severity] > 0:
+                            print(f"   ❌ FAIL: Found {metrics.metrics['findings'][severity]} {severity} issues")
+                            should_fail = True
+                    else:
+                        matching_findings = [f for f in findings 
+                                           if f['category'] == category and f['severity'] == severity]
+                        if matching_findings:
+                            print(f"   ❌ FAIL: Found {len(matching_findings)} {category}:{severity} issues")
+                            should_fail = True
+        
+        if should_fail:
+            print(f"\n❌ Failing due to fail-on conditions")
+            sys.exit(1)
+        
+        return blocker_count, suggestion_count, metrics
+    
+    # Single-agent mode (original logic)
+    print(f"🤖 Mode: Single-Agent")
     
     # Build context for LLM
     codebase_context = "\n\n".join([
@@ -769,6 +1153,7 @@ if __name__ == '__main__':
         'openai_api_key': os.environ.get('OPENAI_API_KEY', ''),
         'ollama_endpoint': os.environ.get('OLLAMA_ENDPOINT', ''),
         'model': os.environ.get('INPUT_MODEL', 'auto'),
+        'multi_agent_mode': os.environ.get('INPUT_MULTI_AGENT_MODE', 'single'),
         'only_changed': os.environ.get('INPUT_ONLY_CHANGED', 'false').lower() == 'true',
         'include_paths': os.environ.get('INPUT_INCLUDE_PATHS', ''),
         'exclude_paths': os.environ.get('INPUT_EXCLUDE_PATHS', ''),
