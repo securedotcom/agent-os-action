@@ -12,7 +12,7 @@ import time
 import glob
 import subprocess
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ReviewMetrics:
     """Track observability metrics for the review"""
@@ -20,7 +20,7 @@ class ReviewMetrics:
         self.start_time = time.time()
         self.metrics = {
             "version": "1.0.15",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
             "files_reviewed": 0,
@@ -113,10 +113,12 @@ def get_ai_client(provider, config):
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY not set")
             
-            # Check if Cursor API key
+            # Check if Cursor API key - but use standard Anthropic endpoint
+            # Cursor keys work with the standard Anthropic API
             if api_key.startswith('key_'):
-                print("🔑 Using Cursor API endpoint")
-                return Anthropic(api_key=api_key, base_url="https://api.cursor.sh/v1"), 'anthropic'
+                print("🔑 Detected Cursor API key - using standard Anthropic endpoint")
+                print("ℹ️  Cursor API keys are compatible with Anthropic's API")
+                return Anthropic(api_key=api_key), 'anthropic'
             else:
                 print("🔑 Using Anthropic API endpoint")
                 return Anthropic(api_key=api_key), 'anthropic'
@@ -634,7 +636,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         # Generate structured JSON
         json_output = {
             "version": "1.0.15",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
             "provider": provider,
