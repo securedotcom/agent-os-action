@@ -192,13 +192,13 @@ runs:
         fi
         
         # Copy AI audit script
-        if [ -f "$GITHUB_ACTION_PATH/scripts/run-ai-audit.py" ]; then
+        if [ -f "$GITHUB_ACTION_PATH/scripts/run_ai_audit.py" ]; then
           mkdir -p $HOME/.agent-os/scripts
-          cp $GITHUB_ACTION_PATH/scripts/run-ai-audit.py $HOME/.agent-os/scripts/
-          chmod +x $HOME/.agent-os/scripts/run-ai-audit.py
+          cp $GITHUB_ACTION_PATH/scripts/run_ai_audit.py $HOME/.agent-os/scripts/
+          chmod +x $HOME/.agent-os/scripts/run_ai_audit.py
           echo "AI audit script copied successfully"
         else
-          echo "Warning: AI audit script not found at $GITHUB_ACTION_PATH/scripts/run-ai-audit.py"
+          echo "Warning: AI audit script not found at $GITHUB_ACTION_PATH/scripts/run_ai_audit.py"
         fi
         
         if [ -f "$GITHUB_ACTION_PATH/profiles/default/roles/reviewers.yml" ]; then
@@ -276,7 +276,7 @@ runs:
         echo "   - Max files: ${{ inputs.max-files }}"
         echo "   - Cost limit: \$${{ inputs.cost-limit }}"
         
-        python3 $HOME/.agent-os/scripts/run-ai-audit.py "$(pwd)" "${{ inputs.review-type }}"
+        python3 $HOME/.agent-os/scripts/run_ai_audit.py "$(pwd)" "${{ inputs.review-type }}"
         
         # Check if analysis succeeded
         REPORT_FILE=".agent-os/reviews/${{ inputs.review-type }}-report.md"
