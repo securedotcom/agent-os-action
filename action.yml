@@ -267,7 +267,7 @@ runs:
         
         # Install Python dependencies
         echo "📦 Installing dependencies..."
-        pip install -q anthropic openai
+        pip install -q anthropic openai tenacity
         
         # Run AI-powered audit with guardrails
         echo "🧠 Analyzing codebase with AI..."
