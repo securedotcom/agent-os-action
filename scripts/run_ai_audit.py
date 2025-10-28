@@ -11,8 +11,23 @@ import json
 import time
 import glob
 import subprocess
+import logging
 from pathlib import Path
 from datetime import datetime, timezone
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class ReviewMetrics:
     """Track observability metrics for the review"""
@@ -163,25 +178,43 @@ def get_model_name(provider, config):
     return defaults.get(provider, 'claude-sonnet-4-20250514')
 
 def get_changed_files():
-    """Get list of changed files in PR"""
+    """Get list of changed files in PR with improved error handling"""
     try:
         result = subprocess.run(
             ['git', 'diff', '--name-only', 'HEAD^', 'HEAD'],
             capture_output=True,
-            text=True
+            text=True,
+            check=True,
+            timeout=30
         )
-        if result.returncode == 0:
-            return [f.strip() for f in result.stdout.split('\n') if f.strip()]
+        changed_files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
+        logger.info(f"Found {len(changed_files)} changed files")
+        return changed_files
+    except subprocess.TimeoutExpired:
+        logger.warning("Git diff timed out after 30 seconds")
+        return []
+    except subprocess.CalledProcessError as e:
+        # Not necessarily an error - might not be in a PR context
+        logger.debug(f"Git diff failed (stderr: {e.stderr}). This is normal if not in a PR context.")
+        return []
+    except FileNotFoundError:
+        logger.warning("Git not found in PATH. Ensure git is installed.")
+        return []
     except Exception as e:
-        print(f"Warning: Could not get changed files: {e}")
-    return []
+        logger.error(f"Unexpected error getting changed files: {type(e).__name__}: {e}")
+        return []
 
 def matches_glob_patterns(file_path, patterns):
     """Check if file matches any glob pattern"""
     if not patterns:
         return False
+    from pathlib import Path
     for pattern in patterns:
-        if glob.fnmatch.fnmatch(file_path, pattern):
+        # Use pathlib's match for better glob support including **
+        if Path(file_path).match(pattern):
+            return True
+        # Fallback to fnmatch for simple patterns
+        elif glob.fnmatch.fnmatch(file_path, pattern):
             return True
     return False
 
@@ -446,28 +479,42 @@ def parse_findings_from_report(report_text):
     
     return findings
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True
+)
 def call_llm_api(client, provider, model, prompt, max_tokens):
-    """Call LLM API with provider-specific handling"""
-    if provider == 'anthropic':
-        message = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text, message.usage.input_tokens, message.usage.output_tokens
-    
-    elif provider in ['openai', 'ollama']:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens
-        )
-        input_tokens = response.usage.prompt_tokens
-        output_tokens = response.usage.completion_tokens
-        return response.choices[0].message.content, input_tokens, output_tokens
-    
-    else:
-        raise ValueError(f"Unknown provider: {provider}")
+    """Call LLM API with retry logic for transient failures"""
+    try:
+        if provider == 'anthropic':
+            message = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=300.0  # 5 minute timeout
+            )
+            return message.content[0].text, message.usage.input_tokens, message.usage.output_tokens
+
+        elif provider in ['openai', 'ollama']:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                timeout=300.0  # 5 minute timeout
+            )
+            input_tokens = response.usage.prompt_tokens
+            output_tokens = response.usage.completion_tokens
+            return response.choices[0].message.content, input_tokens, output_tokens
+
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
+
+    except Exception as e:
+        logger.error(f"LLM API call failed: {type(e).__name__}: {e}")
+        raise
 
 def load_agent_prompt(agent_name):
     """Load specialized agent prompt from profiles"""

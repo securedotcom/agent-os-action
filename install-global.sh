@@ -341,8 +341,3 @@ echo "  Global script: $INSTALL_PATH/code-review"
 echo ""
 print_info "Ready to use from any repository! 🚀"
 
-
-
-
-
-

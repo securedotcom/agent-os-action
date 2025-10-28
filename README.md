@@ -3,7 +3,7 @@
 > **AI-Powered Automated Code Review System**  
 > Comprehensive security, performance, testing, and quality analysis powered by Claude Sonnet 4
 
-[![Version](https://img.shields.io/badge/version-1.0.14-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.15-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Ready-success.svg)](https://github.com/securedotcom/agent-os-action)
 

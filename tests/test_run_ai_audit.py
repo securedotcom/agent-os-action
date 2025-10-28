@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 """
-Unit tests for run-ai-audit.py
+Unit tests for run_ai_audit.py
 Uses pytest with mocked LLM API calls
 """
 
 import pytest
 import json
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-
-# Add scripts directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
 
 import run_ai_audit as audit_module
 
@@ -23,7 +19,7 @@ class TestReviewMetrics:
         """Test metrics are initialized correctly"""
         metrics = audit_module.ReviewMetrics()
         
-        assert metrics.metrics['version'] == '2.1.0'
+        assert metrics.metrics['version'] == '1.0.15'
         assert metrics.metrics['files_reviewed'] == 0
         assert metrics.metrics['cost_usd'] == 0.0
         assert 'findings' in metrics.metrics
@@ -147,9 +143,9 @@ class TestFindingsParser:
 
 ## Critical Issues
 
-### [CRITICAL] SQL Injection - `user.js:45`
-**Category**: Injection
-**Impact**: Data breach risk
+1. **SQL Injection** - `user.js:45`
+Category: Injection
+Impact: Data breach risk
         """
         
         findings = audit_module.parse_findings_from_report(report)

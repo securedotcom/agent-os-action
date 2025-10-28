@@ -5,6 +5,39 @@ All notable changes to Agent OS Code Reviewer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2025-01-28
+
+### Added
+- Comprehensive test suite with pytest, pytest-cov, and pytest-mock
+- Python code quality tools: pylint, mypy, black with configuration files
+- Pre-commit hooks for automated code quality checks
+- pyproject.toml for modern Python project configuration
+- Unit tests for ReviewMetrics, AI providers, and file selection
+- Integration tests for SARIF generation
+- Test documentation and best practices guide
+- Architecture Decision Records (ADRs) for key design decisions
+- GitHub Actions workflow for automated testing (.github/workflows/tests.yml)
+- Code quality checks in CI pipeline
+
+### Changed
+- **BREAKING**: Fixed repository reference in automated-audit.yml from `buildermethods/agent-os` to `securedotcom/agent-os-action`
+- Pinned all GitHub Actions to SHA in workflows for supply chain security
+- Updated all action versions to latest (checkout@v4.1.7, setup-python@v5.1.0, upload-artifact@v4.4.0)
+- Documented code-review.yml as example/test workflow with mock data
+- Updated version badge in README.md to v1.0.15
+- Improved error handling in get_changed_files() function
+
+### Fixed
+- Repository reference inconsistency in automated-audit.yml
+- Deprecated actions/upload-artifact@v3 usage
+- Version mismatch between README (v1.0.14) and code (v1.0.15)
+- Missing SHA pinning in automated-audit.yml and code-review.yml
+
+### Security
+- All GitHub Actions now pinned by SHA for supply chain security
+- Added security comments to example workflows
+- Improved runner security guidance in README
+
 ## [1.0.0] - 2025-10-27
 
 ### 🎉 Initial Production Release
