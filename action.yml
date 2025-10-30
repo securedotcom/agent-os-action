@@ -71,7 +71,7 @@ inputs:
   exclude-paths:
     description: 'Glob patterns to exclude (comma-separated)'
     required: false
-    default: ''
+    default: '.github/**,node_modules/**,*.lock,package-lock.json'
   max-file-size:
     description: 'Max file size in bytes'
     required: false
@@ -634,6 +634,78 @@ runs:
             repo: context.repo.repo,
             body: comment
           });
+
+    - name: Send Slack Notification
+      if: ${{ inputs.slack-webhook-url != '' }}
+      shell: bash
+      env:
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook-url }}
+        NOTIFY_ON: ${{ inputs.notify-on }}
+        BLOCKERS: ${{ steps.code-review.outputs.blockers }}
+        SUGGESTIONS: ${{ steps.code-review.outputs.suggestions }}
+        COST: ${{ steps.code-review.outputs.cost-estimate }}
+        FILES: ${{ steps.code-review.outputs.files-analyzed }}
+      run: |
+        SHOULD_NOTIFY=false
+        
+        case "$NOTIFY_ON" in
+          always)
+            SHOULD_NOTIFY=true
+            ;;
+          on-failure)
+            if [ "${{ steps.code-review.outputs.completed }}" != "true" ]; then
+              SHOULD_NOTIFY=true
+            fi
+            ;;
+          on-blockers)
+            if [ "$BLOCKERS" -gt "0" ]; then
+              SHOULD_NOTIFY=true
+            fi
+            ;;
+          never)
+            SHOULD_NOTIFY=false
+            ;;
+        esac
+        
+        if [ "$SHOULD_NOTIFY" = "true" ]; then
+          STATUS_ICON="✅"
+          STATUS_COLOR="good"
+          if [ "$BLOCKERS" -gt "0" ]; then
+            STATUS_ICON="🔴"
+            STATUS_COLOR="danger"
+          fi
+          
+          PAYLOAD=$(cat <<EOF
+        {
+          "attachments": [{
+            "color": "$STATUS_COLOR",
+            "title": "$STATUS_ICON Agent OS Code Review Complete",
+            "text": "Repository: ${{ github.repository }}",
+            "fields": [
+              {"title": "Blockers", "value": "$BLOCKERS", "short": true},
+              {"title": "Suggestions", "value": "$SUGGESTIONS", "short": true},
+              {"title": "Files Analyzed", "value": "$FILES", "short": true},
+              {"title": "Cost", "value": "\$$COST", "short": true}
+            ],
+            "footer": "Agent OS",
+            "footer_icon": "https://github.com/securedotcom.png",
+            "ts": $(date +%s),
+            "actions": [{
+              "type": "button",
+              "text": "View Report",
+              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+          }]
+        }
+        EOF
+          )
+          
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+          
+          echo "📢 Slack notification sent"
+        fi
 
     - name: Fail on Blockers
       if: ${{ inputs.fail-on-blockers == 'true' && steps.code-review.outputs.blockers > 0 }}
