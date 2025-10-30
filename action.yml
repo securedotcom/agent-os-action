@@ -230,8 +230,14 @@ runs:
         cd "${{ inputs.project-path }}"
         
         if [ "${{ inputs.project-type }}" = "auto" ]; then
-          PROJECT_TYPE=$($HOME/.agent-os/scripts/detect-project-type.sh .)
-          echo "Auto-detected project type: $PROJECT_TYPE"
+          # Fallback to backend-api if detection script doesn't exist
+          if [ -f "$HOME/.agent-os/scripts/detect-project-type.sh" ]; then
+            PROJECT_TYPE=$($HOME/.agent-os/scripts/detect-project-type.sh .)
+            echo "Auto-detected project type: $PROJECT_TYPE"
+          else
+            PROJECT_TYPE="backend-api"
+            echo "Detection script not found, defaulting to: $PROJECT_TYPE"
+          fi
         else
           PROJECT_TYPE="${{ inputs.project-type }}"
           echo "Using manual project type: $PROJECT_TYPE"
