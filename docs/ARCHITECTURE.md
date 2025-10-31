@@ -269,13 +269,13 @@ Infrastructure:
 
 **API**: Anthropic API (https://api.anthropic.com/v1)
 
-**Model**: `claude-sonnet-4-20250514`
+**Model**: `claude-3-5-sonnet-20241022`
 
 **Configuration**:
 ```python
 client = Anthropic(api_key=api_key)
 response = client.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-3-5-sonnet-20241022",
     max_tokens=8000,
     temperature=0.3,  # Low for consistent analysis
     messages=[{
