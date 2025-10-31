@@ -11,6 +11,9 @@ Models:
 import os
 import json
 import asyncio
+import re
+import ast
+import subprocess
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -26,6 +29,14 @@ class Severity(Enum):
     SUGGESTION = "suggestion"
 
 @dataclass
+class TestCase:
+    """A test case for a finding"""
+    description: str
+    test_code: str
+    input_example: str
+    expected_behavior: str
+
+@dataclass
 class Finding:
     """A single code review finding from one agent"""
     agent: str
@@ -39,6 +50,8 @@ class Finding:
     is_production: bool
     context: str
     raw_response: str = ""
+    category: str = "general"  # security, performance, quality, general
+    test_case: Optional[TestCase] = None
 
 @dataclass
 class ConsensusResult:
@@ -57,6 +70,9 @@ class ConsensusResult:
     consensus_level: str
     is_production: bool
     final_classification: str
+    category: str = "general"
+    test_case: Optional[TestCase] = None
+    heuristic_flags: List[str] = None
 
 class RealMultiAgentReview:
     """Real multi-agent review using actual API calls"""
@@ -100,16 +116,261 @@ class RealMultiAgentReview:
         ]
         return not any(indicator in file_path for indicator in dev_indicators)
     
-    def build_review_prompt(self, file_path: str, code_content: str, context: Dict[str, Any]) -> str:
-        """Build a comprehensive review prompt with context"""
+    def pre_scan_heuristics(self, file_path: str, content: str) -> List[str]:
+        """
+        Feature #7: Heuristic Guardrails
+        Pre-scan files with lightweight checks to identify suspicious patterns
+        """
+        flags = []
+        
+        # Security patterns
+        if re.search(r'(password|secret|api[_-]?key|token|credential)\s*=\s*["\'][^"\']{8,}["\']', content, re.I):
+            flags.append('hardcoded-secrets')
+        
+        if re.search(r'eval\(|exec\(|__import__\(|compile\(', content):
+            flags.append('dangerous-exec')
+        
+        if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*[\+\%].*', content, re.I):
+            flags.append('sql-concatenation')
+        
+        if re.search(r'\.innerHTML\s*=|dangerouslySetInnerHTML|document\.write\(', content):
+            flags.append('xss-risk')
+        
+        # Performance patterns
+        if re.search(r'for\s+\w+\s+in.*:\s*for\s+\w+\s+in', content, re.DOTALL):
+            flags.append('nested-loops')
+        
+        if content.count('SELECT ') > 5:
+            flags.append('n-plus-one-query-risk')
+        
+        # Python-specific complexity
+        if file_path.endswith('.py'):
+            try:
+                tree = ast.parse(content)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.FunctionDef):
+                        complexity = self._calculate_complexity(node)
+                        if complexity > 15:
+                            flags.append(f'high-complexity-{node.name}')
+            except:
+                pass  # Skip if AST parsing fails
+        
+        # JavaScript/TypeScript patterns
+        if file_path.endswith(('.js', '.ts', '.jsx', '.tsx')):
+            if re.search(r'JSON\.parse\([^)]*\)', content) and 'try' not in content:
+                flags.append('unsafe-json-parse')
+            
+            if re.search(r'localStorage\.|sessionStorage\.', content):
+                flags.append('client-storage-usage')
+        
+        return flags
+    
+    def _calculate_complexity(self, node: ast.FunctionDef) -> int:
+        """Calculate cyclomatic complexity of a function"""
+        complexity = 1
+        for child in ast.walk(node):
+            if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
+                complexity += 1
+            elif isinstance(child, ast.BoolOp):
+                complexity += len(child.values) - 1
+        return complexity
+    
+    def get_git_context(self, file_path: str, repo_path: str) -> Dict[str, Any]:
+        """
+        Feature #4: Context Injection
+        Get git context for better prioritization
+        """
+        context = {
+            'recent_changes': 0,
+            'last_modified': None,
+            'blame_authors': [],
+            'change_frequency': 0
+        }
+        
+        try:
+            full_path = Path(repo_path) / file_path
+            
+            # Get recent changes (last 30 days)
+            result = subprocess.run(
+                ['git', 'log', '--since=30.days.ago', '--oneline', '--', str(full_path)],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                context['recent_changes'] = len(result.stdout.strip().split('\n')) if result.stdout.strip() else 0
+            
+            # Get last modified date
+            result = subprocess.run(
+                ['git', 'log', '-1', '--format=%ai', '--', str(full_path)],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                context['last_modified'] = result.stdout.strip()
+            
+            # Get blame authors (top contributors)
+            result = subprocess.run(
+                ['git', 'shortlog', '-sn', '--', str(full_path)],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                authors = [line.split('\t')[1].strip() for line in result.stdout.strip().split('\n') if line][:3]
+                context['blame_authors'] = authors
+            
+            context['change_frequency'] = 'high' if context['recent_changes'] > 10 else 'medium' if context['recent_changes'] > 3 else 'low'
+            
+        except Exception as e:
+            print(f"    ⚠️  Could not get git context: {e}")
+        
+        return context
+    
+    def pre_scan_heuristics(self, file_path: str, code_content: str) -> List[str]:
+        """Run lightweight heuristic checks to identify potential issues"""
+        flags = []
+        
+        # Security patterns
+        if re.search(r'(password|secret|api[_-]?key|token)\s*=\s*["\'][^"\']{8,}["\']', code_content, re.I):
+            flags.append('hardcoded-secrets')
+        
+        if re.search(r'eval\(|exec\(|__import__\(', code_content):
+            flags.append('dangerous-exec')
+        
+        # SQL patterns
+        if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*\+.*["\']', code_content, re.I | re.DOTALL):
+            flags.append('sql-concatenation')
+        
+        if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*f["\'].*\{', code_content, re.I):
+            flags.append('sql-f-string')
+        
+        # Authentication/Authorization
+        if re.search(r'(admin|root|superuser).*=.*true', code_content, re.I):
+            flags.append('hardcoded-admin')
+        
+        # Crypto issues
+        if re.search(r'(md5|sha1)\(', code_content, re.I):
+            flags.append('weak-crypto')
+        
+        # File operations
+        if re.search(r'open\([^)]*["\']w["\']', code_content):
+            flags.append('file-write')
+        
+        # Network/External calls
+        if re.search(r'(requests\.|urllib\.|httpx\.)', code_content):
+            flags.append('external-http')
+        
+        # Python-specific complexity
+        if file_path.endswith('.py'):
+            try:
+                tree = ast.parse(code_content)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.FunctionDef):
+                        complexity = self._calculate_complexity(node)
+                        if complexity > 15:
+                            flags.append(f'high-complexity-{node.name}')
+            except:
+                pass  # Syntax errors will be caught by AI review
+        
+        return flags
+    
+    def _calculate_complexity(self, node) -> int:
+        """Calculate cyclomatic complexity of a function"""
+        complexity = 1
+        for child in ast.walk(node):
+            if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
+                complexity += 1
+            elif isinstance(child, ast.BoolOp):
+                complexity += len(child.values) - 1
+        return complexity
+    
+    def build_context_injection(self, file_path: str, repo_path: str) -> Dict[str, Any]:
+        """Gather contextual information about the file"""
+        context = {}
+        
+        try:
+            # Git diff stats
+            result = subprocess.run(
+                ['git', 'log', '--oneline', '-1', '--', file_path],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout:
+                context['recent_changes'] = result.stdout.strip()
+        except:
+            pass
+        
+        try:
+            # Git blame to see who touched this file
+            result = subprocess.run(
+                ['git', 'log', '--format=%an', '-5', '--', file_path],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout:
+                authors = result.stdout.strip().split('\n')
+                context['recent_authors'] = len(set(authors))
+        except:
+            pass
+        
+        return context
+    
+    def build_review_prompt(self, file_path: str, code_content: str, context: Dict[str, Any], 
+                           category: str = "general", heuristic_flags: List[str] = None) -> str:
+        """Build a comprehensive review prompt with rubrics, self-consistency, and category focus"""
         
         is_prod = self.is_production_code(file_path)
+        heuristic_flags = heuristic_flags or []
         
-        prompt = f"""You are an expert code reviewer. Review this code for security, performance, and quality issues.
+        # Category-specific instructions
+        category_focus = {
+            "security": """**YOUR FOCUS: SECURITY ONLY**
+Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS, 
+CSRF, cryptography, secrets management, session handling, API security, dependency vulnerabilities.
+Ignore performance and code quality unless it creates a security risk.""",
+            
+            "performance": """**YOUR FOCUS: PERFORMANCE ONLY**
+Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O, 
+database query optimization, caching opportunities, unnecessary computations, resource exhaustion.
+Ignore security and code style unless it impacts performance.""",
+            
+            "quality": """**YOUR FOCUS: CODE QUALITY ONLY**
+Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles, 
+error handling, logging, documentation, dead code, code duplication, naming conventions.
+Ignore security and performance unless code quality creates those risks.""",
+            
+            "general": """**YOUR FOCUS: COMPREHENSIVE REVIEW**
+Review all aspects: security, performance, and code quality."""
+        }
+        
+        heuristic_context = ""
+        if heuristic_flags:
+            heuristic_context = f"""
+**⚠️  PRE-SCAN ALERTS**: Heuristic analysis flagged: {', '.join(heuristic_flags)}
+These are lightweight pattern matches. Verify each one carefully before reporting."""
+        
+        git_context = ""
+        if context.get('recent_changes'):
+            git_context = f"\n**RECENT CHANGES**: {context['recent_changes']}"
+        if context.get('recent_authors'):
+            git_context += f"\n**RECENT ACTIVITY**: {context['recent_authors']} authors in last 5 commits"
+        
+        prompt = f"""You are an expert code reviewer performing a {category.upper()} review.
+
+{category_focus[category]}
 
 **FILE**: {file_path}
 **TYPE**: {context.get('file_type', 'unknown')}
-**PRODUCTION CODE**: {"Yes" if is_prod else "No (dev infrastructure)"}
+**PRODUCTION CODE**: {"Yes" if is_prod else "No (dev infrastructure)"}{git_context}{heuristic_context}
 
 **CRITICAL CONTEXT RULES**:
 1. If file is in docker/, docker-compose.yml, etc. → LOCAL DEV ONLY (not production)
@@ -123,31 +384,43 @@ class RealMultiAgentReview:
 {code_content[:3000]}
 ```
 
+**SEVERITY RUBRIC** (Use this to score consistently):
+- **CRITICAL** (0.9-1.0 confidence): Exploitable security flaw, production data loss, system-wide outage
+  Examples: SQL injection, hardcoded secrets, authentication bypass, RCE
+  
+- **HIGH** (0.7-0.89 confidence): Major security gap, significant performance degradation, data corruption risk
+  Examples: Missing auth checks, N+1 queries causing timeouts, memory leaks
+  
+- **MEDIUM** (0.5-0.69 confidence): Moderate issue with workaround, sub-optimal design
+  Examples: Weak validation, inefficient algorithm, poor error handling
+  
+- **LOW** (0.3-0.49 confidence): Minor issue, edge case, defensive improvement
+  Examples: Missing logging, minor optimization opportunity
+  
+- **SUGGESTION** (0.0-0.29 confidence): Style, optional refactoring, best practice
+  Examples: Variable naming, code organization, documentation
+
+**SELF-VERIFICATION CHECKLIST** (Ask yourself before reporting):
+1. Is this issue ACTUALLY exploitable/harmful in this context?
+2. Would this issue cause real problems in production?
+3. Is my recommendation actionable and specific?
+4. Am I considering the full context (dev vs prod, test vs runtime)?
+5. If I'm unsure, have I lowered my confidence score appropriately?
+
 **YOUR TASK**:
-Identify real production issues. For each finding, provide:
-
-1. **issue_type**: Short identifier (e.g., "sql-injection", "missing-validation")
-2. **severity**: critical, high, medium, low, or suggestion
-3. **line**: Approximate line number where issue occurs
-4. **description**: What's wrong (1-2 sentences)
-5. **recommendation**: How to fix it (1-2 sentences)
-6. **confidence**: 0.0-1.0 (how sure are you this is a real issue?)
-7. **is_production**: true if this affects production, false if dev-only
-
-**IMPORTANT**: 
-- Be context-aware: dev infrastructure ≠ production security issues
-- Static DDL files are not SQL injection vulnerabilities
-- Focus on high-confidence, actionable findings
-- If uncertain, lower the confidence score
+1. Review the code through the lens of {category}
+2. For each potential issue, run the self-verification checklist
+3. Use the severity rubric to assign accurate severity and confidence
+4. Report ONLY issues that pass verification
 
 **RESPONSE FORMAT** (JSON array):
 [
   {{
-    "issue_type": "example-issue",
-    "severity": "high",
+    "issue_type": "descriptive-identifier",
+    "severity": "critical|high|medium|low|suggestion",
     "line": 42,
-    "description": "Brief description of the issue",
-    "recommendation": "How to fix it",
+    "description": "What's wrong (1-2 sentences)",
+    "recommendation": "Specific, actionable fix (1-2 sentences)",
     "confidence": 0.85,
     "is_production": true
   }}
@@ -157,14 +430,16 @@ Return ONLY the JSON array, no other text.
 """
         return prompt
     
-    async def review_with_claude(self, file_path: str, code_content: str, context: Dict[str, Any]) -> List[Finding]:
+    async def review_with_claude(self, file_path: str, code_content: str, context: Dict[str, Any], 
+                                  category: str = "general", heuristic_flags: List[str] = None) -> List[Finding]:
         """Review code using Claude Sonnet 4"""
         if not self.claude_client:
             return []
         
-        print(f"  🔵 Claude Sonnet 4: Reviewing {file_path}...")
+        category_label = f" ({category})" if category != "general" else ""
+        print(f"  🔵 Claude Sonnet 4{category_label}: Reviewing {file_path}...")
         
-        prompt = self.build_review_prompt(file_path, code_content, context)
+        prompt = self.build_review_prompt(file_path, code_content, context, category, heuristic_flags)
         
         try:
             response = await asyncio.to_thread(
@@ -182,7 +457,7 @@ Return ONLY the JSON array, no other text.
             print(f"    Response length: {len(response_text)} chars")
             
             # Parse JSON response
-            findings = self._parse_json_response(response_text, "Claude-Sonnet-4", file_path)
+            findings = self._parse_json_response(response_text, f"Claude-Sonnet-4-{category}", file_path, category)
             print(f"    Found: {len(findings)} issue(s)")
             
             return findings
@@ -267,7 +542,7 @@ Return ONLY the JSON array, no other text.
         except (ValueError, TypeError):
             return default
     
-    def _parse_json_response(self, response_text: str, agent_name: str, file_path: str) -> List[Finding]:
+    def _parse_json_response(self, response_text: str, agent_name: str, file_path: str, category: str = "general") -> List[Finding]:
         """Parse JSON response from AI model"""
         try:
             # Try to extract JSON from response
@@ -300,7 +575,8 @@ Return ONLY the JSON array, no other text.
                     confidence=float(item.get('confidence', 0.5)),
                     is_production=item.get('is_production', True),
                     context=f"Agent: {agent_name}",
-                    raw_response=response_text[:500]
+                    raw_response=response_text[:500],
+                    category=category
                 )
                 findings.append(finding)
             
@@ -314,8 +590,8 @@ Return ONLY the JSON array, no other text.
             print(f"    ⚠️  Error parsing response: {e}")
             return []
     
-    async def review_file(self, file_path: str, repo_path: str) -> List[Finding]:
-        """Review a single file with all available agents"""
+    async def review_file(self, file_path: str, repo_path: str, use_category_passes: bool = True) -> List[Finding]:
+        """Review a single file with enhanced multi-pass strategy"""
         full_path = Path(repo_path) / file_path
         
         if not full_path.exists():
@@ -330,7 +606,17 @@ Return ONLY the JSON array, no other text.
             print(f"  ⚠️  Error reading file: {e}")
             return []
         
-        # Build context
+        # Phase 0: Heuristic pre-scan
+        print(f"  🔍 Running heuristic pre-scan...")
+        heuristic_flags = self.pre_scan_heuristics(file_path, code_content)
+        
+        if heuristic_flags:
+            print(f"    ⚠️  Flagged: {', '.join(heuristic_flags)}")
+        else:
+            print(f"    ✅ No heuristic flags - file looks clean")
+            # Uncomment to skip clean files: return []
+        
+        # Build enhanced context
         context = {
             'file_path': file_path,
             'file_type': full_path.suffix,
@@ -338,23 +624,40 @@ Return ONLY the JSON array, no other text.
             'is_production': self.is_production_code(file_path)
         }
         
-        # Run all agents in parallel
-        tasks = []
+        # Add git context
+        git_context = self.build_context_injection(file_path, repo_path)
+        context.update(git_context)
         
-        if "Claude-Sonnet-4" in self.agents:
-            tasks.append(self.review_with_claude(file_path, code_content, context))
-        if "Claude-Haiku-3.5" in self.agents:
-            tasks.append(self.review_with_claude_haiku(file_path, code_content, context))
-        
-        if "GPT-4-Turbo" in self.agents:
-            tasks.append(self.review_with_gpt4(file_path, code_content, context))
-        
-        results = await asyncio.gather(*tasks)
-        
-        # Flatten results
+        # Phase 1: Category-specific passes or traditional review
         all_findings = []
-        for findings in results:
-            all_findings.extend(findings)
+        
+        if use_category_passes and "Claude-Sonnet-4" in self.agents:
+            # Run focused category passes with Claude Sonnet
+            categories = ['security', 'performance', 'quality']
+            print(f"  🎯 Running category-specific passes: {', '.join(categories)}")
+            
+            tasks = []
+            for category in categories:
+                tasks.append(self.review_with_claude(file_path, code_content, context, category, heuristic_flags))
+            
+            results = await asyncio.gather(*tasks)
+            for findings in results:
+                all_findings.extend(findings)
+        else:
+            # Traditional multi-agent review
+            print(f"  🤖 Running traditional multi-agent review...")
+            tasks = []
+            
+            if "Claude-Sonnet-4" in self.agents:
+                tasks.append(self.review_with_claude(file_path, code_content, context, "general", heuristic_flags))
+            if "Claude-Haiku-3.5" in self.agents:
+                tasks.append(self.review_with_claude_haiku(file_path, code_content, context))
+            if "GPT-4-Turbo" in self.agents:
+                tasks.append(self.review_with_gpt4(file_path, code_content, context))
+            
+            results = await asyncio.gather(*tasks)
+            for findings in results:
+                all_findings.extend(findings)
         
         return all_findings
     
@@ -433,6 +736,101 @@ Return ONLY the JSON array, no other text.
         
         return consensus_results
     
+    async def generate_test_case(self, finding: ConsensusResult) -> Optional[TestCase]:
+        """
+        Feature #5: Test Case Generation
+        Generate concrete test cases for high/critical findings
+        """
+        if not self.claude_client:
+            return None
+        
+        if finding.severity not in ['critical', 'high']:
+            return None
+        
+        print(f"    🧪 Generating test case for {finding.issue_type}...")
+        
+        prompt = f"""You are a test engineer. Generate a concrete test case for this security/quality issue:
+
+**Issue**: {finding.issue_type}
+**File**: {finding.file}:{finding.line}
+**Severity**: {finding.severity}
+**Description**: {finding.descriptions[0] if finding.descriptions else 'No description'}
+**Recommendation**: {finding.recommendations[0] if finding.recommendations else 'No recommendation'}
+
+Generate a specific, executable test case that would catch this issue.
+
+**RESPONSE FORMAT** (JSON object):
+{{
+  "description": "Brief test description (1 sentence)",
+  "test_code": "Complete test function code (Python/JS/etc.)",
+  "input_example": "Example malicious/problematic input",
+  "expected_behavior": "What should happen (error, validation, etc.)"
+}}
+
+Return ONLY the JSON object, no other text."""
+
+        try:
+            response = await asyncio.to_thread(
+                self.claude_client.messages.create,
+                model="claude-3-5-haiku-20241022",  # Use faster/cheaper model for tests
+                max_tokens=1024,
+                temperature=0.3,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }]
+            )
+            
+            response_text = response.content[0].text
+            
+            # Parse JSON
+            if "```json" in response_text:
+                start = response_text.find("```json") + 7
+                end = response_text.find("```", start)
+                response_text = response_text[start:end].strip()
+            elif "```" in response_text:
+                start = response_text.find("```") + 3
+                end = response_text.find("```", start)
+                response_text = response_text[start:end].strip()
+            
+            test_data = json.loads(response_text)
+            
+            return TestCase(
+                description=test_data.get('description', ''),
+                test_code=test_data.get('test_code', ''),
+                input_example=test_data.get('input_example', ''),
+                expected_behavior=test_data.get('expected_behavior', '')
+            )
+            
+        except Exception as e:
+            print(f"      ⚠️  Failed to generate test case: {e}")
+            return None
+    
+    async def enhance_findings_with_tests(self, consensus_results: List[ConsensusResult]) -> List[ConsensusResult]:
+        """Add test cases to high/critical findings"""
+        print("\n🧪 Generating test cases for high/critical findings...")
+        
+        tasks = []
+        indices = []
+        
+        for i, result in enumerate(consensus_results):
+            if result.severity in ['critical', 'high'] and result.final_classification in ['critical_fix', 'high_priority']:
+                tasks.append(self.generate_test_case(result))
+                indices.append(i)
+        
+        if not tasks:
+            print("  No high/critical findings to generate tests for.")
+            return consensus_results
+        
+        test_cases = await asyncio.gather(*tasks)
+        
+        for idx, test_case in zip(indices, test_cases):
+            if test_case:
+                consensus_results[idx].test_case = test_case
+                print(f"  ✅ Generated test for: {consensus_results[idx].issue_type}")
+        
+        return consensus_results
+    
     def generate_report(self, consensus_results: List[ConsensusResult], repo_name: str) -> str:
         """Generate markdown report"""
         
@@ -483,6 +881,14 @@ Return ONLY the JSON array, no other text.
             for i, rec in enumerate(result.recommendations, 1):
                 report += f"{i}. {rec}\n"
             
+            # Add test case if available
+            if result.test_case:
+                report += f"\n**🧪 Suggested Test Case**:\n"
+                report += f"*{result.test_case.description}*\n\n"
+                report += f"**Input**: `{result.test_case.input_example}`\n"
+                report += f"**Expected**: {result.test_case.expected_behavior}\n\n"
+                report += f"```python\n{result.test_case.test_code}\n```\n"
+            
             report += "\n---\n"
         
         report += f"""
@@ -500,9 +906,16 @@ Return ONLY the JSON array, no other text.
 **Agents**: {', '.join(result.agents_agree)}  
 
 {result.descriptions[0]}
-
----
 """
+            # Add test case if available
+            if result.test_case:
+                report += f"\n**🧪 Suggested Test Case**:\n"
+                report += f"*{result.test_case.description}*\n\n"
+                report += f"```python\n{result.test_case.test_code}\n```\n"
+            
+            report += "\n---\n"
+        
+        report += ""
         
         report += f"""
 
@@ -591,6 +1004,10 @@ async def main():
     print("🔄 Building consensus...")
     consensus_results = reviewer.build_consensus(all_findings)
     print(f"✅ Consensus results: {len(consensus_results)}")
+    print()
+    
+    # Generate test cases for high/critical findings
+    consensus_results = await reviewer.enhance_findings_with_tests(consensus_results)
     print()
     
     # Generate report
