@@ -258,6 +258,15 @@ Return ONLY the JSON array, no other text.
             print(f"    ❌ Error: {e}")
             return []
     
+    def _safe_int(self, value, default=0):
+        """Safely convert value to int, handling strings, nulls, and invalid values"""
+        try:
+            if value in (None, '', 'null', 'None'):
+                return default
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+    
     def _parse_json_response(self, response_text: str, agent_name: str, file_path: str) -> List[Finding]:
         """Parse JSON response from AI model"""
         try:
@@ -283,7 +292,7 @@ Return ONLY the JSON array, no other text.
                 finding = Finding(
                     agent=agent_name,
                     file=file_path,
-                    line=item.get('line', 0),
+                    line=self._safe_int(item.get('line'), 0),
                     issue_type=item.get('issue_type', 'unknown'),
                     severity=item.get('severity', 'medium'),
                     description=item.get('description', ''),
