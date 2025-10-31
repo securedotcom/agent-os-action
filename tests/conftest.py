@@ -36,7 +36,7 @@ def mock_config() -> dict:
     return {
         'ai_provider': 'anthropic',
         'anthropic_api_key': 'test-key',
-        'model': 'claude-sonnet-4-20250514',
+        'model': 'claude-3-5-sonnet-20241022',
         'multi_agent_mode': 'single',
         'only_changed': False,
         'include_paths': '',
