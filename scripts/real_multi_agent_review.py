@@ -369,7 +369,9 @@ Return ONLY the JSON array, no other text.
         for finding in all_findings:
             # Create a location-sensitive key to avoid collapsing distinct bugs
             # Group issues within ~10 lines as the same issue
-            line_bucket = (finding.line // 10) * 10
+            # Defensive cast to handle any edge cases where line isn't an int
+            safe_line = self._safe_int(finding.line, 0)
+            line_bucket = (safe_line // 10) * 10
             key = f"{finding.file}:{finding.issue_type}:L{line_bucket}"
             if key not in grouped:
                 grouped[key] = []
