@@ -82,3 +82,4 @@ deployment/
 .env
 .env.local
 .env.*.local
+.agent-os/
