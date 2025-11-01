@@ -38,7 +38,7 @@ MODEL_FALLBACK_CHAIN = [
     ("claude-3-sonnet-20240229", "Claude 3 Sonnet (February 2024) - Balanced"),
 
     # Claude 3.5 Sonnet variants
-    ("claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet (October 2024) - Latest"),
+    ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5 (September 2025) - Latest"),
     ("claude-3-5-sonnet-20240620", "Claude 3.5 Sonnet (June 2024) - Stable"),
 
     # Claude 3 Opus - Most powerful

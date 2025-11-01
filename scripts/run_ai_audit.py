@@ -34,7 +34,7 @@ class ReviewMetrics:
     def __init__(self):
         self.start_time = time.time()
         self.metrics = {
-            "version": "1.0.15",
+            "version": "1.0.16",
             "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
@@ -58,17 +58,29 @@ class ReviewMetrics:
                 "performance": 0,
                 "testing": 0,
                 "quality": 0
-            }
+            },
+            # NEW: Exploit analysis metrics
+            "exploitability": {
+                "trivial": 0,
+                "moderate": 0,
+                "complex": 0,
+                "theoretical": 0
+            },
+            "exploit_chains_found": 0,
+            "tests_generated": 0,
+            # NEW: Agent execution tracking
+            "agents_executed": [],
+            "agent_execution_times": {}
         }
-    
+
     def record_file(self, lines):
         self.metrics["files_reviewed"] += 1
         self.metrics["lines_analyzed"] += lines
-    
+
     def record_llm_call(self, input_tokens, output_tokens, provider):
         self.metrics["tokens_input"] += input_tokens
         self.metrics["tokens_output"] += output_tokens
-        
+
         # Calculate cost based on provider
         if provider == 'anthropic':
             # Claude Sonnet 4: $3/1M input, $15/1M output
@@ -82,31 +94,104 @@ class ReviewMetrics:
             # Ollama: Free (local)
             input_cost = 0.0
             output_cost = 0.0
-        
+
         self.metrics["cost_usd"] += input_cost + output_cost
-    
+
     def record_finding(self, severity, category):
         if severity in self.metrics["findings"]:
             self.metrics["findings"][severity] += 1
         if category in self.metrics["categories"]:
             self.metrics["categories"][category] += 1
-    
+
+    def record_exploitability(self, exploitability_level):
+        """Record exploitability classification
+
+        Args:
+            exploitability_level: One of 'trivial', 'moderate', 'complex', 'theoretical'
+        """
+        level = exploitability_level.lower()
+        if level in self.metrics["exploitability"]:
+            self.metrics["exploitability"][level] += 1
+
+    def record_exploit_chain(self):
+        """Record that an exploit chain was identified"""
+        self.metrics["exploit_chains_found"] += 1
+
+    def record_test_generated(self, count=1):
+        """Record number of security tests generated
+
+        Args:
+            count: Number of test files generated (default: 1)
+        """
+        self.metrics["tests_generated"] += count
+
+    def record_agent_execution(self, agent_name, duration_seconds):
+        """Record agent execution for observability
+
+        Args:
+            agent_name: Name of the agent (e.g., 'exploit-analyst')
+            duration_seconds: Time taken to execute the agent
+        """
+        if agent_name not in self.metrics["agents_executed"]:
+            self.metrics["agents_executed"].append(agent_name)
+        self.metrics["agent_execution_times"][agent_name] = duration_seconds
+
     def finalize(self):
         self.metrics["duration_seconds"] = int(time.time() - self.start_time)
         return self.metrics
-    
+
     def save(self, path):
         with open(path, 'w') as f:
             json.dump(self.metrics, f, indent=2)
         print(f"📊 Metrics saved to: {path}")
 
+# Available agents for multi-agent mode
+AVAILABLE_AGENTS = [
+    'security-reviewer',
+    'exploit-analyst',
+    'security-test-generator',
+    'performance-reviewer',
+    'test-coverage-reviewer',
+    'code-quality-reviewer',
+    'review-orchestrator'
+]
+
+# Agent execution order for security workflow
+SECURITY_WORKFLOW_AGENTS = [
+    'security-reviewer',
+    'exploit-analyst',
+    'security-test-generator'
+]
+
+# Agents that can run in parallel (quality analysis)
+PARALLEL_QUALITY_AGENTS = [
+    'performance-reviewer',
+    'test-coverage-reviewer',
+    'code-quality-reviewer'
+]
+
+# Cost estimates (approximate, based on Claude Sonnet 4)
+COST_ESTIMATES = {
+    'single_agent': 0.20,
+    'multi_agent_sequential': 1.00,
+    'per_agent': {
+        'security-reviewer': 0.10,
+        'exploit-analyst': 0.05,
+        'security-test-generator': 0.05,
+        'performance-reviewer': 0.08,
+        'test-coverage-reviewer': 0.08,
+        'code-quality-reviewer': 0.08,
+        'review-orchestrator': 0.06
+    }
+}
+
 def detect_ai_provider(config):
     """Auto-detect which AI provider to use based on available keys"""
     provider = config.get('ai_provider', 'auto')
-    
+
     if provider != 'auto':
         return provider
-    
+
     # Auto-detect based on available API keys
     if config.get('anthropic_api_key'):
         return 'anthropic'
@@ -170,12 +255,12 @@ def get_model_name(provider, config):
 
     # Default models for each provider
     defaults = {
-        'anthropic': 'claude-3-5-sonnet-20241022',
+        'anthropic': 'claude-sonnet-4-5-20250929',
         'openai': 'gpt-4-turbo-preview',
         'ollama': 'llama3'
     }
 
-    return defaults.get(provider, 'claude-3-5-sonnet-20241022')
+    return defaults.get(provider, 'claude-sonnet-4-5-20250929')
 
 def get_working_model_with_fallback(client, provider, initial_model):
     """Try to find a working model using fallback chain for Anthropic"""
@@ -187,7 +272,8 @@ def get_working_model_with_fallback(client, provider, initial_model):
         initial_model,  # Try user's requested model first
         'claude-3-haiku-20240307',  # Most lightweight and universally available
         'claude-3-sonnet-20240229',  # Balanced
-        'claude-3-5-sonnet-20241022',  # Latest
+        'claude-sonnet-4-5-20250929',  # Latest Claude Sonnet 4.5
+        'claude-3-5-sonnet-20241022',  # Claude 3.5 Sonnet
         'claude-3-5-sonnet-20240620',  # Stable
         'claude-3-opus-20240229',  # Most powerful
     ]
@@ -390,7 +476,7 @@ def estimate_cost(files, max_tokens, provider):
     # Rough estimate: 4 chars per token
     estimated_input_tokens = total_chars // 4
     estimated_output_tokens = max_tokens
-    
+
     if provider == 'anthropic':
         input_cost = (estimated_input_tokens / 1_000_000) * 3.0
         output_cost = (estimated_output_tokens / 1_000_000) * 15.0
@@ -400,13 +486,78 @@ def estimate_cost(files, max_tokens, provider):
     else:  # ollama
         input_cost = 0.0
         output_cost = 0.0
-    
+
     total_cost = input_cost + output_cost
-    
+
     return total_cost, estimated_input_tokens, estimated_output_tokens
 
-def generate_sarif(findings, repo_path):
-    """Generate SARIF 2.1.0 format for GitHub Code Scanning"""
+def estimate_review_cost(mode='single', num_files=50):
+    """Estimate cost of review based on mode and file count
+
+    Args:
+        mode: 'single' or 'multi'
+        num_files: Number of files to review
+
+    Returns:
+        Estimated cost in USD
+    """
+    if mode == 'single':
+        base_cost = COST_ESTIMATES['single_agent']
+    else:
+        base_cost = COST_ESTIMATES['multi_agent_sequential']
+
+    # Adjust for file count
+    file_factor = num_files / 50.0  # 50 files is baseline
+    estimated_cost = base_cost * file_factor
+
+    return round(estimated_cost, 2)
+
+def map_exploitability_to_score(exploitability):
+    """Map exploitability level to numeric score for SARIF
+
+    Args:
+        exploitability: String like 'trivial', 'moderate', 'complex', 'theoretical'
+
+    Returns:
+        Numeric score (0-10)
+    """
+    mapping = {
+        'trivial': 10,      # Highest exploitability
+        'moderate': 7,
+        'complex': 4,
+        'theoretical': 1    # Lowest exploitability
+    }
+    return mapping.get(exploitability.lower(), 5)
+
+def map_severity_to_sarif(severity):
+    """Map severity to SARIF level
+
+    Args:
+        severity: String like 'critical', 'high', 'medium', 'low', 'info'
+
+    Returns:
+        SARIF level string
+    """
+    mapping = {
+        'critical': 'error',
+        'high': 'error',
+        'medium': 'warning',
+        'low': 'note',
+        'info': 'note'
+    }
+    return mapping.get(severity.lower(), 'warning')
+
+def generate_sarif(findings, repo_path, metrics=None):
+    """Generate SARIF 2.1.0 format for GitHub Code Scanning with exploitability data
+
+    Args:
+        findings: List of vulnerability findings
+        repo_path: Path to repository
+        metrics: Optional ReviewMetrics instance
+
+    Returns:
+        SARIF dictionary
+    """
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
         "version": "2.1.0",
@@ -414,7 +565,7 @@ def generate_sarif(findings, repo_path):
             "tool": {
                 "driver": {
                     "name": "Agent OS Code Reviewer",
-                    "version": "1.0.15",
+                    "version": "1.0.16",
                     "informationUri": "https://github.com/securedotcom/agent-os-action",
                     "rules": []
                 }
@@ -422,20 +573,11 @@ def generate_sarif(findings, repo_path):
             "results": []
         }]
     }
-    
+
     for finding in findings:
-        # Map severity to SARIF level
-        level_map = {
-            "critical": "error",
-            "high": "error",
-            "medium": "warning",
-            "low": "note",
-            "info": "note"
-        }
-        
         result = {
             "ruleId": finding.get('rule_id', 'AGENT-OS-001'),
-            "level": level_map.get(finding.get('severity', 'medium'), 'warning'),
+            "level": map_severity_to_sarif(finding.get('severity', 'medium')),
             "message": {
                 "text": finding.get('message', 'Issue found')
             },
@@ -450,12 +592,42 @@ def generate_sarif(findings, repo_path):
                 }
             }]
         }
-        
+
+        # Add properties
+        properties = {}
+
         if 'cwe' in finding:
-            result['properties'] = {'cwe': finding['cwe']}
-        
+            properties['cwe'] = finding['cwe']
+
+        # NEW: Add exploitability as a property
+        if 'exploitability' in finding:
+            properties['exploitability'] = finding['exploitability']
+            properties['exploitabilityScore'] = map_exploitability_to_score(
+                finding['exploitability']
+            )
+
+        # NEW: Add exploit chain reference if part of a chain
+        if 'part_of_chain' in finding:
+            properties['exploitChain'] = finding['part_of_chain']
+
+        # NEW: Add generated tests reference
+        if 'tests_generated' in finding:
+            properties['testsGenerated'] = finding['tests_generated']
+
+        if properties:
+            result['properties'] = properties
+
         sarif['runs'][0]['results'].append(result)
-    
+
+    # Add run properties with metrics
+    if metrics:
+        sarif['runs'][0]['properties'] = {
+            'exploitability': metrics.metrics['exploitability'],
+            'exploitChainsFound': metrics.metrics['exploit_chains_found'],
+            'testsGenerated': metrics.metrics['tests_generated'],
+            'agentsExecuted': metrics.metrics['agents_executed']
+        }
+
     return sarif
 
 def parse_findings_from_report(report_text):
@@ -579,23 +751,39 @@ def load_agent_prompt(agent_name):
     """Load specialized agent prompt from profiles"""
     agent_prompts = {
         'security': 'security-agent-prompt.md',
+        'security-reviewer': 'security-reviewer.md',
+        'exploit-analyst': 'exploit-analyst.md',
+        'security-test-generator': 'security-test-generator.md',
         'performance': 'performance-agent-prompt.md',
+        'performance-reviewer': 'performance-reviewer.md',
         'testing': 'testing-agent-prompt.md',
+        'test-coverage-reviewer': 'test-coverage-reviewer.md',
         'quality': 'quality-agent-prompt.md',
-        'orchestrator': 'orchestrator-agent-prompt.md'
+        'code-quality-reviewer': 'code-quality-reviewer.md',
+        'orchestrator': 'orchestrator-agent-prompt.md',
+        'review-orchestrator': 'review-orchestrator.md'
     }
-    
+
     prompt_file = agent_prompts.get(agent_name)
     if not prompt_file:
-        raise ValueError(f"Unknown agent: {agent_name}")
-    
-    prompt_path = Path.home() / f'.agent-os/profiles/default/agents/{prompt_file}'
-    if prompt_path.exists():
-        with open(prompt_path, 'r') as f:
-            return f.read()
-    else:
-        print(f"⚠️  Agent prompt not found: {prompt_path}")
-        return f"You are a {agent_name} code reviewer. Analyze the code for {agent_name}-related issues."
+        # Fallback: try to find prompt file by agent name
+        prompt_file = f'{agent_name}.md'
+
+    # Try multiple locations
+    possible_paths = [
+        Path.home() / f'.agent-os/profiles/default/agents/{prompt_file}',
+        Path.home() / f'.agent-os/profiles/default/agents/{agent_name}.md',
+        Path('.agent-os') / f'profiles/default/agents/{prompt_file}',
+        Path('.agent-os') / f'profiles/default/agents/{agent_name}.md'
+    ]
+
+    for prompt_path in possible_paths:
+        if prompt_path.exists():
+            with open(prompt_path, 'r') as f:
+                return f.read()
+
+    print(f"⚠️  Agent prompt not found for: {agent_name}")
+    return f"You are a {agent_name} code reviewer. Analyze the code for {agent_name}-related issues."
 
 def run_multi_agent_sequential(repo_path, config, review_type, client, provider, model, max_tokens, files, metrics):
     """Run multi-agent sequential review with specialized agents"""
@@ -603,40 +791,65 @@ def run_multi_agent_sequential(repo_path, config, review_type, client, provider,
     print("\n" + "="*80)
     print("🤖 MULTI-AGENT SEQUENTIAL MODE")
     print("="*80)
-    print("Running 5 specialized agents in sequence:")
+    print("Running 7 specialized agents in sequence:")
     print("  1️⃣  Security Reviewer")
-    print("  2️⃣  Performance Reviewer")
-    print("  3️⃣  Testing Reviewer")
-    print("  4️⃣  Code Quality Reviewer")
-    print("  5️⃣  Review Orchestrator")
+    print("  2️⃣  Exploit Analyst")
+    print("  3️⃣  Security Test Generator")
+    print("  4️⃣  Performance Reviewer")
+    print("  5️⃣  Testing Reviewer")
+    print("  6️⃣  Code Quality Reviewer")
+    print("  7️⃣  Review Orchestrator")
     print("="*80 + "\n")
-    
+
     # Build codebase context once
     codebase_context = "\n\n".join([
         f"File: {f['path']}\n```\n{f['content']}\n```"
         for f in files
     ])
-    
+
     # Store agent findings
     agent_reports = {}
     agent_metrics = {}
-    
-    # Define agents in execution order
-    agents = ['security', 'performance', 'testing', 'quality']
+
+    # Define agents in execution order (security workflow first)
+    agents = ['security', 'exploit-analyst', 'security-test-generator', 'performance', 'testing', 'quality']
     
     # Run each specialized agent
     for i, agent_name in enumerate(agents, 1):
         print(f"\n{'─'*80}")
-        print(f"🔍 Agent {i}/5: {agent_name.upper()} REVIEWER")
+        print(f"🔍 Agent {i}/7: {agent_name.upper()} REVIEWER")
         print(f"{'─'*80}")
-        
+
         agent_start = time.time()
-        
+
         # Load agent-specific prompt
         agent_prompt_template = load_agent_prompt(agent_name)
-        
-        # Create agent-specific prompt
-        agent_prompt = f"""{agent_prompt_template}
+
+        # For exploit-analyst and security-test-generator, pass security findings
+        if agent_name in ['exploit-analyst', 'security-test-generator']:
+            # Use security findings as context
+            security_context = agent_reports.get('security', '')
+            agent_prompt = f"""{agent_prompt_template}
+
+## Previous Agent Findings
+
+The Security Reviewer has identified the following vulnerabilities:
+
+{security_context}
+
+## Codebase to Analyze
+
+{codebase_context}
+
+## Your Task
+
+{'Analyze the exploitability of the vulnerabilities identified above.' if agent_name == 'exploit-analyst' else 'Generate security tests for the vulnerabilities identified above.'}
+
+Provide detailed analysis in your specialized format.
+"""
+        else:
+            # Create agent-specific prompt
+            agent_prompt = f"""{agent_prompt_template}
 
 ## Codebase to Analyze
 
@@ -682,27 +895,29 @@ Provide your findings in this format:
 
 Be specific with file paths and line numbers. Focus on actionable, real issues.
 """
-        
+
         try:
             print(f"   🧠 Analyzing with {model}...")
             report, input_tokens, output_tokens = call_llm_api(
                 client, provider, model, agent_prompt, max_tokens
             )
-            
+
             agent_duration = time.time() - agent_start
-            
+
             # Record metrics for this agent
             metrics.record_llm_call(input_tokens, output_tokens, provider)
+            metrics.record_agent_execution(agent_name, agent_duration)
+
             agent_metrics[agent_name] = {
                 'duration_seconds': round(agent_duration, 2),
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
                 'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
             }
-            
+
             # Store report
             agent_reports[agent_name] = report
-            
+
             # Parse findings for metrics
             findings = parse_findings_from_report(report)
             finding_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
@@ -710,10 +925,26 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
                 if finding['severity'] in finding_counts:
                     finding_counts[finding['severity']] += 1
                     metrics.record_finding(finding['severity'], agent_name)
-            
+
+                # Extract exploitability if present (from exploit-analyst)
+                if agent_name == 'exploit-analyst' and 'exploitability' in finding:
+                    metrics.record_exploitability(finding['exploitability'])
+
+            # Extract exploit chains from report text (simple heuristic)
+            if agent_name == 'exploit-analyst':
+                exploit_chain_count = report.lower().count('exploit chain')
+                for _ in range(exploit_chain_count):
+                    metrics.record_exploit_chain()
+
+            # Extract test generation count from report
+            if agent_name == 'security-test-generator':
+                test_count = report.lower().count('test file:') + report.lower().count('test case:')
+                if test_count > 0:
+                    metrics.record_test_generated(test_count)
+
             print(f"   ✅ Complete: {finding_counts['critical']} critical, {finding_counts['high']} high, {finding_counts['medium']} medium, {finding_counts['low']} low")
             print(f"   ⏱️  Duration: {agent_duration:.1f}s | 💰 Cost: ${agent_metrics[agent_name]['cost_usd']:.4f}")
-            
+
         except Exception as e:
             print(f"   ❌ Error: {e}")
             agent_reports[agent_name] = f"# {agent_name.title()} Review Failed\n\nError: {str(e)}"
@@ -721,27 +952,27 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
     
     # Run orchestrator agent
     print(f"\n{'─'*80}")
-    print(f"🎯 Agent 5/5: ORCHESTRATOR")
+    print(f"🎯 Agent 7/7: ORCHESTRATOR")
     print(f"{'─'*80}")
     print("   🔄 Aggregating findings from all agents...")
-    
+
     orchestrator_start = time.time()
-    
+
     # Load orchestrator prompt
     orchestrator_prompt_template = load_agent_prompt('orchestrator')
-    
+
     # Combine all agent reports
     combined_reports = "\n\n" + "="*80 + "\n\n".join([
         f"# {name.upper()} AGENT FINDINGS\n\n{report}"
         for name, report in agent_reports.items()
     ])
-    
+
     # Create orchestrator prompt
     orchestrator_prompt = f"""{orchestrator_prompt_template}
 
 ## Agent Reports to Synthesize
 
-You have received findings from 4 specialized agents:
+You have received findings from 6 specialized agents:
 
 {combined_reports}
 
@@ -750,31 +981,38 @@ You have received findings from 4 specialized agents:
 Synthesize these findings into a comprehensive, actionable audit report.
 
 1. **Deduplicate**: Remove identical issues reported by multiple agents
-2. **Prioritize**: Order by business impact
+2. **Prioritize**: Order by exploitability and business impact
 3. **Aggregate**: Combine related findings
 4. **Decide**: Make clear APPROVED / REQUIRES FIXES / DO NOT MERGE recommendation
-5. **Action Plan**: Create sequenced, logical action items
+5. **Action Plan**: Create sequenced, logical action items prioritized by exploitability
+
+Pay special attention to:
+- Exploitability analysis from the Exploit Analyst
+- Security tests generated by the Security Test Generator
+- Exploit chains that link multiple vulnerabilities
 
 Generate the complete audit report as specified in your instructions.
 """
-    
+
     try:
         print(f"   🧠 Synthesizing with {model}...")
         final_report, input_tokens, output_tokens = call_llm_api(
             client, provider, model, orchestrator_prompt, max_tokens
         )
-        
+
         orchestrator_duration = time.time() - orchestrator_start
-        
+
         # Record orchestrator metrics
         metrics.record_llm_call(input_tokens, output_tokens, provider)
+        metrics.record_agent_execution('orchestrator', orchestrator_duration)
+
         agent_metrics['orchestrator'] = {
             'duration_seconds': round(orchestrator_duration, 2),
             'input_tokens': input_tokens,
             'output_tokens': output_tokens,
             'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
         }
-        
+
         print(f"   ✅ Synthesis complete")
         print(f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}")
         
@@ -799,7 +1037,7 @@ Orchestrator synthesis failed. Below are individual agent reports.
 
 ## Multi-Agent Review Metrics
 
-**Mode**: Sequential (5 agents)
+**Mode**: Sequential (7 agents)
 **Total Duration**: {total_duration:.1f}s
 **Total Cost**: ${total_cost:.4f}
 
@@ -807,10 +1045,22 @@ Orchestrator synthesis failed. Below are individual agent reports.
 | Agent | Duration | Cost | Status |
 |-------|----------|------|--------|
 | Security | {agent_metrics.get('security', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('security', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('security', {}) else '❌'} |
+| Exploit Analyst | {agent_metrics.get('exploit-analyst', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('exploit-analyst', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('exploit-analyst', {}) else '❌'} |
+| Security Test Generator | {agent_metrics.get('security-test-generator', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('security-test-generator', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('security-test-generator', {}) else '❌'} |
 | Performance | {agent_metrics.get('performance', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('performance', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('performance', {}) else '❌'} |
 | Testing | {agent_metrics.get('testing', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('testing', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('testing', {}) else '❌'} |
 | Quality | {agent_metrics.get('quality', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('quality', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('quality', {}) else '❌'} |
 | Orchestrator | {agent_metrics.get('orchestrator', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('orchestrator', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('orchestrator', {}) else '❌'} |
+
+### Exploitability Metrics
+- **Trivial**: {metrics.metrics['exploitability']['trivial']} (fix within 24-48 hours)
+- **Moderate**: {metrics.metrics['exploitability']['moderate']} (fix within 1 week)
+- **Complex**: {metrics.metrics['exploitability']['complex']} (fix within 1 month)
+- **Theoretical**: {metrics.metrics['exploitability']['theoretical']} (fix in next release)
+
+### Security Testing
+- **Exploit Chains Found**: {metrics.metrics['exploit_chains_found']}
+- **Security Tests Generated**: {metrics.metrics['tests_generated']}
 
 ---
 
@@ -842,9 +1092,24 @@ Orchestrator synthesis failed. Below are individual agent reports.
     print(f"{'='*80}")
     print(f"📊 Total Cost: ${total_cost:.4f}")
     print(f"⏱️  Total Duration: {total_duration:.1f}s")
-    print(f"🤖 Agents: 5 (Security, Performance, Testing, Quality, Orchestrator)")
+    print(f"🤖 Agents: 7 (Security, Exploit Analyst, Security Test Generator, Performance, Testing, Quality, Orchestrator)")
+
+    # Display exploitability summary
+    if any(metrics.metrics['exploitability'].values()):
+        print(f"\n⚠️  Exploitability Breakdown:")
+        print(f"   Trivial: {metrics.metrics['exploitability']['trivial']}")
+        print(f"   Moderate: {metrics.metrics['exploitability']['moderate']}")
+        print(f"   Complex: {metrics.metrics['exploitability']['complex']}")
+        print(f"   Theoretical: {metrics.metrics['exploitability']['theoretical']}")
+
+    if metrics.metrics['exploit_chains_found'] > 0:
+        print(f"\n⛓️  Exploit Chains: {metrics.metrics['exploit_chains_found']}")
+
+    if metrics.metrics['tests_generated'] > 0:
+        print(f"🧪 Tests Generated: {metrics.metrics['tests_generated']}")
+
     print(f"{'='*80}\n")
-    
+
     return final_report
 
 def run_audit(repo_path, config, review_type='audit'):
@@ -950,9 +1215,9 @@ def run_audit(repo_path, config, review_type='audit'):
         
         # Parse findings from final orchestrated report
         findings = parse_findings_from_report(report)
-        
-        # Generate SARIF
-        sarif = generate_sarif(findings, repo_path)
+
+        # Generate SARIF with metrics
+        sarif = generate_sarif(findings, repo_path, metrics)
         sarif_file = report_dir / 'results.sarif'
         with open(sarif_file, 'w') as f:
             json.dump(sarif, f, indent=2)
@@ -992,7 +1257,25 @@ def run_audit(repo_path, config, review_type='audit'):
         print(f"   Low: {metrics.metrics['findings']['low']}")
         print(f"\n💰 Total Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Total Duration: {metrics.metrics['duration_seconds']}s")
-        print(f"🤖 Mode: Multi-Agent Sequential (5 agents)")
+        print(f"🤖 Mode: Multi-Agent Sequential (7 agents)")
+
+        # Display exploitability metrics
+        if any(metrics.metrics['exploitability'].values()):
+            print(f"\n⚠️  Exploitability:")
+            if metrics.metrics['exploitability']['trivial'] > 0:
+                print(f"   ⚠️  Trivial: {metrics.metrics['exploitability']['trivial']}")
+            if metrics.metrics['exploitability']['moderate'] > 0:
+                print(f"   🟨 Moderate: {metrics.metrics['exploitability']['moderate']}")
+            if metrics.metrics['exploitability']['complex'] > 0:
+                print(f"   🟦 Complex: {metrics.metrics['exploitability']['complex']}")
+            if metrics.metrics['exploitability']['theoretical'] > 0:
+                print(f"   ⬜ Theoretical: {metrics.metrics['exploitability']['theoretical']}")
+
+        if metrics.metrics['exploit_chains_found'] > 0:
+            print(f"   ⛓️  Exploit Chains: {metrics.metrics['exploit_chains_found']}")
+
+        if metrics.metrics['tests_generated'] > 0:
+            print(f"   🧪 Tests Generated: {metrics.metrics['tests_generated']}")
         
         # Output for GitHub Actions
         print(f"completed=true")
@@ -1157,9 +1440,9 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         # Record finding metrics
         for finding in findings:
             metrics.record_finding(finding['severity'], finding['category'])
-        
-        # Generate SARIF
-        sarif = generate_sarif(findings, repo_path)
+
+        # Generate SARIF with metrics
+        sarif = generate_sarif(findings, repo_path, metrics)
         sarif_file = report_dir / 'results.sarif'
         with open(sarif_file, 'w') as f:
             json.dump(sarif, f, indent=2)
@@ -1167,7 +1450,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         
         # Generate structured JSON
         json_output = {
-            "version": "1.0.15",
+            "version": "1.0.16",
             "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
             "commit": os.environ.get('GITHUB_SHA', 'unknown'),
