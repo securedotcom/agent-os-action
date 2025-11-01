@@ -140,19 +140,32 @@ runs:
         # Create Agent OS directory structure
         mkdir -p $HOME/.agent-os/{scripts,profiles,standards}
         
-        # Copy our scripts to the Agent OS directory
-        cp -r scripts/* $HOME/.agent-os/scripts/ 2>/dev/null || true
-        cp -r profiles/* $HOME/.agent-os/profiles/ 2>/dev/null || true
+        # Copy our scripts from the action repository to the Agent OS directory
+        if [ -d "$GITHUB_ACTION_PATH/scripts" ]; then
+          cp -r $GITHUB_ACTION_PATH/scripts/* $HOME/.agent-os/scripts/ 2>/dev/null || echo "Note: No scripts to copy"
+          echo "Scripts copied from action repository"
+        fi
+        
+        if [ -d "$GITHUB_ACTION_PATH/profiles" ]; then
+          cp -r $GITHUB_ACTION_PATH/profiles/* $HOME/.agent-os/profiles/ 2>/dev/null || echo "Note: No profiles to copy"
+          echo "Profiles copied from action repository"
+        fi
         
         # Make scripts executable
         chmod +x $HOME/.agent-os/scripts/*.sh 2>/dev/null || true
+        chmod +x $HOME/.agent-os/scripts/*.py 2>/dev/null || true
         
         # Verify installation
         if [ ! -d "$HOME/.agent-os" ]; then
-          echo "Agent OS installation failed"
+          echo "❌ Agent OS installation failed - directory not created"
           exit 1
         fi
-        echo "Agent OS Code Reviewer system installed successfully"
+        
+        if [ ! -d "$HOME/.agent-os/scripts" ]; then
+          echo "⚠️  Warning: scripts directory not found"
+        fi
+        
+        echo "✅ Agent OS Code Reviewer system installed successfully"
 
     - name: Install Code Reviewer System
       shell: bash
