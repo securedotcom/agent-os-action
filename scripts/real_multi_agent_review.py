@@ -80,17 +80,28 @@ class RealMultiAgentReview:
     def __init__(self, anthropic_api_key: str, openai_api_key: Optional[str] = None):
         self.anthropic_api_key = anthropic_api_key
         self.openai_api_key = openai_api_key
-        
+
         # Initialize agents
         self.agents = []
         self.claude_client = None
-        
+        self.claude_sonnet_model = None
+        self.claude_haiku_model = None
+
         if anthropic_api_key:
             self.claude_client = anthropic.Anthropic(api_key=anthropic_api_key)
-            # Register two Anthropic agents to enable fully-automated consensus without OpenAI
-            self.agents.append("Claude-Sonnet-4")
-            self.agents.append("Claude-Haiku-3.5")
-        
+
+            # Discover working models with fallback
+            self.claude_sonnet_model = self._find_working_sonnet_model()
+            self.claude_haiku_model = self._find_working_haiku_model()
+
+            if self.claude_sonnet_model and self.claude_haiku_model:
+                # Register two Anthropic agents to enable fully-automated consensus without OpenAI
+                self.agents.append("Claude-Sonnet-4")
+                self.agents.append("Claude-Haiku-3.5")
+                print(f"✅ Found working models - Sonnet: {self.claude_sonnet_model}, Haiku: {self.claude_haiku_model}")
+            else:
+                print("⚠️  Warning: Could not find working Claude models")
+
         # Add OpenAI if available
         if openai_api_key:
             try:
@@ -99,8 +110,52 @@ class RealMultiAgentReview:
                 self.agents.append("GPT-4-Turbo")
             except ImportError:
                 print("⚠️  OpenAI library not installed. Install with: pip install openai")
-        
+
         print(f"✅ Initialized {len(self.agents)} agent(s): {', '.join(self.agents)}")
+
+    def _find_working_sonnet_model(self) -> Optional[str]:
+        """Find a working Claude Sonnet model with fallback"""
+        models_to_try = [
+            "claude-3-5-sonnet-20241022",  # Latest
+            "claude-3-5-sonnet-20240620",  # Stable
+            "claude-3-sonnet-20240229",    # Claude 3
+        ]
+
+        for model in models_to_try:
+            try:
+                # Quick test
+                self.claude_client.messages.create(
+                    model=model,
+                    max_tokens=10,
+                    messages=[{"role": "user", "content": "test"}]
+                )
+                return model
+            except Exception:
+                continue
+
+        return None
+
+    def _find_working_haiku_model(self) -> Optional[str]:
+        """Find a working Claude Haiku model with fallback"""
+        models_to_try = [
+            "claude-3-5-haiku-20241022",  # Latest
+            "claude-3-haiku-20240307",    # Claude 3
+        ]
+
+        for model in models_to_try:
+            try:
+                # Quick test
+                self.claude_client.messages.create(
+                    model=model,
+                    max_tokens=10,
+                    messages=[{"role": "user", "content": "test"}]
+                )
+                return model
+            except Exception:
+                continue
+
+        # Fallback to Sonnet if Haiku not available
+        return self._find_working_sonnet_model()
     
     def is_production_code(self, file_path: str) -> bool:
         """Determine if this is production code or dev infrastructure"""
@@ -444,7 +499,7 @@ Return ONLY the JSON array, no other text.
         try:
             response = await asyncio.to_thread(
                 self.claude_client.messages.create,
-                model="claude-3-5-sonnet-20241022",
+                model=self.claude_sonnet_model,
                 max_tokens=2048,
                 temperature=0.3,  # Lower temp for consistency
                 messages=[{
@@ -478,7 +533,7 @@ Return ONLY the JSON array, no other text.
         try:
             response = await asyncio.to_thread(
                 self.claude_client.messages.create,
-                model="claude-3-5-haiku-20241022",
+                model=self.claude_haiku_model,
                 max_tokens=2048,
                 temperature=0.2,
                 messages=[{
@@ -772,7 +827,7 @@ Return ONLY the JSON object, no other text."""
         try:
             response = await asyncio.to_thread(
                 self.claude_client.messages.create,
-                model="claude-3-5-haiku-20241022",  # Use faster/cheaper model for tests
+                model=self.claude_haiku_model,  # Use faster/cheaper model for tests
                 max_tokens=1024,
                 temperature=0.3,
                 messages=[{
