@@ -31,8 +31,68 @@ inputs:
     description: 'Anthropic API key for Claude AI analysis'
     required: false
     default: ''
-  cursor-api-key:
-    description: 'Cursor API key for AI analysis'
+  openai-api-key:
+    description: 'OpenAI API key for GPT-4 analysis'
+    required: false
+    default: ''
+  ollama-endpoint:
+    description: 'Ollama endpoint URL (e.g., http://localhost:11434)'
+    required: false
+    default: ''
+  ai-provider:
+    description: 'AI provider: anthropic, openai, ollama, or auto'
+    required: false
+    default: 'auto'
+  model:
+    description: 'Specific model to use (auto-detects by default)'
+    required: false
+    default: 'auto'
+  multi-agent-mode:
+    description: 'Multi-agent mode: single (1 agent, fast) or sequential (7 agents, deep)'
+    required: false
+    default: 'single'
+  enable-exploit-analysis:
+    description: 'Enable Aardvark mode exploit chain analysis'
+    required: false
+    default: 'true'
+  generate-security-tests:
+    description: 'Auto-generate security tests for vulnerabilities'
+    required: false
+    default: 'true'
+  exploitability-threshold:
+    description: 'Block merge threshold: trivial, moderate, complex, theoretical, none'
+    required: false
+    default: 'trivial'
+  only-changed:
+    description: 'Only analyze changed files (PR optimization)'
+    required: false
+    default: 'false'
+  include-paths:
+    description: 'Glob patterns to include (e.g., src/**,lib/**)'
+    required: false
+    default: ''
+  exclude-paths:
+    description: 'Glob patterns to exclude (e.g., test/**,docs/**)'
+    required: false
+    default: ''
+  max-file-size:
+    description: 'Max file size in bytes'
+    required: false
+    default: '50000'
+  max-files:
+    description: 'Max number of files to analyze'
+    required: false
+    default: '50'
+  max-tokens:
+    description: 'Max tokens per file'
+    required: false
+    default: '8000'
+  cost-limit:
+    description: 'Max cost in USD per run'
+    required: false
+    default: '1.0'
+  fail-on:
+    description: 'Granular fail conditions (e.g., security:high,test:critical)'
     required: false
     default: ''
 
@@ -49,6 +109,36 @@ outputs:
   report-path:
     description: 'Path to the generated report'
     value: ${{ steps.code-review.outputs.report-path }}
+  sarif-path:
+    description: 'Path to SARIF file'
+    value: ${{ steps.code-review.outputs.sarif-path }}
+  json-path:
+    description: 'Path to JSON results'
+    value: ${{ steps.code-review.outputs.json-path }}
+  cost-estimate:
+    description: 'Estimated cost in USD'
+    value: ${{ steps.code-review.outputs.cost-estimate }}
+  files-analyzed:
+    description: 'Number of files analyzed'
+    value: ${{ steps.code-review.outputs.files-analyzed }}
+  duration-seconds:
+    description: 'Analysis duration in seconds'
+    value: ${{ steps.code-review.outputs.duration-seconds }}
+  exploitability-trivial:
+    description: 'Number of trivially exploitable vulnerabilities'
+    value: ${{ steps.code-review.outputs.exploitability-trivial }}
+  exploitability-moderate:
+    description: 'Number of moderately exploitable vulnerabilities'
+    value: ${{ steps.code-review.outputs.exploitability-moderate }}
+  exploitability-complex:
+    description: 'Number of complex exploitable vulnerabilities'
+    value: ${{ steps.code-review.outputs.exploitability-complex }}
+  exploit-chains-found:
+    description: 'Number of exploit chains identified'
+    value: ${{ steps.code-review.outputs.exploit-chains-found }}
+  tests-generated:
+    description: 'Number of security tests generated'
+    value: ${{ steps.code-review.outputs.tests-generated }}
 
 runs:
   using: 'composite'
@@ -177,22 +267,34 @@ runs:
       shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
+        INPUT_AI_PROVIDER: ${{ inputs.ai-provider }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_MULTI_AGENT_MODE: ${{ inputs.multi-agent-mode }}
+        INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
+        INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
+        INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+        INPUT_MAX_FILE_SIZE: ${{ inputs.max-file-size }}
+        INPUT_MAX_FILES: ${{ inputs.max-files }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
       run: |
-        echo "🤖 Running AI-Powered Code Review with Claude Sonnet 4..."
+        echo "🤖 Running AI-Powered Code Review with Claude Sonnet 4.5..."
         cd "${{ inputs.project-path }}"
-        
+
         # Create reviews directory
         mkdir -p .agent-os/reviews
-        
+
         # Install Python dependencies
         echo "📦 Installing dependencies..."
-        pip install -q anthropic
-        
+        pip install -q anthropic openai tenacity 2>/dev/null || true
+
         # Run AI-powered audit
         echo "🧠 Analyzing codebase with AI..."
         python3 $HOME/.agent-os/scripts/run-ai-audit.py "$(pwd)" "${{ inputs.review-type }}"
-        
+
         # Fallback to mock if AI fails
         if [ ! -f ".agent-os/reviews/${{ inputs.review-type }}-report.md" ]; then
           echo "⚠️  AI analysis failed, using fallback mock report..."
@@ -206,7 +308,7 @@ runs:
           echo "**[BLOCKER]** Unable to perform AI analysis" >> .agent-os/reviews/audit-report.md
           echo "**[BLOCKER]** Check API key configuration" >> .agent-os/reviews/audit-report.md
         fi
-        
+
         # Count blockers and suggestions from the report
         REPORT_FILE=".agent-os/reviews/${{ inputs.review-type }}-report.md"
         if [ -f "$REPORT_FILE" ]; then
@@ -216,12 +318,48 @@ runs:
           BLOCKERS=0
           SUGGESTIONS=0
         fi
-        
+
+        # Read metrics from JSON if available
+        METRICS_FILE=".agent-os/reviews/metrics.json"
+        if [ -f "$METRICS_FILE" ]; then
+          COST=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['cost_usd'])" 2>/dev/null || echo "0")
+          FILES=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['files_reviewed'])" 2>/dev/null || echo "0")
+          DURATION=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['duration_seconds'])" 2>/dev/null || echo "0")
+          EXPLOIT_TRIVIAL=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['exploitability']['trivial'])" 2>/dev/null || echo "0")
+          EXPLOIT_MODERATE=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['exploitability']['moderate'])" 2>/dev/null || echo "0")
+          EXPLOIT_COMPLEX=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['exploitability']['complex'])" 2>/dev/null || echo "0")
+          EXPLOIT_CHAINS=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['exploit_chains_found'])" 2>/dev/null || echo "0")
+          TESTS_GEN=$(python3 -c "import json; print(json.load(open('$METRICS_FILE'))['tests_generated'])" 2>/dev/null || echo "0")
+        else
+          COST="0"
+          FILES="0"
+          DURATION="0"
+          EXPLOIT_TRIVIAL="0"
+          EXPLOIT_MODERATE="0"
+          EXPLOIT_COMPLEX="0"
+          EXPLOIT_CHAINS="0"
+          TESTS_GEN="0"
+        fi
+
+        # Set SARIF and JSON paths
+        SARIF_PATH=".agent-os/reviews/results.sarif"
+        JSON_PATH=".agent-os/reviews/results.json"
+
         echo "Code review completed"
         echo "completed=true" >> $GITHUB_OUTPUT
         echo "blockers=$BLOCKERS" >> $GITHUB_OUTPUT
         echo "suggestions=$SUGGESTIONS" >> $GITHUB_OUTPUT
-        echo "report-path=.agent-os/reviews/" >> $GITHUB_OUTPUT
+        echo "report-path=.agent-os/reviews/${{ inputs.review-type }}-report.md" >> $GITHUB_OUTPUT
+        echo "sarif-path=$SARIF_PATH" >> $GITHUB_OUTPUT
+        echo "json-path=$JSON_PATH" >> $GITHUB_OUTPUT
+        echo "cost-estimate=$COST" >> $GITHUB_OUTPUT
+        echo "files-analyzed=$FILES" >> $GITHUB_OUTPUT
+        echo "duration-seconds=$DURATION" >> $GITHUB_OUTPUT
+        echo "exploitability-trivial=$EXPLOIT_TRIVIAL" >> $GITHUB_OUTPUT
+        echo "exploitability-moderate=$EXPLOIT_MODERATE" >> $GITHUB_OUTPUT
+        echo "exploitability-complex=$EXPLOIT_COMPLEX" >> $GITHUB_OUTPUT
+        echo "exploit-chains-found=$EXPLOIT_CHAINS" >> $GITHUB_OUTPUT
+        echo "tests-generated=$TESTS_GEN" >> $GITHUB_OUTPUT
 
     - name: Upload Review Reports
       if: ${{ inputs.upload-reports == 'true' }}
