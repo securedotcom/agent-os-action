@@ -376,22 +376,37 @@ runs:
           TESTS_GENERATED="0"
         fi
 
-        echo "✅ Code review completed"
-        echo "completed=true" >> $GITHUB_OUTPUT
-        echo "blockers=$BLOCKERS" >> $GITHUB_OUTPUT
-        echo "suggestions=$SUGGESTIONS" >> $GITHUB_OUTPUT
-        echo "report-path=$REPORT_FILE" >> $GITHUB_OUTPUT
-        echo "sarif-path=$SARIF_FILE" >> $GITHUB_OUTPUT
-        echo "json-path=$JSON_FILE" >> $GITHUB_OUTPUT
-        echo "cost-estimate=$COST" >> $GITHUB_OUTPUT
-        echo "files-analyzed=$FILES" >> $GITHUB_OUTPUT
-        echo "duration-seconds=$DURATION" >> $GITHUB_OUTPUT
-        # Output Aardvark mode metrics
-        echo "exploitability-trivial=$EXPLOIT_TRIVIAL" >> $GITHUB_OUTPUT
-        echo "exploitability-moderate=$EXPLOIT_MODERATE" >> $GITHUB_OUTPUT
-        echo "exploitability-complex=$EXPLOIT_COMPLEX" >> $GITHUB_OUTPUT
-        echo "exploit-chains-found=$EXPLOIT_CHAINS" >> $GITHUB_OUTPUT
-        echo "tests-generated=$TESTS_GENERATED" >> $GITHUB_OUTPUT
+        # Ensure all variables have valid values (prevent empty strings that cause format errors)
+        BLOCKERS="${BLOCKERS:-0}"
+        SUGGESTIONS="${SUGGESTIONS:-0}"
+        COST="${COST:-0.00}"
+        FILES="${FILES:-0}"
+        DURATION="${DURATION:-0}"
+        EXPLOIT_TRIVIAL="${EXPLOIT_TRIVIAL:-0}"
+        EXPLOIT_MODERATE="${EXPLOIT_MODERATE:-0}"
+        EXPLOIT_COMPLEX="${EXPLOIT_COMPLEX:-0}"
+        EXPLOIT_CHAINS="${EXPLOIT_CHAINS:-0}"
+        TESTS_GENERATED="${TESTS_GENERATED:-0}"
+
+        # Write all outputs atomically to prevent format errors
+        {
+          echo "completed=true"
+          echo "blockers=$BLOCKERS"
+          echo "suggestions=$SUGGESTIONS"
+          echo "report-path=$REPORT_FILE"
+          echo "sarif-path=$SARIF_FILE"
+          echo "json-path=$JSON_FILE"
+          echo "cost-estimate=$COST"
+          echo "files-analyzed=$FILES"
+          echo "duration-seconds=$DURATION"
+          echo "exploitability-trivial=$EXPLOIT_TRIVIAL"
+          echo "exploitability-moderate=$EXPLOIT_MODERATE"
+          echo "exploitability-complex=$EXPLOIT_COMPLEX"
+          echo "exploit-chains-found=$EXPLOIT_CHAINS"
+          echo "tests-generated=$TESTS_GENERATED"
+        } >> $GITHUB_OUTPUT
+
+        echo "✅ Code review completed successfully"
 
     # Upload artifacts - pinned by SHA
     - name: Upload Review Reports
