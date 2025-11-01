@@ -1,9 +1,9 @@
 # Agent OS Code Reviewer
 
-> **AI-Powered Automated Code Review System**  
-> Comprehensive security, performance, testing, and quality analysis powered by Claude Sonnet 4
+> **AI-Powered Automated Code Review System**
+> Comprehensive security, performance, testing, and quality analysis powered by Claude Sonnet 4.5
 
-[![Version](https://img.shields.io/badge/version-1.0.15-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.16-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-Ready-success.svg)](https://github.com/securedotcom/agent-os-action)
 
@@ -40,7 +40,7 @@ Agent OS employs **defense-in-depth** with multiple security layers:
 
 | Layer | Tool | Purpose | Frequency |
 |-------|------|---------|-----------|
-| **AI Analysis** | Claude Sonnet 4 | Complex security issues, logic flaws | On-demand |
+| **AI Analysis** | Claude Sonnet 4.5 | Complex security issues, logic flaws | On-demand |
 | **SAST** | CodeQL | Common vulnerabilities (injection, XSS) | Every push |
 | **Secret Scanning** | Gitleaks | Hardcoded secrets, API keys | Daily |
 | **Repo Hygiene** | OpenSSF Scorecard | Security best practices | Weekly |
@@ -486,7 +486,7 @@ on:
 Agent OS supports **3 AI providers** to reduce dependency on any single API:
 
 ### 1. Anthropic Claude (Recommended)
-- **Model**: Claude Sonnet 4
+- **Model**: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - **Quality**: ⭐⭐⭐⭐⭐ (Best)
 - **Cost**: $3/1M input, $15/1M output (~$0.05/KLOC)
 - **Setup**: Get API key from [console.anthropic.com](https://console.anthropic.com/)
@@ -790,8 +790,9 @@ only-changed: 'false'
 | Mode | Agents | Cost | Duration | Use Case |
 |------|--------|------|----------|----------|
 | **Single Agent** | 1 | $0.15-0.20 | 1-2 min | PR reviews, daily CI |
-| **Multi-Agent (Standard)** | 5 | $0.75 | 5-7 min | Weekly audits |
-| **Multi-Agent (Aardvark)** | 7 | $1.00 | 8-10 min | Security audits + tests |
+| **Multi-Agent Sequential** | 7 | $1.00 | 8-10 min | Weekly audits, security reviews |
+
+**Note**: Multi-agent mode now includes all 7 agents with Aardvark capabilities (exploit analysis + test generation) by default.
 
 ### Expected Cost per 1000 Lines of Code (KLOC)
 
@@ -940,7 +941,7 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 ┌─────────────────────────────────────────────────────────────┐
 │                     GitHub Actions                          │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │         Agent OS Code Reviewer (v1.0.14)             │  │
+│  │         Agent OS Code Reviewer (v1.0.16)             │  │
 │  │                                                       │  │
 │  │  ┌──────────────────────────────────────────────┐   │  │
 │  │  │        Review Orchestrator                   │   │  │
@@ -955,7 +956,7 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 │  │    └────────┘   └────────┘  └────────┘ └───────┘  │  │
 │  │                                                       │  │
 │  │  ┌──────────────────────────────────────────────┐   │  │
-│  │  │         Claude Sonnet 4 (Anthropic)          │   │  │
+│  │  │      Claude Sonnet 4.5 (Anthropic)           │   │  │
 │  │  └──────────────────────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                      │                                      │
@@ -1029,11 +1030,12 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| GitHub Action | ✅ Working | v1.0.14 deployed |
+| GitHub Action | ✅ Working | v1.0.16 deployed |
 | PR Automation | ✅ Working | Creates/updates PRs |
 | Slack Integration | ✅ Working | Via GitHub App |
 | Scheduling | ✅ Working | Weekly/on-demand |
-| **AI Analysis** | ⚠️ **Setup Required** | **Needs Anthropic API key** |
+| **AI Analysis** | ✅ **Working** | Anthropic, OpenAI, Ollama supported |
+| Aardvark Mode | ✅ Working | Exploit analysis + test generation |
 | Documentation | ✅ Complete | Consolidated guides |
 
 ---
@@ -1041,27 +1043,27 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 ## 🚧 Known Limitations
 
 ### Current Limitations
-- **API Key Required**: Needs Anthropic API key for real analysis (falls back to mock reports)
-- **File Limit**: Analyzes up to 50 files per run (configurable)
+- **API Key Required**: Requires API key from Anthropic, OpenAI, or local Ollama instance
+- **File Limit**: Analyzes up to 100 files per run (configurable)
 - **Language Support**: Best for JavaScript, TypeScript, Python, Java, Go, Rust, Ruby, PHP, C#
-- **Cost**: ~$0.10-$0.50 per audit (depending on codebase size)
+- **Cost**: ~$0.15-$1.00 per audit (depending on mode and codebase size)
 
 ### Planned Improvements
-- OpenAI API support (GPT-4 alternative)
-- Local LLM support (Ollama)
-- IDE extensions (VS Code)
+- IDE extensions (VS Code, JetBrains)
 - Custom rules engine
 - Real-time dashboard
 - More language support
+- Incremental review mode with caching
+- Heuristic pre-scanning for faster reviews
 
 ---
 
 ## 💰 Pricing
 
 ### Anthropic API Costs
-- **Claude Sonnet 4**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
-- **Per Audit**: $0.10 - $0.50 (typical codebase)
-- **Monthly** (weekly audits): ~$2 - $8 per repository
+- **Claude Sonnet 4.5**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
+- **Per Audit**: $0.15 - $1.00 (depending on mode)
+- **Monthly** (weekly audits): ~$4 - $8 per repository
 
 ### Cost Optimization
 - Run weekly instead of daily
@@ -1113,23 +1115,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📈 Roadmap
 
+### ✅ Recently Completed (v1.0.16)
+- ✅ Aardvark Mode: Exploit chain analysis + security test generation
+- ✅ 7-agent multi-agent sequential mode
+- ✅ OpenAI API support (GPT-4)
+- ✅ Ollama support (local LLMs)
+- ✅ SARIF output for GitHub Code Scanning
+- ✅ Comprehensive cost tracking and limits
+
 ### v1.1 (Next Release)
-- [ ] OpenAI API support
-- [ ] Improved error messages
+- [ ] Incremental review mode with caching (60-90% cost savings)
+- [ ] Heuristic pre-scanning (10x faster)
+- [ ] Multi-agent consensus review (fewer false positives)
+- [ ] Improved error messages with retry logic
 - [ ] One-command setup script
-- [ ] Docker image
 
 ### v1.2 (Future)
-- [ ] Web dashboard
-- [ ] IDE extensions
+- [ ] Web dashboard for review history
+- [ ] IDE extensions (VS Code, JetBrains)
 - [ ] Custom rules engine
-- [ ] Batch processing
+- [ ] Batch processing for multiple repos
+- [ ] Docker image
 
 ### v2.0 (Vision)
-- [ ] Local LLM support
-- [ ] Real-time analysis
-- [ ] Auto-fix suggestions
-- [ ] Team analytics
+- [ ] Real-time analysis (streaming results)
+- [ ] Auto-fix suggestions (with approval workflow)
+- [ ] Team analytics and trends
+- [ ] Advanced exploit simulation
 
 ---
 
@@ -1140,5 +1152,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
   <strong>Made with ❤️ by the Agent OS Team</strong>
   <br>
-  <sub>Powered by Claude Sonnet 4</sub>
+  <sub>Powered by Claude Sonnet 4.5</sub>
 </div>
