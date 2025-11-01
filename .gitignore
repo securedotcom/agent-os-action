@@ -83,3 +83,5 @@ deployment/
 .env.local
 .env.*.local
 .agent-os/
+CODE_ANALYSIS_IMPROVEMENT_PLAN.md
+COMPREHENSIVE_IMPROVEMENT_PLAN.md
