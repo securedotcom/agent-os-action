@@ -836,8 +836,8 @@ def parse_findings_from_report(report_text):
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True
 )
-def estimate_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
-    """Estimate cost of an LLM call before making it
+def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
+    """Estimate cost of a single LLM API call before making it (for circuit breaker)
 
     Args:
         prompt_length: Character length of prompt (rough proxy for tokens)
@@ -887,7 +887,7 @@ def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=No
     """
     # Estimate cost and check circuit breaker before making call
     if circuit_breaker:
-        estimated_cost = estimate_cost(len(prompt), max_tokens, provider)
+        estimated_cost = estimate_call_cost(len(prompt), max_tokens, provider)
         circuit_breaker.check_before_call(estimated_cost, provider, operation)
 
     try:
