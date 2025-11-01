@@ -145,6 +145,125 @@ class ReviewMetrics:
             json.dump(self.metrics, f, indent=2)
         print(f"📊 Metrics saved to: {path}")
 
+
+class CostLimitExceeded(Exception):
+    """Raised when cost limit would be exceeded by an operation"""
+    pass
+
+
+class CostCircuitBreaker:
+    """Runtime cost enforcement to prevent budget overruns
+
+    This class provides real-time cost tracking and enforcement:
+    - Checks before each LLM call if limit would be exceeded
+    - Maintains 10% safety buffer to prevent overage
+    - Logs warnings at 50%, 75%, 90% thresholds
+    - Raises CostLimitExceeded when limit reached
+
+    Example:
+        breaker = CostCircuitBreaker(cost_limit_usd=1.0)
+        breaker.check_before_call(estimated_cost=0.15, provider='anthropic')
+        # ... make LLM call ...
+        breaker.record_actual_cost(0.14)
+    """
+
+    def __init__(self, cost_limit_usd: float, safety_buffer_percent: float = 10.0):
+        """Initialize cost circuit breaker
+
+        Args:
+            cost_limit_usd: Maximum cost allowed in USD
+            safety_buffer_percent: Safety buffer percentage (default: 10%)
+        """
+        self.cost_limit = cost_limit_usd
+        self.safety_buffer = safety_buffer_percent / 100.0
+        self.effective_limit = cost_limit_usd * (1.0 - self.safety_buffer)
+        self.current_cost = 0.0
+        self.warned_thresholds = set()
+
+        logger.info(f"💰 Cost Circuit Breaker initialized: ${cost_limit_usd:.2f} limit "
+                   f"(${self.effective_limit:.2f} effective with {safety_buffer_percent}% buffer)")
+
+    def check_before_call(self, estimated_cost: float, provider: str, operation: str = "LLM call"):
+        """Check if estimated cost would exceed limit
+
+        Args:
+            estimated_cost: Estimated cost of the operation in USD
+            provider: AI provider name (for logging)
+            operation: Description of operation (for logging)
+
+        Raises:
+            CostLimitExceeded: If operation would exceed cost limit
+        """
+        projected_cost = self.current_cost + estimated_cost
+        utilization = (self.current_cost / self.effective_limit) * 100 if self.effective_limit > 0 else 0
+
+        # Check threshold warnings (50%, 75%, 90%)
+        for threshold in [50, 75, 90]:
+            if utilization >= threshold and threshold not in self.warned_thresholds:
+                self.warned_thresholds.add(threshold)
+                logger.warning(f"⚠️  Cost at {utilization:.1f}% of limit "
+                             f"(${self.current_cost:.3f} / ${self.effective_limit:.2f})")
+
+        # Check if we would exceed the limit
+        if projected_cost > self.effective_limit:
+            remaining = self.effective_limit - self.current_cost
+            message = (
+                f"Cost limit exceeded! "
+                f"Operation would cost ${estimated_cost:.3f}, "
+                f"but only ${remaining:.3f} remaining of ${self.cost_limit:.2f} limit. "
+                f"Current cost: ${self.current_cost:.3f}"
+            )
+            logger.error(f"🚨 {message}")
+            raise CostLimitExceeded(message)
+
+        # Log the check
+        logger.debug(f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({provider}), "
+                    f"projected: ${projected_cost:.3f} / ${self.effective_limit:.2f}")
+
+    def record_actual_cost(self, actual_cost: float):
+        """Record actual cost after operation completes
+
+        Args:
+            actual_cost: Actual cost incurred in USD
+        """
+        self.current_cost += actual_cost
+        logger.debug(f"💵 Cost updated: +${actual_cost:.3f} → ${self.current_cost:.3f}")
+
+    def get_remaining_budget(self) -> float:
+        """Get remaining budget in USD
+
+        Returns:
+            Remaining budget considering safety buffer
+        """
+        return max(0.0, self.effective_limit - self.current_cost)
+
+    def get_utilization_percent(self) -> float:
+        """Get current cost utilization as percentage
+
+        Returns:
+            Utilization percentage (0-100+)
+        """
+        if self.effective_limit == 0:
+            return 0.0
+        return (self.current_cost / self.effective_limit) * 100
+
+    def get_summary(self) -> dict:
+        """Get cost summary for reporting
+
+        Returns:
+            Dictionary with cost details
+        """
+        return {
+            "cost_limit_usd": self.cost_limit,
+            "effective_limit_usd": self.effective_limit,
+            "safety_buffer_percent": self.safety_buffer * 100,
+            "current_cost_usd": self.current_cost,
+            "remaining_budget_usd": self.get_remaining_budget(),
+            "utilization_percent": self.get_utilization_percent(),
+            "limit_exceeded": self.current_cost > self.effective_limit
+        }
+
+
 # Available agents for multi-agent mode
 AVAILABLE_AGENTS = [
     'security-reviewer',
@@ -717,8 +836,60 @@ def parse_findings_from_report(report_text):
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True
 )
-def call_llm_api(client, provider, model, prompt, max_tokens):
-    """Call LLM API with retry logic for transient failures"""
+def estimate_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
+    """Estimate cost of an LLM call before making it
+
+    Args:
+        prompt_length: Character length of prompt (rough proxy for tokens)
+        max_output_tokens: Maximum output tokens requested
+        provider: AI provider name
+
+    Returns:
+        Estimated cost in USD
+    """
+    # Rough estimation: 1 token ≈ 4 characters
+    estimated_input_tokens = prompt_length / 4
+    estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
+
+    if provider == 'anthropic':
+        # Claude Sonnet 4.5: $3/1M input, $15/1M output
+        input_cost = (estimated_input_tokens / 1_000_000) * 3.0
+        output_cost = (estimated_output_tokens / 1_000_000) * 15.0
+    elif provider == 'openai':
+        # GPT-4: $10/1M input, $30/1M output
+        input_cost = (estimated_input_tokens / 1_000_000) * 10.0
+        output_cost = (estimated_output_tokens / 1_000_000) * 30.0
+    else:
+        # Ollama: Free (local)
+        input_cost = 0.0
+        output_cost = 0.0
+
+    return input_cost + output_cost
+
+
+def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=None, operation="LLM call"):
+    """Call LLM API with retry logic and cost enforcement
+
+    Args:
+        client: AI client instance
+        provider: AI provider name
+        model: Model name
+        prompt: Prompt text
+        max_tokens: Maximum output tokens
+        circuit_breaker: Optional CostCircuitBreaker for cost enforcement
+        operation: Description of operation for logging
+
+    Returns:
+        Tuple of (response_text, input_tokens, output_tokens)
+
+    Raises:
+        CostLimitExceeded: If cost limit would be exceeded
+    """
+    # Estimate cost and check circuit breaker before making call
+    if circuit_breaker:
+        estimated_cost = estimate_cost(len(prompt), max_tokens, provider)
+        circuit_breaker.check_before_call(estimated_cost, provider, operation)
+
     try:
         if provider == 'anthropic':
             message = client.messages.create(
@@ -727,7 +898,9 @@ def call_llm_api(client, provider, model, prompt, max_tokens):
                 messages=[{"role": "user", "content": prompt}],
                 timeout=300.0  # 5 minute timeout
             )
-            return message.content[0].text, message.usage.input_tokens, message.usage.output_tokens
+            response_text = message.content[0].text
+            input_tokens = message.usage.input_tokens
+            output_tokens = message.usage.output_tokens
 
         elif provider in ['openai', 'ollama']:
             response = client.chat.completions.create(
@@ -736,16 +909,47 @@ def call_llm_api(client, provider, model, prompt, max_tokens):
                 max_tokens=max_tokens,
                 timeout=300.0  # 5 minute timeout
             )
+            response_text = response.choices[0].message.content
             input_tokens = response.usage.prompt_tokens
             output_tokens = response.usage.completion_tokens
-            return response.choices[0].message.content, input_tokens, output_tokens
 
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
+        # Record actual cost after successful call
+        if circuit_breaker:
+            actual_cost = calculate_actual_cost(input_tokens, output_tokens, provider)
+            circuit_breaker.record_actual_cost(actual_cost)
+
+        return response_text, input_tokens, output_tokens
+
     except Exception as e:
         logger.error(f"LLM API call failed: {type(e).__name__}: {e}")
         raise
+
+
+def calculate_actual_cost(input_tokens: int, output_tokens: int, provider: str) -> float:
+    """Calculate actual cost after LLM call completes
+
+    Args:
+        input_tokens: Actual input tokens used
+        output_tokens: Actual output tokens used
+        provider: AI provider name
+
+    Returns:
+        Actual cost in USD
+    """
+    if provider == 'anthropic':
+        input_cost = (input_tokens / 1_000_000) * 3.0
+        output_cost = (output_tokens / 1_000_000) * 15.0
+    elif provider == 'openai':
+        input_cost = (input_tokens / 1_000_000) * 10.0
+        output_cost = (output_tokens / 1_000_000) * 30.0
+    else:
+        input_cost = 0.0
+        output_cost = 0.0
+
+    return input_cost + output_cost
 
 def load_agent_prompt(agent_name):
     """Load specialized agent prompt from profiles"""
@@ -785,9 +989,9 @@ def load_agent_prompt(agent_name):
     print(f"⚠️  Agent prompt not found for: {agent_name}")
     return f"You are a {agent_name} code reviewer. Analyze the code for {agent_name}-related issues."
 
-def run_multi_agent_sequential(repo_path, config, review_type, client, provider, model, max_tokens, files, metrics):
-    """Run multi-agent sequential review with specialized agents"""
-    
+def run_multi_agent_sequential(repo_path, config, review_type, client, provider, model, max_tokens, files, metrics, circuit_breaker):
+    """Run multi-agent sequential review with specialized agents and cost enforcement"""
+
     print("\n" + "="*80)
     print("🤖 MULTI-AGENT SEQUENTIAL MODE")
     print("="*80)
@@ -899,7 +1103,9 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
         try:
             print(f"   🧠 Analyzing with {model}...")
             report, input_tokens, output_tokens = call_llm_api(
-                client, provider, model, agent_prompt, max_tokens
+                client, provider, model, agent_prompt, max_tokens,
+                circuit_breaker=circuit_breaker,
+                operation=f"{agent_name} agent review"
             )
 
             agent_duration = time.time() - agent_start
@@ -944,6 +1150,16 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
             print(f"   ✅ Complete: {finding_counts['critical']} critical, {finding_counts['high']} high, {finding_counts['medium']} medium, {finding_counts['low']} low")
             print(f"   ⏱️  Duration: {agent_duration:.1f}s | 💰 Cost: ${agent_metrics[agent_name]['cost_usd']:.4f}")
+
+        except CostLimitExceeded as e:
+            # Cost limit reached - stop immediately
+            print(f"   🚨 Cost limit exceeded: {e}")
+            print(f"   💰 Review stopped at ${circuit_breaker.current_cost:.3f} to stay within ${circuit_breaker.cost_limit:.2f} budget")
+            print(f"   ✅ {i-1}/{len(agents)} agents completed before limit reached")
+
+            # Generate partial report with agents completed so far
+            agent_reports[agent_name] = f"# {agent_name.title()} Review Skipped\n\n**Reason**: Cost limit reached (${circuit_breaker.cost_limit:.2f})\n"
+            raise  # Re-raise to stop the entire review
 
         except Exception as e:
             print(f"   ❌ Error: {e}")
@@ -997,7 +1213,9 @@ Generate the complete audit report as specified in your instructions.
     try:
         print(f"   🧠 Synthesizing with {model}...")
         final_report, input_tokens, output_tokens = call_llm_api(
-            client, provider, model, orchestrator_prompt, max_tokens
+            client, provider, model, orchestrator_prompt, max_tokens,
+            circuit_breaker=circuit_breaker,
+            operation="orchestrator synthesis"
         )
 
         orchestrator_duration = time.time() - orchestrator_start
@@ -1015,10 +1233,18 @@ Generate the complete audit report as specified in your instructions.
 
         print(f"   ✅ Synthesis complete")
         print(f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}")
-        
+
+    except CostLimitExceeded as e:
+        # Cost limit reached during orchestration
+        print(f"   🚨 Cost limit exceeded during synthesis: {e}")
+        print(f"   📊 Generating report from {len(agent_reports)} completed agents")
+        # Fall through to generate partial report
+
     except Exception as e:
         print(f"   ❌ Error: {e}")
-        # Fallback: concatenate all reports
+
+    # Fallback: concatenate all reports (used if orchestrator fails OR cost limit reached)
+    if 'final_report' not in locals():
         final_report = f"""# Codebase Audit Report (Multi-Agent Sequential)
 
 ## Note
@@ -1167,7 +1393,10 @@ def run_audit(repo_path, config, review_type='audit'):
     # Check cost limit
     cost_limit = float(config.get('cost_limit', 1.0))
     max_tokens = int(config.get('max_tokens', 8000))
-    
+
+    # Initialize cost circuit breaker for runtime enforcement
+    circuit_breaker = CostCircuitBreaker(cost_limit_usd=cost_limit)
+
     # Get codebase context with guardrails
     print("📂 Analyzing codebase structure...")
     files = get_codebase_context(repo_path, config)
@@ -1198,9 +1427,9 @@ def run_audit(repo_path, config, review_type='audit'):
     if multi_agent_mode == 'sequential':
         # Run multi-agent sequential review
         report = run_multi_agent_sequential(
-            repo_path, config, review_type, 
-            client, provider, model, max_tokens, 
-            files, metrics
+            repo_path, config, review_type,
+            client, provider, model, max_tokens,
+            files, metrics, circuit_breaker
         )
         
         # Skip to saving reports (multi-agent handles its own analysis)
@@ -1418,8 +1647,12 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
     print(f"🧠 Analyzing code with {provider} ({model})...")
     
     try:
-        # Call LLM API
-        report, input_tokens, output_tokens = call_llm_api(client, provider, model, prompt, max_tokens)
+        # Call LLM API with cost enforcement
+        report, input_tokens, output_tokens = call_llm_api(
+            client, provider, model, prompt, max_tokens,
+            circuit_breaker=circuit_breaker,
+            operation="single-agent review"
+        )
         
         # Record LLM metrics
         metrics.record_llm_call(input_tokens, output_tokens, provider)
