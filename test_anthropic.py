@@ -33,7 +33,7 @@ try:
     
     # Simple test message - minimal tokens to save credits
     message = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=10,
         messages=[
             {"role": "user", "content": "Say 'Hello' in 1 word"}
