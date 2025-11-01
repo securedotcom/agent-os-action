@@ -164,18 +164,77 @@ def get_ai_client(provider, config):
 def get_model_name(provider, config):
     """Get the appropriate model name for the provider"""
     model = config.get('model', 'auto')
-    
+
     if model != 'auto':
         return model
-    
+
     # Default models for each provider
     defaults = {
         'anthropic': 'claude-3-5-sonnet-20241022',
         'openai': 'gpt-4-turbo-preview',
         'ollama': 'llama3'
     }
-    
+
     return defaults.get(provider, 'claude-3-5-sonnet-20241022')
+
+def get_working_model_with_fallback(client, provider, initial_model):
+    """Try to find a working model using fallback chain for Anthropic"""
+    if provider != 'anthropic':
+        return initial_model
+
+    # Model fallback chain for Anthropic (most universally available first)
+    MODEL_FALLBACK_CHAIN = [
+        initial_model,  # Try user's requested model first
+        'claude-3-haiku-20240307',  # Most lightweight and universally available
+        'claude-3-sonnet-20240229',  # Balanced
+        'claude-3-5-sonnet-20241022',  # Latest
+        'claude-3-5-sonnet-20240620',  # Stable
+        'claude-3-opus-20240229',  # Most powerful
+    ]
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_models = []
+    for model in MODEL_FALLBACK_CHAIN:
+        if model not in seen:
+            seen.add(model)
+            unique_models.append(model)
+
+    logger.info(f"Testing model accessibility for provider: {provider}")
+
+    for model_id in unique_models:
+        try:
+            # Quick test with minimal tokens
+            logger.debug(f"Testing model: {model_id}")
+            message = client.messages.create(
+                model=model_id,
+                max_tokens=10,
+                messages=[{"role": "user", "content": "test"}]
+            )
+            logger.info(f"✅ Found working model: {model_id}")
+            return model_id
+        except Exception as e:
+            error_type = type(e).__name__
+            logger.debug(f"Model {model_id} not accessible: {error_type}")
+
+            # If authentication fails, stop trying
+            if 'Authentication' in error_type or 'auth' in str(e).lower():
+                logger.error(f"Authentication failed with API key")
+                raise
+
+            continue
+
+    # If no model works, raise error with helpful message
+    logger.error("No accessible Claude models found with this API key")
+    raise RuntimeError(
+        "❌ No Claude models are accessible with your API key.\n"
+        "Tried models: " + ", ".join(unique_models) + "\n"
+        "Please check:\n"
+        "1. API key has correct permissions at https://console.anthropic.com/\n"
+        "2. Account has billing enabled\n"
+        "3. API key is from correct workspace/organization\n"
+        "4. Contact support@anthropic.com if issue persists"
+    )
 
 def get_changed_files():
     """Get list of changed files in PR with improved error handling"""
@@ -817,12 +876,29 @@ def run_audit(repo_path, config, review_type='audit'):
     
     # Get AI client
     client, actual_provider = get_ai_client(provider, config)
-    
+
     # Get model name
     model = get_model_name(provider, config)
+
+    # Verify model accessibility and fallback if needed (Anthropic only)
+    if provider == 'anthropic':
+        try:
+            print(f"🔍 Verifying model accessibility: {model}")
+            working_model = get_working_model_with_fallback(client, provider, model)
+            if working_model != model:
+                print(f"⚠️  Requested model '{model}' not accessible")
+                print(f"✅ Using fallback model: {working_model}")
+                model = working_model
+            else:
+                print(f"✅ Model verified: {model}")
+        except Exception as e:
+            logger.error(f"Model verification failed: {e}")
+            print(f"\n❌ {e}")
+            sys.exit(2)
+
     print(f"🧠 Model: {model}")
     metrics.metrics["model"] = model
-    
+
     # Check cost limit
     cost_limit = float(config.get('cost_limit', 1.0))
     max_tokens = int(config.get('max_tokens', 8000))
