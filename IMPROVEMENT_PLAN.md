@@ -54,7 +54,7 @@ Based on comprehensive feedback, here are the critical gaps preventing productio
 | `max-files` | No | `'50'` | Max files to analyze |
 | `max-tokens` | No | `'8000'` | Max tokens per LLM call |
 | `cost-limit` | No | `'1.0'` | Max cost in USD per run |
-| `model` | No | `'claude-3-5-sonnet-20241022'` | AI model to use |
+| `model` | No | `'claude-3-5-sonnet-20240620'` | AI model to use |
 | `temperature` | No | `'0.3'` | Model temperature (0.0-1.0) |
 
 ## 📤 Outputs
@@ -331,7 +331,7 @@ def generate_sarif(findings, repo_path):
     "lines_analyzed": 8543,
     "duration_seconds": 127,
     "cost_usd": 0.42,
-    "model": "claude-3-5-sonnet-20241022"
+    "model": "claude-3-5-sonnet-20240620"
   },
   "findings": {
     "critical": 2,
@@ -610,7 +610,7 @@ class ReviewMetrics:
 inputs:
   model:
     description: 'AI model to use'
-    default: 'claude-3-5-sonnet-20241022'
+    default: 'claude-3-5-sonnet-20240620'
   temperature:
     description: 'Model temperature (0.0-1.0)'
     default: '0.3'
