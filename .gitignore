@@ -76,3 +76,9 @@ CURSOR_MULTI_AGENT_PLAN.md
 action-inputs.yml
 scripts/cursor_native_review.py
 deployment/
+.claude/settings.local.json
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
