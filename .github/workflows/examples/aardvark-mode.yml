@@ -1,0 +1,148 @@
+name: Aardvark Security Analysis (Full Exploit Analysis)
+
+on:
+  # Run on every pull request for maximum security
+  pull_request:
+    branches: [ main, develop ]
+
+  # Run on every push to main for continuous monitoring
+  push:
+    branches: [ main ]
+
+  # Manual trigger for ad-hoc security reviews
+  workflow_dispatch:
+
+  # Weekly comprehensive security audit
+  schedule:
+    - cron: '0 9 * * 1'  # Monday at 9 AM
+
+jobs:
+  aardvark-security-review:
+    name: Aardvark Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Upload SARIF to Security tab
+      pull-requests: write    # Comment on PRs
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive analysis
+
+      - name: Agent OS Aardvark Security Review
+        id: review
+        uses: securedotcom/agent-os-action@v2.2.0  # Use latest version
+        with:
+          # AI Provider Configuration
+          ai-provider: anthropic
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Multi-Agent Mode (enables exploit-analyst + security-test-generator)
+          multi-agent-mode: 'sequential'
+
+          # Aardvark Mode: Full Exploit Analysis
+          enable-exploit-analysis: 'true'
+          generate-security-tests: 'true'
+
+          # Strict Security Stance
+          exploitability-threshold: 'trivial'  # Block on any trivial exploitability
+          fail-on-blockers: 'true'
+          fail-on: 'security:critical,security:high'
+
+          # GitHub Integration
+          upload-reports: 'true'
+          comment-on-pr: 'true'
+
+          # Cost & Performance
+          max-cost-usd: '2.00'     # Higher budget for comprehensive analysis
+          max-files: 100           # Analyze up to 100 files
+          max-tokens: 12000
+
+          # Changed Files Mode (optional - faster for PRs)
+          # only-changed: 'true'
+
+      - name: Upload SARIF to Security Tab
+        if: always() && steps.review.outputs.sarif-path != ''
+        continue-on-error: true  # Don't fail if Code Scanning not enabled
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.review.outputs.sarif-path }}
+          category: agent-os-aardvark-review
+
+      - name: Upload Security Tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-security-tests
+          path: tests/security/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Upload Exploit Analysis Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exploit-analysis-report
+          path: .agent-os/reviews/
+          retention-days: 90
+
+      - name: Notify on Trivial Exploitability
+        if: failure() && steps.review.outputs.exploitability-trivial > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const trivial = '${{ steps.review.outputs.exploitability-trivial }}';
+            const chains = '${{ steps.review.outputs.exploit-chains-found }}';
+
+            const body = '⚠️ **CRITICAL SECURITY ALERT** ⚠️\n\n' +
+                         '## Trivially Exploitable Vulnerabilities Detected!\n\n' +
+                         `**Trivially Exploitable Issues**: ${trivial}\n` +
+                         `**Exploit Chains Found**: ${chains}\n\n` +
+                         'These vulnerabilities can be exploited in **<10 minutes** with basic tools.\n\n' +
+                         '**Required Action**: Fix immediately before merging.\n\n' +
+                         'See the security analysis report for exploit chains and generated PoC tests.';
+
+            // Comment on PR if this is a pull request
+            if (context.payload.pull_request) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } else {
+              // Create issue for non-PR runs
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Security Alert: ${trivial} Trivially Exploitable Vulnerabilities`,
+                body: body,
+                labels: ['security', 'critical', 'exploit-analysis']
+              });
+            }
+
+      - name: Display Results Summary
+        if: always()
+        run: |
+          echo "## Aardvark Security Analysis Summary"
+          echo ""
+          echo "**Blockers Found**: ${{ steps.review.outputs.blockers-found }}"
+          echo "**Suggestions**: ${{ steps.review.outputs.suggestions-found }}"
+          echo ""
+          echo "### Exploitability Analysis"
+          echo "- Trivial: ${{ steps.review.outputs.exploitability-trivial }}"
+          echo "- Moderate: ${{ steps.review.outputs.exploitability-moderate }}"
+          echo "- Complex: ${{ steps.review.outputs.exploitability-complex }}"
+          echo ""
+          echo "### Exploit Chains"
+          echo "- Chains Found: ${{ steps.review.outputs.exploit-chains-found }}"
+          echo ""
+          echo "### Security Tests"
+          echo "- Tests Generated: ${{ steps.review.outputs.tests-generated }}"
+          echo ""
+          echo "### Analysis Metrics"
+          echo "- Files Analyzed: ${{ steps.review.outputs.files-analyzed }}"
+          echo "- Duration: ${{ steps.review.outputs.duration-seconds }} seconds"
+          echo "- Cost Estimate: \$${{ steps.review.outputs.cost-estimate }}"

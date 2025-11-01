@@ -58,7 +58,23 @@ inputs:
     description: 'Enable multi-agent mode: single, sequential, or parallel'
     required: false
     default: 'single'
-  
+
+  # Exploit Analysis Configuration (Aardvark Mode)
+  enable-exploit-analysis:
+    description: 'Enable exploit chain analysis and exploitability assessment (Aardvark mode)'
+    required: false
+    default: 'true'
+
+  generate-security-tests:
+    description: 'Auto-generate security tests for discovered vulnerabilities'
+    required: false
+    default: 'true'
+
+  exploitability-threshold:
+    description: 'Block merge if exploitability is at this level or higher (trivial, moderate, complex, theoretical, none)'
+    required: false
+    default: 'trivial'
+
   # Cost/Latency Guardrails
   only-changed:
     description: 'Only analyze changed files (PR mode)'
@@ -117,6 +133,27 @@ outputs:
   duration-seconds:
     description: 'Analysis duration in seconds'
     value: ${{ steps.code-review.outputs.duration-seconds }}
+
+  # Exploit Analysis Outputs (Aardvark Mode)
+  exploitability-trivial:
+    description: 'Number of trivially exploitable vulnerabilities found'
+    value: ${{ steps.code-review.outputs.exploitability-trivial }}
+
+  exploitability-moderate:
+    description: 'Number of moderately exploitable vulnerabilities found'
+    value: ${{ steps.code-review.outputs.exploitability-moderate }}
+
+  exploitability-complex:
+    description: 'Number of complex exploitability vulnerabilities found'
+    value: ${{ steps.code-review.outputs.exploitability-complex }}
+
+  exploit-chains-found:
+    description: 'Number of exploit chains identified'
+    value: ${{ steps.code-review.outputs.exploit-chains-found }}
+
+  tests-generated:
+    description: 'Number of security test files generated'
+    value: ${{ steps.code-review.outputs.tests-generated }}
 
 runs:
   using: 'composite'
@@ -277,6 +314,10 @@ runs:
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        # Exploit Analysis Configuration (Aardvark Mode)
+        ENABLE_EXPLOIT_ANALYSIS: ${{ inputs.enable-exploit-analysis }}
+        GENERATE_SECURITY_TESTS: ${{ inputs.generate-security-tests }}
+        EXPLOITABILITY_THRESHOLD: ${{ inputs.exploitability-threshold }}
       run: |
         echo "🤖 Running AI-Powered Code Review..."
         cd "${{ inputs.project-path }}"
@@ -315,6 +356,12 @@ runs:
           DURATION=$(jq -r '.duration_seconds' "$METRICS_FILE" 2>/dev/null || echo "0")
           BLOCKERS=$(jq -r '.findings.critical + .findings.high' "$METRICS_FILE" 2>/dev/null || echo "0")
           SUGGESTIONS=$(jq -r '.findings.medium + .findings.low' "$METRICS_FILE" 2>/dev/null || echo "0")
+          # Extract Aardvark mode metrics
+          EXPLOIT_TRIVIAL=$(jq -r '.exploitability.trivial' "$METRICS_FILE" 2>/dev/null || echo "0")
+          EXPLOIT_MODERATE=$(jq -r '.exploitability.moderate' "$METRICS_FILE" 2>/dev/null || echo "0")
+          EXPLOIT_COMPLEX=$(jq -r '.exploitability.complex' "$METRICS_FILE" 2>/dev/null || echo "0")
+          EXPLOIT_CHAINS=$(jq -r '.exploit_chains_found' "$METRICS_FILE" 2>/dev/null || echo "0")
+          TESTS_GENERATED=$(jq -r '.tests_generated' "$METRICS_FILE" 2>/dev/null || echo "0")
         else
           # Fallback: count from report
           BLOCKERS=$(grep -c "\[CRITICAL\]\|\[BLOCKER\]" "$REPORT_FILE" || echo "0")
@@ -322,8 +369,13 @@ runs:
           COST="0.00"
           FILES="0"
           DURATION="0"
+          EXPLOIT_TRIVIAL="0"
+          EXPLOIT_MODERATE="0"
+          EXPLOIT_COMPLEX="0"
+          EXPLOIT_CHAINS="0"
+          TESTS_GENERATED="0"
         fi
-        
+
         echo "✅ Code review completed"
         echo "completed=true" >> $GITHUB_OUTPUT
         echo "blockers=$BLOCKERS" >> $GITHUB_OUTPUT
@@ -334,6 +386,12 @@ runs:
         echo "cost-estimate=$COST" >> $GITHUB_OUTPUT
         echo "files-analyzed=$FILES" >> $GITHUB_OUTPUT
         echo "duration-seconds=$DURATION" >> $GITHUB_OUTPUT
+        # Output Aardvark mode metrics
+        echo "exploitability-trivial=$EXPLOIT_TRIVIAL" >> $GITHUB_OUTPUT
+        echo "exploitability-moderate=$EXPLOIT_MODERATE" >> $GITHUB_OUTPUT
+        echo "exploitability-complex=$EXPLOIT_COMPLEX" >> $GITHUB_OUTPUT
+        echo "exploit-chains-found=$EXPLOIT_CHAINS" >> $GITHUB_OUTPUT
+        echo "tests-generated=$TESTS_GENERATED" >> $GITHUB_OUTPUT
 
     # Upload artifacts - pinned by SHA
     - name: Upload Review Reports

@@ -25,12 +25,13 @@ Agent OS is an **intelligent code review system** that acts as your 24/7 virtual
 
 ### Key Features
 
-✅ **Automated GitHub Actions Integration** - Runs on schedule or PR events  
-✅ **Smart PR Management** - Creates/updates PRs with findings, avoids duplicates  
-✅ **Multi-Agent AI Architecture** - Specialized reviewers for each concern  
-✅ **Project-Type Awareness** - Adapts standards for Backend, Frontend, Data, Infrastructure  
-✅ **Layered Security Detection** - AI + SAST + Secret Scanning + Repo Hygiene  
-✅ **Supply Chain Integrity** - Signed attestations with SLSA provenance  
+✅ **Automated GitHub Actions Integration** - Runs on schedule or PR events
+✅ **Smart PR Management** - Creates/updates PRs with findings, avoids duplicates
+✅ **Multi-Agent AI Architecture** - Specialized reviewers for each concern
+✅ **Aardvark Mode** - Exploit chain analysis & security test generation
+✅ **Project-Type Awareness** - Adapts standards for Backend, Frontend, Data, Infrastructure
+✅ **Layered Security Detection** - AI + SAST + Secret Scanning + Repo Hygiene
+✅ **Supply Chain Integrity** - Signed attestations with SLSA provenance
 ✅ **Comprehensive Reports** - Downloadable audit artifacts  
 
 ### 🛡️ Security & Trust
@@ -95,6 +96,30 @@ curl -o .github/workflows/semgrep.yml https://raw.githubusercontent.com/securedo
 
 ---
 
+## Aardvark Mode: Advanced Exploit Analysis
+
+Agent OS now includes **Aardvark mode**, inspired by OpenAI's Aardvark, providing:
+
+- **Exploitability Classification**: Prioritize vulnerabilities by how easily they can be exploited
+- **Exploit Chain Analysis**: Identify how multiple vulnerabilities combine for greater impact
+- **Automatic Security Test Generation**: Generate comprehensive test suites for discovered vulnerabilities
+- **Strategic Remediation**: Fix chain-blocking vulnerabilities for maximum security ROI
+
+```
+[CHAIN-001] Auth Bypass → Full System Compromise
+Step 1: SQL Injection → Bypass auth (⚠️ Trivial, 5 min)
+Step 2: IDOR → Access admin (⚠️ Trivial, 5 min)
+Step 3: Data Exfiltration → Download DB (⚠️ Trivial, 5 min)
+
+Strategic Fix: Fixing Step 1 blocks entire chain
+```
+
+**Learn more**: [Aardvark Mode Documentation](docs/aardvark-mode.md)
+
+**Example workflows**: [.github/workflows/examples/](.github/workflows/examples/)
+
+---
+
 ## 🚀 Quick Start (5 Minutes)
 
 ### Prerequisites
@@ -153,7 +178,10 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `ollama-endpoint` | No | `''` | Ollama endpoint for local LLM (e.g., `http://localhost:11434`) |
 | `model` | No | `'auto'` | AI model: `claude-sonnet-4`, `gpt-4-turbo-preview`, `llama3`, or `auto` |
 | **Multi-Agent Mode** | | | |
-| `multi-agent-mode` | No | `'single'` | Review mode: `single` (1 agent, fast), `sequential` (5 agents, deep) |
+| `multi-agent-mode` | No | `'single'` | Review mode: `single` (1 agent, fast), `sequential` (7 agents, deep with Aardvark) |
+| `enable-exploit-analysis` | No | `'true'` | Enable exploit chain analysis (Aardvark mode) |
+| `generate-security-tests` | No | `'true'` | Auto-generate security tests for vulnerabilities |
+| `exploitability-threshold` | No | `'trivial'` | Block merge threshold: `trivial`, `moderate`, `complex`, `theoretical`, `none` |
 | `review-type` | No | `'audit'` | Type of review: `audit`, `security`, `review` |
 | `project-path` | No | `'.'` | Path to project directory to review |
 | `project-type` | No | `'auto'` | Project type: `auto`, `backend-api`, `dashboard-ui`, `data-pipeline`, `infrastructure` |
@@ -183,6 +211,12 @@ That's it! Check your repository's Actions tab to see the review in progress.
 | `cost-estimate` | Estimated cost in USD | `0.42` |
 | `files-analyzed` | Number of files analyzed | `42` |
 | `duration-seconds` | Analysis duration in seconds | `127` |
+| **Aardvark Mode Outputs** | | |
+| `exploitability-trivial` | Number of trivially exploitable vulnerabilities | `2` |
+| `exploitability-moderate` | Number of moderately exploitable vulnerabilities | `3` |
+| `exploitability-complex` | Number of complex exploitability vulnerabilities | `1` |
+| `exploit-chains-found` | Number of exploit chains identified | `2` |
+| `tests-generated` | Number of security test files generated | `8` |
 
 ### Uploading SARIF to Security Tab
 
@@ -600,13 +634,13 @@ Agent OS supports **two review modes** with different trade-offs:
 - **Best For**: PR reviews, daily CI, cost-conscious teams
 
 ### Multi-Agent Sequential Mode
-- **Agents**: 5 specialized agents + orchestrator
-- **Duration**: 5-10 minutes  
-- **Cost**: ~$0.75 per run (5x agents)
-- **Quality**: Excellent - deep, focused analysis
+- **Agents**: 7 specialized agents (with Aardvark mode)
+- **Duration**: 8-10 minutes
+- **Cost**: ~$1.00 per run (7x agents with Aardvark)
+- **Quality**: Excellent - deep, focused analysis with exploit chains
 - **Best For**: Weekly audits, pre-release reviews, compliance
 
-### The 5 Specialized Agents
+### The 7 Specialized Agents (Aardvark Mode)
 
 1. **🔴 Security Reviewer**
    - SQL injection, XSS, CSRF
@@ -615,28 +649,42 @@ Agent OS supports **two review modes** with different trade-offs:
    - Cryptographic issues
    - Dependency vulnerabilities
 
-2. **🟠 Performance Reviewer**
+2. **🔴 Exploit Analyst** (Aardvark Mode)
+   - Exploitability classification (trivial, moderate, complex)
+   - Exploit chain identification
+   - Attack surface analysis
+   - Real-world risk assessment
+   - Strategic remediation guidance
+
+3. **🔴 Security Test Generator** (Aardvark Mode)
+   - Automated unit test generation
+   - Integration test creation
+   - Fuzz test generation
+   - PoC exploit creation (authorized testing)
+   - Test coverage validation
+
+4. **🟠 Performance Reviewer**
    - N+1 query problems
    - Memory leaks
    - Inefficient algorithms
    - Blocking I/O operations
    - Resource management issues
 
-3. **🟢 Testing Reviewer**
+5. **🟢 Testing Reviewer**
    - Critical path coverage gaps
    - Missing edge case tests
    - Untested error scenarios
    - Integration test gaps
    - Test quality issues
 
-4. **🔵 Code Quality Reviewer**
+6. **🔵 Code Quality Reviewer**
    - High complexity functions
    - Missing error handling
    - Code duplication
    - Documentation gaps
    - Architecture issues
 
-5. **🟣 Review Orchestrator**
+7. **🟣 Review Orchestrator**
    - Deduplicates findings across agents
    - Prioritizes by business impact
    - Creates actionable plan
@@ -644,15 +692,17 @@ Agent OS supports **two review modes** with different trade-offs:
 
 ### Comparison Table
 
-| Aspect | Single-Agent | Multi-Agent Sequential |
-|--------|--------------|------------------------|
-| **Agents** | 1 | 5 |
-| **Duration** | 1-2 min | 5-10 min |
-| **Cost** | ~$0.15 | ~$0.75 |
-| **Depth** | Comprehensive | Deep + Specialized |
+| Aspect | Single-Agent | Multi-Agent Sequential (Aardvark) |
+|--------|--------------|-----------------------------------|
+| **Agents** | 1 | 7 (with exploit-analyst + test-generator) |
+| **Duration** | 1-2 min | 8-10 min |
+| **Cost** | ~$0.15 | ~$1.00 |
+| **Depth** | Comprehensive | Deep + Specialized + Exploit Analysis |
 | **Deduplication** | N/A | Orchestrator handles |
-| **Reports** | 1 main report | 5 agent + 1 orchestrated |
-| **Best For** | Fast feedback | Thorough audits |
+| **Reports** | 1 main report | 7 agent + 1 orchestrated |
+| **Exploit Analysis** | No | Yes (chains + exploitability) |
+| **Test Generation** | No | Yes (automated security tests) |
+| **Best For** | Fast feedback | Thorough audits + security |
 
 ### Usage Example
 
@@ -734,6 +784,14 @@ only-changed: 'false'
 ---
 
 ## 💰 Cost Estimation
+
+### Expected Cost per Run
+
+| Mode | Agents | Cost | Duration | Use Case |
+|------|--------|------|----------|----------|
+| **Single Agent** | 1 | $0.15-0.20 | 1-2 min | PR reviews, daily CI |
+| **Multi-Agent (Standard)** | 5 | $0.75 | 5-7 min | Weekly audits |
+| **Multi-Agent (Aardvark)** | 7 | $1.00 | 8-10 min | Security audits + tests |
 
 ### Expected Cost per 1000 Lines of Code (KLOC)
 
