@@ -1,15 +1,17 @@
 #!/bin/bash
-# Sync script to keep agent-os and agent-os-action repositories in sync
+# Sync script for agent-os-action repository
 # Usage: ./scripts/sync-repos.sh
+#
+# Note: agent-os is now a symbolic link to agent-os-action
+# There is only ONE repository to sync.
 
 set -e
 
-AGENT_OS_DIR="/Users/waseem.ahmed/Repos/agent-os"
-AGENT_OS_ACTION_DIR="/Users/waseem.ahmed/Repos/agent-os-action"
+REPO_DIR="/Users/waseem.ahmed/Repos/agent-os-action"
 
-echo "🔄 Syncing agent-os repositories..."
+echo "🔄 Syncing agent-os-action repository..."
 
-# Function to sync a repo
+# Function to sync repo
 sync_repo() {
     local dir=$1
     local name=$2
@@ -41,11 +43,10 @@ sync_repo() {
     fi
 }
 
-# Sync both repositories
-sync_repo "$AGENT_OS_DIR" "agent-os" || echo "❌ Failed to sync agent-os"
-sync_repo "$AGENT_OS_ACTION_DIR" "agent-os-action" || echo "❌ Failed to sync agent-os-action"
+# Sync repository
+sync_repo "$REPO_DIR" "agent-os-action"
 
 echo ""
 echo "✅ Sync complete!"
 echo ""
-echo "💡 Tip: Run this script before starting work to ensure both repos are in sync"
+echo "💡 Note: /Users/waseem.ahmed/Repos/agent-os is a symlink to agent-os-action"
