@@ -444,7 +444,7 @@ Return ONLY the JSON array, no other text.
         try:
             response = await asyncio.to_thread(
                 self.claude_client.messages.create,
-                model="claude-3-5-sonnet-20240620",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=2048,
                 temperature=0.3,  # Lower temp for consistency
                 messages=[{

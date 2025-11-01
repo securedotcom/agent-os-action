@@ -170,12 +170,12 @@ def get_model_name(provider, config):
     
     # Default models for each provider
     defaults = {
-        'anthropic': 'claude-3-opus-20240229',
+        'anthropic': 'claude-3-5-sonnet-20241022',
         'openai': 'gpt-4-turbo-preview',
         'ollama': 'llama3'
     }
     
-    return defaults.get(provider, 'claude-3-opus-20240229')
+    return defaults.get(provider, 'claude-3-5-sonnet-20241022')
 
 def get_changed_files():
     """Get list of changed files in PR with improved error handling"""

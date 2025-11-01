@@ -119,7 +119,7 @@ agents:
 #### Strategy B: Sonnet + Ollama (Quality + Savings)
 ```yaml
 agents:
-  - anthropic: claude-3-5-sonnet-20240620  # $3/M tokens
+  - anthropic: claude-3-5-sonnet-20241022  # $3/M tokens
   - ollama: llama3:70b                      # FREE
 ```
 **Cost**: ~$0.003 per file
@@ -128,7 +128,7 @@ agents:
 #### Strategy C: Triple Consensus
 ```yaml
 agents:
-  - anthropic: claude-3-5-sonnet-20240620  # High quality
+  - anthropic: claude-3-5-sonnet-20241022  # High quality
   - anthropic: claude-3-5-haiku-20241022   # Fast
   - ollama: llama3:70b                      # Free tie-breaker
 ```
