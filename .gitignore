@@ -70,3 +70,9 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+
+# Experimental/temporary files
+CURSOR_MULTI_AGENT_PLAN.md
+action-inputs.yml
+scripts/cursor_native_review.py
+deployment/
