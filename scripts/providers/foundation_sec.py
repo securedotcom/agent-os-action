@@ -34,7 +34,7 @@ class FoundationSecProvider:
 
     def __init__(
         self,
-        model_name: str = "cisco-ai/foundation-sec-8b-instruct",
+        model_name: str = "fdtn-ai/Foundation-Sec-8B",
         cache_dir: Optional[str] = None,
         device: Optional[str] = None,
         use_quantization: bool = True
@@ -43,7 +43,7 @@ class FoundationSecProvider:
         Initialize Foundation-Sec provider
 
         Args:
-            model_name: HuggingFace model identifier
+            model_name: HuggingFace model identifier (default: fdtn-ai/Foundation-Sec-8B)
             cache_dir: Directory to cache model weights (default: ~/.cache/huggingface)
             device: Force specific device ('cuda' or 'cpu'), auto-detect if None
             use_quantization: Use 4-bit quantization to reduce model size (16GB → 4GB)
@@ -281,7 +281,7 @@ def get_foundation_sec_client(config: dict) -> Tuple[FoundationSecProvider, str]
     """
     model_name = config.get(
         'foundation_sec_model',
-        'cisco-ai/foundation-sec-8b-instruct'
+        'fdtn-ai/Foundation-Sec-8B'
     )
     cache_dir = config.get('foundation_sec_cache_dir')
     device = config.get('foundation_sec_device')

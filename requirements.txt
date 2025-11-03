@@ -11,3 +11,4 @@ torch>=2.1.0
 accelerate>=0.24.0
 
 # Testing dependencies (in tests/requirements.txt)
+semgrep>=1.50.0  # SAST scanning with 2,000+ security rules

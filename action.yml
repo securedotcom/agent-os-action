@@ -49,13 +49,17 @@ inputs:
     required: false
     default: 'false'
   foundation-sec-model:
-    description: 'Foundation-Sec model to use (default: cisco-ai/foundation-sec-8b-instruct)'
+    description: 'Foundation-Sec model to use (default: fdtn-ai/Foundation-Sec-8B)'
     required: false
-    default: 'cisco-ai/foundation-sec-8b-instruct'
+    default: 'fdtn-ai/Foundation-Sec-8B'
   foundation-sec-device:
     description: 'Device for Foundation-Sec (cuda or cpu, auto-detect if not specified)'
     required: false
     default: ''
+  semgrep-enabled:
+    description: 'Enable Semgrep SAST scanning with 2,000+ security rules'
+    required: false
+    default: 'true'
   ollama-endpoint:
     description: 'Ollama endpoint URL for local LLM (e.g., http://localhost:11434)'
     required: false
@@ -327,6 +331,7 @@ runs:
         FOUNDATION_SEC_ENABLED: ${{ inputs.foundation-sec-enabled }}
         FOUNDATION_SEC_MODEL: ${{ inputs.foundation-sec-model }}
         FOUNDATION_SEC_DEVICE: ${{ inputs.foundation-sec-device }}
+        SEMGREP_ENABLED: ${{ inputs.semgrep-enabled }}
         OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
         INPUT_MODEL: ${{ inputs.model }}
         INPUT_MULTI_AGENT_MODE: ${{ inputs.multi-agent-mode }}
@@ -356,6 +361,12 @@ runs:
         echo "📦 Installing dependencies..."
         pip install -q anthropic openai tenacity
 
+        # Install Semgrep if enabled
+        if [ "${{ inputs.semgrep-enabled }}" = "true" ]; then
+          echo "📦 Installing Semgrep SAST scanner..."
+          pip install -q semgrep
+        fi
+
         # Install Foundation-Sec dependencies if enabled
         if [ "${{ inputs.foundation-sec-enabled }}" = "true" ]; then
           echo "📦 Installing Foundation-Sec dependencies (transformers, torch, accelerate, bitsandbytes)..."
@@ -367,10 +378,10 @@ runs:
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 print('Downloading tokenizer...')
-AutoTokenizer.from_pretrained('cisco-ai/foundation-sec-8b-instruct')
+AutoTokenizer.from_pretrained('fdtn-ai/Foundation-Sec-8B')
 print('Downloading model (4GB with quantization)...')
 quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
-AutoModelForCausalLM.from_pretrained('cisco-ai/foundation-sec-8b-instruct', quantization_config=quantization_config, device_map='auto')
+AutoModelForCausalLM.from_pretrained('fdtn-ai/Foundation-Sec-8B', quantization_config=quantization_config, device_map='auto')
 print('✅ Model cached successfully')
           " || echo "⚠️  Model pre-download failed, will download at runtime"
         fi

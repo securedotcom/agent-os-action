@@ -2113,12 +2113,12 @@ def run_audit(repo_path, config, review_type='audit'):
     # Scan files with lightweight pattern matching before expensive LLM calls
     enable_heuristics = config.get('enable_heuristics', 'true').lower() == 'true'
     heuristic_results = {}
-    
+
     if enable_heuristics:
         print("🔍 Running heuristic pre-scan...")
         scanner = HeuristicScanner()
         heuristic_results = scanner.scan_codebase(files)
-        
+
         if heuristic_results:
             flagged_count = len(heuristic_results)
             total_flags = sum(len(flags) for flags in heuristic_results.values())
@@ -2129,8 +2129,64 @@ def run_audit(repo_path, config, review_type='audit'):
                 print(f"      ... and {len(heuristic_results) - 3} more files")
         else:
             print("   ✅ No heuristic flags - codebase looks clean")
-    
-    
+
+    # Run Semgrep SAST scan (if enabled)
+    semgrep_results = {}
+    enable_semgrep = config.get('enable_semgrep', True)
+
+    if enable_semgrep:
+        try:
+            from scripts.semgrep_scanner import SemgrepScanner
+            print("🔍 Running Semgrep SAST scan...")
+
+            semgrep_scanner = SemgrepScanner({
+                'semgrep_rules': 'auto',  # Uses Semgrep Registry (2,000+ rules)
+                'exclude_patterns': [
+                    '*/test/*', '*/tests/*', '*/.git/*', '*/node_modules/*',
+                    '*/.venv/*', '*/venv/*', '*/build/*', '*/dist/*'
+                ]
+            })
+
+            semgrep_results = semgrep_scanner.scan(repo_path)
+
+            if semgrep_results.get('findings'):
+                semgrep_count = len(semgrep_results['findings'])
+                severity_counts = {}
+                for finding in semgrep_results['findings']:
+                    severity = finding.get('severity', 'unknown')
+                    severity_counts[severity] = severity_counts.get(severity, 0) + 1
+
+                print(f"   ⚠️  Semgrep found {semgrep_count} issues:")
+                for severity in ['high', 'medium', 'low']:
+                    if severity in severity_counts:
+                        print(f"      - {severity_counts[severity]} {severity} severity")
+
+                # Show top 3 findings
+                for finding in semgrep_results['findings'][:3]:
+                    file_path = finding['file_path']
+                    line = finding['start_line']
+                    rule_id = finding['rule_id'].split('.')[-1]  # Show short name
+                    print(f"      - {file_path}:{line} ({rule_id})")
+
+                if semgrep_count > 3:
+                    print(f"      ... and {semgrep_count - 3} more issues")
+
+                # Track in metrics
+                metrics.record('semgrep_findings', semgrep_count)
+                for severity, count in severity_counts.items():
+                    metrics.record(f'semgrep_{severity}_severity', count)
+            else:
+                print("   ✅ Semgrep: no issues found")
+                metrics.record('semgrep_findings', 0)
+
+        except ImportError:
+            logger.warning("⚠️  Semgrep not installed. Install with: pip install semgrep")
+            print("   ⚠️  Semgrep not available (install with: pip install semgrep)")
+        except Exception as e:
+            logger.warning(f"Semgrep scan failed: {e}")
+            print(f"   ⚠️  Semgrep scan failed: {e}")
+
+
     # Estimate cost
     estimated_cost, est_input, est_output = estimate_cost(files, max_tokens, provider)
     if provider == 'ollama':
@@ -2535,6 +2591,8 @@ if __name__ == '__main__':
         'enable_consensus': os.environ.get('ENABLE_CONSENSUS', 'true'),
         'consensus_threshold': float(os.environ.get('CONSENSUS_THRESHOLD', '0.5')),
         'category_passes': os.environ.get('CATEGORY_PASSES', 'true'),
+        # NEW: Semgrep SAST integration
+        'enable_semgrep': os.environ.get('SEMGREP_ENABLED', 'true').lower() == 'true',
     }
     
     run_audit(repo_path, config, review_type)
