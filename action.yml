@@ -105,6 +105,16 @@ inputs:
     required: false
     default: '1.0'
 
+  # Notification Configuration
+  slack-webhook-url:
+    description: 'Slack webhook URL for notifications'
+    required: false
+    default: ''
+  notify-on:
+    description: 'When to send notifications: always, on-failure, on-blockers, never'
+    required: false
+    default: 'on-blockers'
+
 outputs:
   review-completed:
     description: 'Whether the review completed successfully'
