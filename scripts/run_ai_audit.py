@@ -386,15 +386,16 @@ def get_working_model_with_fallback(client, provider, initial_model):
     if provider != 'anthropic':
         return initial_model
 
-    # Model fallback chain for Anthropic (most universally available first)
+    # Model fallback chain for Anthropic (prioritize quality models)
     MODEL_FALLBACK_CHAIN = [
         initial_model,  # Try user's requested model first
-        'claude-3-haiku-20240307',  # Most lightweight and universally available
-        'claude-3-sonnet-20240229',  # Balanced
-        'claude-sonnet-4-5-20250929',  # Latest Claude Sonnet 4.5
-        'claude-3-5-sonnet-20241022',  # Claude 3.5 Sonnet
-        'claude-3-5-sonnet-20240620',  # Stable
-        'claude-3-opus-20240229',  # Most powerful
+        'claude-sonnet-4-20250514',  # Claude Sonnet 4 (latest stable)
+        'claude-sonnet-4-5-20250929',  # Claude Sonnet 4.5 (newest)
+        'claude-3-5-sonnet-20241022',  # Claude 3.5 Sonnet (Oct 2024)
+        'claude-3-5-sonnet-20240620',  # Claude 3.5 Sonnet (stable)
+        'claude-3-sonnet-20240229',  # Claude 3 Sonnet (fallback)
+        'claude-3-opus-20240229',  # Claude 3 Opus (powerful but expensive)
+        'claude-3-haiku-20240307',  # Claude 3 Haiku (last resort - limited tokens)
     ]
 
     # Remove duplicates while preserving order
