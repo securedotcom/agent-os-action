@@ -867,6 +867,42 @@ def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str
     return input_cost + output_cost
 
 
+def get_model_max_tokens(model: str, requested_tokens: int) -> int:
+    """Get appropriate max_tokens for a given model
+    
+    Args:
+        model: Model identifier
+        requested_tokens: Requested max_tokens
+        
+    Returns:
+        Capped max_tokens appropriate for the model
+    """
+    # Model-specific limits
+    MODEL_LIMITS = {
+        'claude-3-haiku-20240307': 4096,
+        'claude-3-opus-20240229': 4096,
+        'claude-3-sonnet-20240229': 4096,
+        'claude-3-5-sonnet-20241022': 8192,
+        'claude-sonnet-4-20250514': 8192,
+        'claude-sonnet-4-5-20250929': 8192,
+        'gpt-3.5-turbo': 4096,
+        'gpt-4': 8192,
+        'gpt-4-turbo': 4096,
+        'gpt-4o': 16384,
+    }
+    
+    # Get limit for this model, default to 4096 (safe default)
+    limit = MODEL_LIMITS.get(model, 4096)
+    
+    # Return the minimum of requested and limit
+    capped = min(requested_tokens, limit)
+    
+    if capped < requested_tokens:
+        logger.info(f"⚠️  Capping max_tokens from {requested_tokens} to {capped} for model {model}")
+    
+    return capped
+
+
 def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=None, operation="LLM call"):
     """Call LLM API with retry logic and cost enforcement
 
@@ -885,6 +921,9 @@ def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=No
     Raises:
         CostLimitExceeded: If cost limit would be exceeded
     """
+    # Cap max_tokens based on model capabilities
+    max_tokens = get_model_max_tokens(model, max_tokens)
+    
     # Estimate cost and check circuit breaker before making call
     if circuit_breaker:
         estimated_cost = estimate_call_cost(len(prompt), max_tokens, provider)
@@ -1234,14 +1273,16 @@ Generate the complete audit report as specified in your instructions.
         print(f"   ✅ Synthesis complete")
         print(f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}")
 
-    except CostLimitExceeded as e:
+    except CostLimitExceeded as cost_error:
         # Cost limit reached during orchestration
-        print(f"   🚨 Cost limit exceeded during synthesis: {e}")
+        print(f"   🚨 Cost limit exceeded during synthesis: {cost_error}")
         print(f"   📊 Generating report from {len(agent_reports)} completed agents")
+        agent_metrics['orchestrator'] = {'error': f'Cost limit exceeded: {cost_error}'}
         # Fall through to generate partial report
 
-    except Exception as e:
-        print(f"   ❌ Error: {e}")
+    except Exception as general_error:
+        print(f"   ❌ Error: {general_error}")
+        agent_metrics['orchestrator'] = {'error': str(general_error)}
 
     # Fallback: concatenate all reports (used if orchestrator fails OR cost limit reached)
     if 'final_report' not in locals():
@@ -1252,7 +1293,7 @@ Orchestrator synthesis failed. Below are individual agent reports.
 
 {combined_reports}
 """
-        agent_metrics['orchestrator'] = {'error': str(e)}
+        # Error already recorded in exception handlers above
     
     # Add multi-agent metadata to final report
     total_cost = sum(m.get('cost_usd', 0) for m in agent_metrics.values())
