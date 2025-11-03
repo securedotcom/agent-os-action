@@ -43,13 +43,11 @@ htmlcov/
 *~
 .DS_Store
 
-# Agent OS generated files
-.agent-os/
+# Agent OS generated files (temporary/local only)
 *.agent-os-temp
-audit-reports/
-reviews/
-*.sarif
 *.agent-log
+
+# Note: .agent-os/reviews/ files should be committed to show audit results
 
 # Local development
 *.local
