@@ -1,0 +1,287 @@
+name: Hybrid Security Scan
+# Combines Semgrep (SAST) + Trivy (CVE) + Foundation-Sec-8B (AI Analysis)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  schedule:
+    # Weekly scan on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      enable_foundation_sec:
+        description: 'Enable Foundation-Sec-8B AI enrichment'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      severity_filter:
+        description: 'Severity levels to report (comma-separated)'
+        required: false
+        default: 'critical,high,medium'
+      target_path:
+        description: 'Path to scan (default: entire repo)'
+        required: false
+        default: '.'
+
+permissions:
+  contents: read
+  security-events: write  # Required for SARIF upload
+  pull-requests: write    # Required for PR comments
+  issues: write
+
+# Prevent concurrent runs on the same branch
+concurrency:
+  group: hybrid-security-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hybrid-security-scan:
+    name: Hybrid Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || pip install anthropic openai requests PyYAML
+      
+      - name: Install Security Tools
+        run: |
+          echo "📦 Installing Semgrep and Trivy..."
+          bash scripts/install_security_tools.sh
+      
+      - name: Setup Foundation-Sec-8B (Optional)
+        if: github.event.inputs.enable_foundation_sec == 'true' || github.event_name == 'schedule'
+        run: |
+          echo "🤖 Installing Foundation-Sec-8B..."
+          echo "⚠️  This requires ~16GB and may take 10-20 minutes"
+          
+          pip install transformers torch accelerate --quiet
+          
+          python3 << 'EOF'
+          from transformers import AutoModelForCausalLM, AutoTokenizer
+          print("📥 Downloading Foundation-Sec-8B model...")
+          tokenizer = AutoTokenizer.from_pretrained("fdtn-ai/Foundation-Sec-8B")
+          model = AutoModelForCausalLM.from_pretrained("fdtn-ai/Foundation-Sec-8B")
+          print("✅ Model ready!")
+          EOF
+        env:
+          HF_HOME: /tmp/huggingface  # Cache location
+      
+      - name: Run Hybrid Security Scan
+        id: hybrid_scan
+        run: |
+          echo "🔒 Starting Hybrid Security Analysis..."
+          
+          TARGET_PATH="${{ github.event.inputs.target_path || '.' }}"
+          SEVERITY_FILTER="${{ github.event.inputs.severity_filter || 'critical,high,medium' }}"
+          ENABLE_FOUNDATION_SEC="${{ github.event.inputs.enable_foundation_sec || 'false' }}"
+          
+          # Build command
+          CMD="python3 scripts/hybrid_analyzer.py $TARGET_PATH"
+          CMD="$CMD --output-dir .agent-os/hybrid-results"
+          CMD="$CMD --severity-filter $SEVERITY_FILTER"
+          CMD="$CMD --enable-semgrep"
+          CMD="$CMD --enable-trivy"
+          
+          if [[ "$ENABLE_FOUNDATION_SEC" == "true" ]]; then
+            CMD="$CMD --enable-foundation-sec"
+          fi
+          
+          # Run scan (allow non-zero exit for findings)
+          set +e
+          $CMD
+          EXIT_CODE=$?
+          set -e
+          
+          # Save exit code for later
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          # Always succeed workflow (findings reported via SARIF)
+          exit 0
+        continue-on-error: false
+      
+      - name: Upload SARIF to GitHub Security
+        if: always() && hashFiles('.agent-os/hybrid-results/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .agent-os/hybrid-results/
+          category: hybrid-security-scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload Results as Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hybrid-security-results-${{ github.run_id }}
+          path: .agent-os/hybrid-results/
+          retention-days: 90
+      
+      - name: Parse Results for PR Comment
+        if: always() && github.event_name == 'pull_request'
+        id: parse_results
+        run: |
+          if [ -f .agent-os/hybrid-results/*.json ]; then
+            JSON_FILE=$(ls -t .agent-os/hybrid-results/*.json | head -1)
+            
+            # Extract summary
+            CRITICAL=$(jq -r '.findings_by_severity.critical // 0' "$JSON_FILE")
+            HIGH=$(jq -r '.findings_by_severity.high // 0' "$JSON_FILE")
+            MEDIUM=$(jq -r '.findings_by_severity.medium // 0' "$JSON_FILE")
+            LOW=$(jq -r '.findings_by_severity.low // 0' "$JSON_FILE")
+            TOTAL=$(jq -r '.total_findings // 0' "$JSON_FILE")
+            DURATION=$(jq -r '.scan_duration_seconds // 0' "$JSON_FILE")
+            COST=$(jq -r '.cost_usd // 0' "$JSON_FILE")
+            
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "duration=$DURATION" >> $GITHUB_OUTPUT
+            echo "cost=$COST" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const critical = '${{ steps.parse_results.outputs.critical }}';
+            const high = '${{ steps.parse_results.outputs.high }}';
+            const medium = '${{ steps.parse_results.outputs.medium }}';
+            const low = '${{ steps.parse_results.outputs.low }}';
+            const total = '${{ steps.parse_results.outputs.total }}';
+            const duration = '${{ steps.parse_results.outputs.duration }}';
+            const cost = '${{ steps.parse_results.outputs.cost }}';
+            
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            // Determine status emoji
+            let statusEmoji = '✅';
+            let statusText = 'No critical or high severity issues';
+            
+            if (parseInt(critical) > 0) {
+              statusEmoji = '🔴';
+              statusText = 'Critical issues found!';
+            } else if (parseInt(high) > 0) {
+              statusEmoji = '🟠';
+              statusText = 'High severity issues found';
+            }
+            
+            const comment = `## ${statusEmoji} Hybrid Security Scan Results
+            
+            **Status**: ${statusText}
+            
+            ### 📊 Findings Summary
+            
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${critical} |
+            | 🟠 High | ${high} |
+            | 🟡 Medium | ${medium} |
+            | 🟢 Low | ${low} |
+            | **📈 Total** | **${total}** |
+            
+            ### 🛠️ Tools Used
+            - ✅ Semgrep (SAST)
+            - ✅ Trivy (CVE Scanning)
+            ${cost > 0 ? '- ✅ Foundation-Sec-8B (AI Enrichment)' : ''}
+            
+            ### 📈 Metrics
+            - ⏱️ Scan Duration: ${duration}s
+            - 💰 Cost: $${cost}
+            
+            ### 🔗 Links
+            - [View Full Results](${runUrl})
+            - [Download SARIF](${ runUrl}#artifacts)
+            - [Security Tab](https://github.com/${context.repo.owner}/${context.repo.repo}/security/code-scanning)
+            
+            ---
+            *Powered by [Agent-OS Hybrid Analyzer](https://github.com/securedotcom/agent-os)*
+            `;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Hybrid Security Scan Results')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+      
+      - name: Check Fail Conditions
+        if: always()
+        run: |
+          CRITICAL=${{ steps.parse_results.outputs.critical || '0' }}
+          HIGH=${{ steps.parse_results.outputs.high || '0' }}
+          
+          echo "📊 Final Check:"
+          echo "   Critical: $CRITICAL"
+          echo "   High: $HIGH"
+          
+          if [[ $CRITICAL -gt 0 ]] || [[ $HIGH -gt 0 ]]; then
+            echo "❌ FAIL: Found critical or high severity issues"
+            echo "   Review the Security tab: https://github.com/${{ github.repository }}/security/code-scanning"
+            exit 1
+          fi
+          
+          echo "✅ PASS: No critical or high severity issues found"
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🔒 Hybrid Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Results**:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 Critical: ${{ steps.parse_results.outputs.critical || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟠 High: ${{ steps.parse_results.outputs.high || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟡 Medium: ${{ steps.parse_results.outputs.medium || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟢 Low: ${{ steps.parse_results.outputs.low || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tools**: Semgrep + Trivy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Duration**: ${{ steps.parse_results.outputs.duration || '0' }}s" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Security Tab](https://github.com/${{ github.repository }}/security/code-scanning)" >> $GITHUB_STEP_SUMMARY
+
