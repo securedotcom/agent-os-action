@@ -33,7 +33,7 @@ inputs:
     default: 'true'
   # AI Provider Configuration
   ai-provider:
-    description: 'AI provider to use: anthropic, openai, ollama, or auto'
+    description: 'AI provider to use: anthropic, openai, foundation-sec, ollama, or auto'
     required: false
     default: 'auto'
   anthropic-api-key:
@@ -44,12 +44,24 @@ inputs:
     description: 'OpenAI API key for GPT-4 analysis'
     required: false
     default: ''
+  foundation-sec-enabled:
+    description: '🚧 BETA: Enable Foundation-Sec-8B (Cisco security-optimized LLM, local inference, zero cost) - Provider exists, detection chain integration in progress'
+    required: false
+    default: 'false'
+  foundation-sec-model:
+    description: 'Foundation-Sec model to use (default: cisco-ai/foundation-sec-8b-instruct)'
+    required: false
+    default: 'cisco-ai/foundation-sec-8b-instruct'
+  foundation-sec-device:
+    description: 'Device for Foundation-Sec (cuda or cpu, auto-detect if not specified)'
+    required: false
+    default: ''
   ollama-endpoint:
     description: 'Ollama endpoint URL for local LLM (e.g., http://localhost:11434)'
     required: false
     default: ''
   model:
-    description: 'AI model to use (e.g., claude-sonnet-4, gpt-4, llama3)'
+    description: 'AI model to use (e.g., claude-sonnet-4, gpt-4, cisco-ai/foundation-sec-8b-instruct, llama3)'
     required: false
     default: 'auto'
   
@@ -61,12 +73,12 @@ inputs:
 
   # Exploit Analysis Configuration (Aardvark Mode)
   enable-exploit-analysis:
-    description: 'Enable exploit chain analysis and exploitability assessment (Aardvark mode)'
+    description: '✅ PRODUCTION: Enable exploit chain analysis and exploitability assessment (Aardvark mode) - Working in sequential mode'
     required: false
     default: 'true'
 
   generate-security-tests:
-    description: 'Auto-generate security tests for discovered vulnerabilities'
+    description: '✅ PRODUCTION: Auto-generate security tests for discovered vulnerabilities - Working in sequential mode'
     required: false
     default: 'true'
 
@@ -296,6 +308,15 @@ runs:
         echo "project-type=$PROJECT_TYPE" >> $GITHUB_OUTPUT
         echo "Detected project type: $PROJECT_TYPE"
 
+    - name: Cache Foundation-Sec Model
+      if: inputs.foundation-sec-enabled == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/huggingface
+        key: foundation-sec-8b-4bit-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          foundation-sec-8b-4bit-${{ runner.os }}-
+
     - name: Run Code Review
       id: code-review
       shell: bash
@@ -303,6 +324,9 @@ runs:
         INPUT_AI_PROVIDER: ${{ inputs.ai-provider }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        FOUNDATION_SEC_ENABLED: ${{ inputs.foundation-sec-enabled }}
+        FOUNDATION_SEC_MODEL: ${{ inputs.foundation-sec-model }}
+        FOUNDATION_SEC_DEVICE: ${{ inputs.foundation-sec-device }}
         OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
         INPUT_MODEL: ${{ inputs.model }}
         INPUT_MULTI_AGENT_MODE: ${{ inputs.multi-agent-mode }}
@@ -318,6 +342,9 @@ runs:
         ENABLE_EXPLOIT_ANALYSIS: ${{ inputs.enable-exploit-analysis }}
         GENERATE_SECURITY_TESTS: ${{ inputs.generate-security-tests }}
         EXPLOITABILITY_THRESHOLD: ${{ inputs.exploitability-threshold }}
+        # NEW: Phase 1 feature flags
+        ENABLE_THREAT_MODELING: 'true'
+        ENABLE_SANDBOX_VALIDATION: 'true'
       run: |
         echo "🤖 Running AI-Powered Code Review..."
         cd "${{ inputs.project-path }}"
@@ -328,6 +355,25 @@ runs:
         # Install Python dependencies
         echo "📦 Installing dependencies..."
         pip install -q anthropic openai tenacity
+
+        # Install Foundation-Sec dependencies if enabled
+        if [ "${{ inputs.foundation-sec-enabled }}" = "true" ]; then
+          echo "📦 Installing Foundation-Sec dependencies (transformers, torch, accelerate, bitsandbytes)..."
+          pip install -q transformers torch accelerate bitsandbytes
+
+          # Pre-download and cache model (first time: ~5min for 4GB, subsequent: instant)
+          echo "📥 Pre-downloading Foundation-Sec model (4GB with quantization)..."
+          python3 -c "
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import torch
+print('Downloading tokenizer...')
+AutoTokenizer.from_pretrained('cisco-ai/foundation-sec-8b-instruct')
+print('Downloading model (4GB with quantization)...')
+quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
+AutoModelForCausalLM.from_pretrained('cisco-ai/foundation-sec-8b-instruct', quantization_config=quantization_config, device_map='auto')
+print('✅ Model cached successfully')
+          " || echo "⚠️  Model pre-download failed, will download at runtime"
+        fi
         
         # Run AI-powered audit with guardrails
         echo "🧠 Analyzing codebase with AI..."

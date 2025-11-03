@@ -98,12 +98,12 @@ curl -o .github/workflows/semgrep.yml https://raw.githubusercontent.com/securedo
 
 ## Aardvark Mode: Advanced Exploit Analysis
 
-Agent OS now includes **Aardvark mode**, inspired by OpenAI's Aardvark, providing:
+Agent OS includes **Aardvark mode** (✅ Production Ready), inspired by OpenAI's Aardvark, providing:
 
-- **Exploitability Classification**: Prioritize vulnerabilities by how easily they can be exploited
-- **Exploit Chain Analysis**: Identify how multiple vulnerabilities combine for greater impact
-- **Automatic Security Test Generation**: Generate comprehensive test suites for discovered vulnerabilities
-- **Strategic Remediation**: Fix chain-blocking vulnerabilities for maximum security ROI
+- **Exploitability Classification**: ✅ Working - Prioritize vulnerabilities by how easily they can be exploited
+- **Exploit Chain Analysis**: ✅ Working - Identify how multiple vulnerabilities combine for greater impact
+- **Automatic Security Test Generation**: ✅ Working - Generate comprehensive test suites for discovered vulnerabilities
+- **Strategic Remediation**: ✅ Working - Fix chain-blocking vulnerabilities for maximum security ROI
 
 ```
 [CHAIN-001] Auth Bypass → Full System Compromise
@@ -117,6 +117,81 @@ Strategic Fix: Fixing Step 1 blocks entire chain
 **Learn more**: [Aardvark Mode Documentation](docs/aardvark-mode.md)
 
 **Example workflows**: [.github/workflows/examples/](.github/workflows/examples/)
+
+---
+
+## 🛡️ Automated Threat Modeling
+
+Agent OS includes **automated threat modeling** (🚧 Beta - CLI works, agent integration in progress):
+
+- **Attack Surface Analysis**: ✅ Working - Automatically map entry points, dependencies, and data flows
+- **Trust Boundary Mapping**: ✅ Working - Identify boundaries between trusted and untrusted components
+- **Asset Cataloging**: ✅ Working - Classify sensitive data and critical system components
+- **Threat Identification**: ✅ Working - Enumerate threats using STRIDE methodology
+- **Security Objectives**: ✅ Working - Define measurable security goals
+
+### How It Works
+
+The threat model generator (`threat_model_generator.py`):
+1. ✅ Analyzes repository structure (languages, frameworks, dependencies)
+2. ✅ Identifies key files (README, package.json, Dockerfile, etc.)
+3. ✅ Uses Claude AI to generate comprehensive threat model
+4. ✅ Outputs structured JSON with threats, assets, and attack surface
+5. 🚧 Integration with agent prompts - In progress (threat model generated but not yet passed to all agents)
+
+### Usage
+
+#### Standalone CLI
+```bash
+# Generate threat model
+python scripts/threat_model_generator.py . --output .agent-os/threat-model.json
+
+# View summary
+cat .agent-os/threat-model.json | jq '{threats: .threats | length, attack_surface: .attack_surface.entry_points | length}'
+```
+
+#### Integrated with Code Review (🚧 Beta)
+```yaml
+# Enable in GitHub Actions workflow
+# Note: Threat model is generated but agent integration is in progress
+- name: Run Code Review with Threat Modeling
+  uses: securedotcom/agent-os-action@v2.1.0
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    enable-threat-modeling: 'true'  # Generates threat model (agent integration in progress)
+    multi-agent-mode: 'sequential'
+```
+
+#### Output Structure
+```json
+{
+  "attack_surface": {
+    "entry_points": ["API endpoints", "User inputs"],
+    "external_dependencies": ["npm packages"],
+    "authentication_methods": ["JWT", "OAuth"],
+    "data_stores": ["PostgreSQL", "Redis"]
+  },
+  "trust_boundaries": [
+    {"name": "Public API", "trust_level": "untrusted"}
+  ],
+  "assets": [
+    {"name": "User PII", "sensitivity": "critical"}
+  ],
+  "threats": [
+    {
+      "id": "THREAT-001",
+      "name": "SQL Injection",
+      "category": "injection",
+      "likelihood": "high",
+      "impact": "critical",
+      "mitigation": "Use parameterized queries"
+    }
+  ],
+  "security_objectives": ["Protect user data", "Prevent injection attacks"]
+}
+```
+
+**Example**: See [.agent-os/threat-model.json](.agent-os/threat-model.json) for Agent OS's own threat model.
 
 ---
 
@@ -1028,15 +1103,29 @@ Contact: [enterprise@agent-os.dev](mailto:enterprise@agent-os.dev)
 
 ## 🎯 Current Status
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| GitHub Action | ✅ Working | v1.0.16 deployed |
-| PR Automation | ✅ Working | Creates/updates PRs |
-| Slack Integration | ✅ Working | Via GitHub App |
-| Scheduling | ✅ Working | Weekly/on-demand |
-| **AI Analysis** | ✅ **Working** | Anthropic, OpenAI, Ollama supported |
-| Aardvark Mode | ✅ Working | Exploit analysis + test generation |
-| Documentation | ✅ Complete | Consolidated guides |
+### ✅ Production Ready (Working Now)
+- **Multi-agent code review** - 7 specialized agents (security, exploit-analyst, test-generator, performance, testing, quality, orchestrator)
+- **Multiple AI providers** - Anthropic Claude, OpenAI GPT-4, Ollama (local)
+- **Cost management** - Circuit breakers with safety buffers, cost tracking
+- **SARIF output** - GitHub Code Scanning integration
+- **GitHub Actions** - PR comments, workflow automation, artifact uploads
+- **Aardvark Mode** - Exploit chain analysis and exploitability classification
+- **Security test generation** - Automated test case generation for vulnerabilities
+
+### 🚧 Beta (Available, Integration in Progress)
+- **Threat modeling** - CLI tool works (`threat_model_generator.py`), integration with agents pending
+- **Sandbox validation** - Standalone validator works (`sandbox_validator.py`), workflow integration pending
+- **Foundation-Sec-8B** - Provider implementation exists (`foundation_sec.py`), detection chain integration pending
+
+### ⏳ Planned (Phase 2-3)
+- Automated patch generation
+- Git integration with PR creation for fixes
+- CVE discovery workflow
+- Continuous commit monitoring
+- Heuristic pre-filtering (from `real_multi_agent_review.py`)
+- Consensus building across agents (from `real_multi_agent_review.py`)
+
+**Current Integration Status**: Core review system is production-ready. Phase 1 features (threat modeling, sandbox, Foundation-Sec) are built but being integrated. See [INTEGRATION_STATUS.md](INTEGRATION_STATUS.md) for detailed progress.
 
 ---
 

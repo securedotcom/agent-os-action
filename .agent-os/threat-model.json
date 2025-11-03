@@ -1,0 +1,324 @@
+{
+  "attack_surface": {
+    "entry_points": [
+      "GitHub Actions workflow inputs (repository_url, base_branch, review_type)",
+      "AI provider API endpoints (Anthropic Claude, OpenAI)",
+      "Code repository access via Git clone operations",
+      "Environment variable inputs (.env file, GitHub secrets)",
+      "File system operations (reading source code, writing review results)",
+      "GitHub API for PR creation and comments",
+      "Command-line interface for local execution",
+      "Python package installation via pip"
+    ],
+    "external_dependencies": [
+      "anthropic>=0.25.0 (Anthropic Claude API client)",
+      "openai>=1.0.0 (OpenAI API client)",
+      "tenacity>=8.2.0 (Retry logic library)",
+      "transformers>=4.35.0 (HuggingFace transformers for local models)",
+      "torch>=2.1.0 (PyTorch for ML models)",
+      "accelerate>=0.24.0 (Model acceleration)",
+      "pytest and related testing dependencies",
+      "GitHub Actions runtime environment",
+      "Git version control system"
+    ],
+    "authentication_methods": [
+      "API keys for Anthropic (ANTHROPIC_API_KEY)",
+      "API keys for OpenAI (OPENAI_API_KEY)",
+      "GitHub tokens (GITHUB_TOKEN)",
+      "Environment variable-based authentication",
+      "No user authentication system (automated tool)"
+    ],
+    "data_stores": [
+      "Local file system (cloned repositories)",
+      "GitHub repository storage",
+      "Environment variables (.env file)",
+      "pytest cache directory (.pytest_cache)",
+      "Coverage report files (coverage.xml, .coverage)",
+      "Test artifacts and logs",
+      "In-memory code analysis results"
+    ]
+  },
+  "trust_boundaries": [
+    {
+      "name": "External AI Provider APIs",
+      "trust_level": "semi-trusted",
+      "description": "Third-party AI services (Anthropic, OpenAI) that process source code and return analysis results"
+    },
+    {
+      "name": "User-Provided Code Repositories",
+      "trust_level": "untrusted",
+      "description": "Source code repositories submitted for review may contain malicious code, secrets, or exploits"
+    },
+    {
+      "name": "GitHub Actions Runtime",
+      "trust_level": "semi-trusted",
+      "description": "CI/CD environment where code review executes with access to secrets and repository write permissions"
+    },
+    {
+      "name": "Local Development Environment",
+      "trust_level": "authenticated",
+      "description": "Developer machines running code review locally with direct file system access"
+    },
+    {
+      "name": "Python Package Ecosystem",
+      "trust_level": "semi-trusted",
+      "description": "External Python dependencies from PyPI that could be compromised"
+    }
+  ],
+  "assets": [
+    {
+      "name": "API Keys and Secrets",
+      "sensitivity": "critical",
+      "description": "ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN stored in environment variables"
+    },
+    {
+      "name": "Source Code Under Review",
+      "sensitivity": "high",
+      "description": "Proprietary source code sent to external AI providers for analysis"
+    },
+    {
+      "name": "Code Review Results",
+      "sensitivity": "high",
+      "description": "Security vulnerability findings, performance issues, and architectural weaknesses"
+    },
+    {
+      "name": "GitHub Repository Write Access",
+      "sensitivity": "critical",
+      "description": "GITHUB_TOKEN with permissions to create PRs and post comments"
+    },
+    {
+      "name": "Local File System",
+      "sensitivity": "medium",
+      "description": "Access to clone repositories and write temporary files"
+    },
+    {
+      "name": "AI Provider Account Credits",
+      "sensitivity": "medium",
+      "description": "API usage costs billed to authenticated accounts (MAX_COST_PER_REVIEW setting)"
+    }
+  ],
+  "threats": [
+    {
+      "id": "THREAT-001",
+      "name": "API Key Exposure in Logs or Error Messages",
+      "category": "information_disclosure",
+      "likelihood": "high",
+      "impact": "critical",
+      "affected_components": [
+        "Environment variable handling",
+        "Error logging",
+        "GitHub Actions logs"
+      ],
+      "description": "API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN) could be logged in plain text through error messages, debug output, or exception traces, exposing credentials to unauthorized parties",
+      "mitigation": "Implement secret scrubbing in all logging, use GitHub Actions secret masking, validate that API keys are never echoed or printed"
+    },
+    {
+      "id": "THREAT-002",
+      "name": "Malicious Code Injection via Repository Content",
+      "category": "code_injection",
+      "likelihood": "high",
+      "impact": "critical",
+      "affected_components": [
+        "Git clone operations",
+        "Code parsing",
+        "File system operations"
+      ],
+      "description": "Malicious repositories could contain crafted files (e.g., symbolic links, path traversal filenames, hooks) that execute arbitrary code during clone or analysis, compromising the review environment",
+      "mitigation": "Sanitize repository URLs, disable Git hooks during clone, use sandboxed execution environment, validate file paths before processing"
+    },
+    {
+      "id": "THREAT-003",
+      "name": "Prompt Injection Attacks on AI Providers",
+      "category": "injection",
+      "likelihood": "high",
+      "impact": "high",
+      "affected_components": [
+        "AI provider integrations",
+        "Code submission to Claude/OpenAI"
+      ],
+      "description": "Malicious code comments or file content could contain prompt injection attacks to manipulate AI analysis results, hide vulnerabilities, or extract information from the AI system prompt",
+      "mitigation": "Implement prompt sanitization, use structured data formats, validate AI responses, clearly separate code content from instructions"
+    },
+    {
+      "id": "THREAT-004",
+      "name": "Data Exfiltration to AI Providers",
+      "category": "information_disclosure",
+      "likelihood": "medium",
+      "impact": "critical",
+      "affected_components": [
+        "Anthropic API client",
+        "OpenAI API client",
+        "Code transmission"
+      ],
+      "description": "Proprietary source code is transmitted to third-party AI providers, creating risk of intellectual property exposure, data retention violations, or compliance issues (GDPR, SOC2)",
+      "mitigation": "Implement data classification checks, allow local model execution option, provide data residency options, document data handling in privacy policy"
+    },
+    {
+      "id": "THREAT-005",
+      "name": "Supply Chain Attack via Compromised Dependencies",
+      "category": "supply_chain",
+      "likelihood": "medium",
+      "impact": "critical",
+      "affected_components": [
+        "requirements.txt",
+        "pyproject.toml",
+        "pip installation"
+      ],
+      "description": "Malicious versions of dependencies (anthropic, openai, transformers, torch) could be installed, stealing API keys, exfiltrating code, or backdooring the analysis pipeline",
+      "mitigation": "Pin exact dependency versions with hashes, use dependency scanning tools, implement SCA in CI/CD, verify package signatures"
+    },
+    {
+      "id": "THREAT-006",
+      "name": "Unauthorized GitHub Repository Modifications",
+      "category": "privilege_escalation",
+      "likelihood": "medium",
+      "impact": "critical",
+      "affected_components": [
+        "GitHub API integration",
+        "PR creation",
+        "Comment posting"
+      ],
+      "description": "Compromised GITHUB_TOKEN or excessive permissions could allow unauthorized code changes, malicious PR creation, or repository takeover",
+      "mitigation": "Use minimal required GitHub token permissions (read contents, write PRs), implement PR approval requirements, audit token scope"
+    },
+    {
+      "id": "THREAT-007",
+      "name": "Cost Exhaustion Attack via API Abuse",
+      "category": "denial_of_service",
+      "likelihood": "high",
+      "impact": "medium",
+      "affected_components": [
+        "AI provider API calls",
+        "MAX_COST_PER_REVIEW setting"
+      ],
+      "description": "Malicious actors could trigger expensive AI analysis on large codebases or in loops, exhausting API credits and causing financial damage. MAX_COST_PER_REVIEW may not be enforced or could be bypassed",
+      "mitigation": "Implement strict cost controls, rate limiting, validate cost enforcement logic, monitor API usage, set hard billing limits at provider level"
+    },
+    {
+      "id": "THREAT-008",
+      "name": "Insecure Temporary File Handling",
+      "category": "information_disclosure",
+      "likelihood": "medium",
+      "impact": "high",
+      "affected_components": [
+        "File system operations",
+        "Repository cloning",
+        "Test artifacts"
+      ],
+      "description": "Cloned repositories, analysis results, or temporary files may be written to predictable locations with weak permissions, allowing unauthorized access or persistence of sensitive data",
+      "mitigation": "Use secure temporary directories with restrictive permissions, implement cleanup on exit, avoid predictable file paths"
+    },
+    {
+      "id": "THREAT-009",
+      "name": "Secrets Detection Bypass",
+      "category": "information_disclosure",
+      "likelihood": "medium",
+      "impact": "high",
+      "affected_components": [
+        "Code analysis logic",
+        "Security review agents"
+      ],
+      "description": "The tool claims to detect hardcoded secrets but may have false negatives, failing to identify obfuscated secrets, encoded credentials, or secrets in non-standard formats",
+      "mitigation": "Integrate dedicated secret scanning tools (Gitleaks, TruffleHog), validate detection accuracy, use multiple detection methods"
+    },
+    {
+      "id": "THREAT-010",
+      "name": "Inadequate Error Handling Leading to Information Disclosure",
+      "category": "information_disclosure",
+      "likelihood": "high",
+      "impact": "medium",
+      "affected_components": [
+        "Exception handling",
+        "Error responses",
+        "GitHub PR comments"
+      ],
+      "description": "Verbose error messages in PR comments or logs could expose system paths, internal architecture, API response details, or configuration information",
+      "mitigation": "Implement sanitized error messages for external output, log detailed errors only internally, avoid stack traces in PR comments"
+    },
+    {
+      "id": "THREAT-011",
+      "name": "Race Conditions in PR Management",
+      "category": "integrity",
+      "likelihood": "low",
+      "impact": "medium",
+      "affected_components": [
+        "PR creation logic",
+        "Duplicate detection"
+      ],
+      "description": "Concurrent executions could create duplicate PRs or conflicting updates if race conditions exist in PR detection/creation logic",
+      "mitigation": "Implement atomic PR checks with locking, use GitHub API transaction features, add conflict resolution logic"
+    },
+    {
+      "id": "THREAT-012",
+      "name": "Missing Input Validation on Repository URLs",
+      "category": "injection",
+      "likelihood": "medium",
+      "impact": "high",
+      "affected_components": [
+        "Repository URL input",
+        "Git clone command"
+      ],
+      "description": "Malicious repository URLs could exploit command injection vulnerabilities in Git operations or redirect to attacker-controlled repositories",
+      "mitigation": "Validate repository URL format, use allowlists for trusted domains, sanitize URL before passing to Git commands, use Git libraries instead of shell commands"
+    },
+    {
+      "id": "THREAT-013",
+      "name": "AI Model Poisoning via Foundation-Sec-8B",
+      "category": "integrity",
+      "likelihood": "low",
+      "impact": "high",
+      "affected_components": [
+        "Local model inference",
+        "transformers library",
+        "Model loading"
+      ],
+      "description": "If using the optional Foundation-Sec-8B local model, malicious or poisoned model weights could be loaded, producing false analysis results or executing malicious code",
+      "mitigation": "Verify model checksums, use trusted model sources only, implement model signature verification, isolate model execution"
+    },
+    {
+      "id": "THREAT-014",
+      "name": "Insufficient Logging and Monitoring",
+      "category": "security_misconfiguration",
+      "likelihood": "high",
+      "impact": "medium",
+      "affected_components": [
+        "Logging infrastructure",
+        "Audit trails"
+      ],
+      "description": "Lack of comprehensive logging makes it difficult to detect abuse, unauthorized access, or compromise of the code review system",
+      "mitigation": "Implement structured logging, audit all API calls and repository access, monitor for anomalous patterns, retain logs securely"
+    },
+    {
+      "id": "THREAT-015",
+      "name": "Dependency Confusion Attack",
+      "category": "supply_chain",
+      "likelihood": "low",
+      "impact": "critical",
+      "affected_components": [
+        "pip package installation",
+        "Internal package names"
+      ],
+      "description": "If the tool uses internal packages, attackers could upload malicious packages with same name to PyPI, causing pip to install compromised versions",
+      "mitigation": "Use private package repositories, configure pip index priority, namespace internal packages, verify package sources"
+    }
+  ],
+  "security_objectives": [
+    "Protect API keys and authentication credentials from exposure",
+    "Prevent unauthorized access to GitHub repositories and modifications",
+    "Ensure confidentiality of proprietary source code during analysis",
+    "Maintain integrity of code review results and findings",
+    "Prevent financial damage from API cost exhaustion attacks",
+    "Protect against supply chain compromise of dependencies",
+    "Prevent code execution from malicious repository content",
+    "Ensure secure handling of temporary files and cloned repositories",
+    "Maintain audit trail of all code review operations",
+    "Prevent manipulation of AI analysis through prompt injection",
+    "Implement defense in depth for secret detection capabilities",
+    "Ensure compliance with data protection regulations (GDPR, SOC2)",
+    "Provide secure sandbox execution for untrusted code analysis",
+    "Maintain availability and prevent denial of service"
+  ],
+  "version": "1.0",
+  "generated_at": "2025-11-03T10:47:23.667116Z",
+  "repository": "agent-os"
+}

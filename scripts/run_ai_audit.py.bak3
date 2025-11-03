@@ -1799,44 +1799,6 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             logger.warning(f"Sandbox validation failed: {e}")
             print(f"   ⚠️  Sandbox validation unavailable, continuing without validation")
 
-    # NEW: Consensus Building (from real_multi_agent_review.py)
-    # Build consensus across agent findings to reduce false positives
-    enable_consensus = config.get('enable_consensus', 'true').lower() == 'true'
-    consensus_results = {}
-
-    if enable_consensus and len(agent_reports) >= 2:
-        print(f"\n{'─'*80}")
-        print(f"🤝 CONSENSUS BUILDING")
-        print(f"{'─'*80}")
-        print("   Aggregating findings across agents to reduce false positives...")
-
-        # Parse findings from all agents
-        all_findings = []
-        for agent_name, report in agent_reports.items():
-            findings = parse_findings_from_report(report)
-            for finding in findings:
-                finding['source_agent'] = agent_name
-                all_findings.append(finding)
-
-        print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
-
-        # Build consensus
-        consensus_builder = ConsensusBuilder()
-        consensus_results = consensus_builder.build_consensus(all_findings)
-
-        if consensus_results:
-            confirmed = len([f for f in consensus_results.values() if f['confidence'] == 'high'])
-            likely = len([f for f in consensus_results.values() if f['confidence'] == 'medium'])
-            uncertain = len([f for f in consensus_results.values() if f['confidence'] == 'low'])
-
-            print(f"   ✅ Consensus analysis complete:")
-            print(f"      - {confirmed} high-confidence findings (multiple agents agree)")
-            print(f"      - {likely} medium-confidence findings")
-            print(f"      - {uncertain} low-confidence findings (single agent only)")
-            print(f"   🎯 False positive reduction: {len(all_findings) - len(consensus_results)} findings eliminated")
-        else:
-            print(f"   ℹ️  Insufficient overlap for consensus building")
-
     # Run orchestrator agent
     print(f"\n{'─'*80}")
     print(f"🎯 Agent 7/7: ORCHESTRATOR")
@@ -2528,13 +2490,8 @@ if __name__ == '__main__':
         'cost_limit': os.environ.get('INPUT_COST_LIMIT', '1.0'),
         'fail_on': os.environ.get('INPUT_FAIL_ON', ''),
         # NEW: Phase 1 feature flags
-        'enable_threat_modeling': os.environ.get('ENABLE_THREAT_MODELING', 'true'),
-        'enable_sandbox_validation': os.environ.get('ENABLE_SANDBOX_VALIDATION', 'true'),
-        # NEW: Phase 2 multi-agent enhancements (from real_multi_agent_review.py)
-        'enable_heuristics': os.environ.get('ENABLE_HEURISTICS', 'true'),
-        'enable_consensus': os.environ.get('ENABLE_CONSENSUS', 'true'),
-        'consensus_threshold': float(os.environ.get('CONSENSUS_THRESHOLD', '0.5')),
-        'category_passes': os.environ.get('CATEGORY_PASSES', 'true'),
+        'enable_threat_modeling': os.environ.get('ENABLE_THREAT_MODELING', 'true').lower() == 'true',
+        'enable_sandbox_validation': os.environ.get('ENABLE_SANDBOX_VALIDATION', 'true').lower() == 'true',
     }
     
     run_audit(repo_path, config, review_type)

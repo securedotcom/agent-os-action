@@ -6,6 +6,25 @@ Uses actual API calls to multiple AI models available in Cursor
 Models:
 1. Claude Sonnet 4 (Anthropic API)
 2. GPT-4 or another model (configurable)
+
+DEPRECATION NOTICE:
+====================
+This file is now DEPRECATED. All advanced features have been merged into run_ai_audit.py:
+
+Features Merged:
+- HeuristicScanner: Pre-scan code with pattern matching before LLM analysis
+- ConsensusBuilder: Build consensus across multiple agent opinions
+- Enhanced Prompts: Severity rubrics, self-verification checklists, category focus
+- Category-specific passes: Security, performance, quality focused analysis
+
+To use these features, run run_ai_audit.py with:
+  ENABLE_HEURISTICS=true
+  ENABLE_CONSENSUS=true
+  CATEGORY_PASSES=true
+
+This file is kept for reference only.
+Date Deprecated: 2025-11-03
+Merged into: run_ai_audit.py (commit: multi-agent consolidation)
 """
 
 import os

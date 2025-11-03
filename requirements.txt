@@ -1,0 +1,13 @@
+# Core AI providers
+anthropic>=0.25.0
+openai>=1.0.0
+tenacity>=8.2.0
+
+# Foundation-Sec-8B provider (optional, for local inference)
+# Install only if using Foundation-Sec provider:
+# pip install transformers torch accelerate
+transformers>=4.35.0
+torch>=2.1.0
+accelerate>=0.24.0
+
+# Testing dependencies (in tests/requirements.txt)
