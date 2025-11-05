@@ -103,7 +103,7 @@ class SemgrepScanner:
         # Build semgrep command
         cmd = [
             'semgrep',
-            '--config', self.semgrep_rules,
+            '--config', self.semgrep_rules if self.semgrep_rules != 'auto' else 'p/security-audit',
             '--json',
             '--quiet',
             '--metrics=off',
@@ -164,10 +164,13 @@ class SemgrepScanner:
             check_id = result.get('check_id', 'unknown')
             
             # Map Semgrep severity to standard levels
+            # ERROR = critical (most severe)
+            # WARNING = high (important security issues)
+            # INFO = medium (informational but worth reviewing)
             severity_map = {
-                'ERROR': 'high',
-                'WARNING': 'medium',
-                'INFO': 'low'
+                'ERROR': 'critical',
+                'WARNING': 'high',
+                'INFO': 'medium'
             }
             raw_severity = result.get('extra', {}).get('severity', 'WARNING')
             severity = severity_map.get(raw_severity, 'medium')
