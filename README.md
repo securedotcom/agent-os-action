@@ -4,7 +4,7 @@
 Combines deterministic scanning + AI analysis + supply chain security
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
 ---
 
@@ -184,28 +184,7 @@ release_requires_sbom if {
 
 ## 📚 Documentation
 
-### Getting Started
-- [Quick Start Guide](docs/QUICK_START.md)
-- [Installation](docs/INSTALLATION.md)
-- [Configuration](docs/CONFIGURATION.md)
-
-### Features
-- [Deterministic Scanning](docs/DETERMINISTIC_SCANNING.md)
-- [AI Analysis](docs/AI_ANALYSIS.md)
-- [Supply Chain Security](docs/SUPPLY_CHAIN.md)
-- [Policy Gates](docs/POLICY_GATES.md)
-- [Risk Scoring](docs/RISK_SCORING.md)
-
-### Advanced
-- [SageMaker Setup](docs/SAGEMAKER_SETUP.md)
-- [Multi-Repo Coordination](docs/MULTI_REPO.md)
-- [GitHub Actions Integration](docs/GITHUB_ACTIONS.md)
-- [API Reference](docs/API.md)
-
-### Operations
-- [Roadmap](ROADMAP_30_60_90.md) - 30/60/90 day plan
-- [Execution Summary](EXECUTION_SUMMARY.md) - Progress tracking
-- [Changelog](CHANGELOG.md)
+All documentation is embedded in this README. For advanced usage, see the examples below.
 
 ---
 
@@ -472,13 +451,11 @@ python3 scripts/generate_dashboard.py deduped.json
 - Slack/Teams integration
 - Custom rule engine
 
-See [ROADMAP_30_60_90.md](ROADMAP_30_60_90.md) for details.
-
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions!
 
 ### Quick Contribution Guide
 
