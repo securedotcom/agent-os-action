@@ -457,7 +457,7 @@ git push origin feature/your-feature
 - **Discord**: Real-time chat (coming soon)
 
 ### Enterprise
-- **Email**: enterprise@agent-os.dev
+- **Email**: developer@secure.com
 - **Slack**: Private channel for customers
 - **SLA**: 24/7 support available
 
