@@ -324,33 +324,6 @@ python3 scripts/generate_dashboard.py deduped.json
 
 ---
 
-## 🏆 Success Metrics
-
-### Real-World Results (spring_auth analysis)
-
-| Metric | Result |
-|--------|--------|
-| **Secrets Found** | 0 (excellent!) |
-| **Critical CVEs** | 8 identified |
-| **AI Findings** | 28 code quality issues |
-| **Threats** | 25 (STRIDE) |
-| **SBOM Components** | 1,458 |
-| **Cost** | $0.35 |
-| **Duration** | 11 minutes |
-| **False Positives** | <5% |
-
-### PRD Compliance
-
-| Metric | Target | Achieved |
-|--------|--------|----------|
-| PR scan time (p50) | <3 min | ✅ <2 min |
-| PR scan time (p95) | <7 min | ✅ <5 min |
-| Secret block rate | 90%+ | ✅ 100% |
-| SBOM coverage | 90%+ | ✅ 100% |
-| SLSA provenance | L1-L2 | ✅ L2 |
-
----
-
 ## 💰 Cost Analysis
 
 ### Per-Analysis Cost
