@@ -1,0 +1,262 @@
+# Agent-OS Unified Finding Schema
+# Version: 1.0
+# Date: 2025-11-06
+# Purpose: Normalize all security tool outputs into single format
+
+Finding:
+  # Identity (required)
+  id:
+    type: string
+    description: SHA256 hash of (repo, path, rule_id, line)
+    required: true
+    example: "a3f5e8c9d2b1..."
+  
+  origin:
+    type: enum
+    values: [semgrep, trivy, trufflehog, gitleaks, checkov, terrascan, agent-os, aardvark, foundation-sec]
+    required: true
+    description: Tool that generated this finding
+  
+  # Context (required)
+  repo:
+    type: string
+    required: true
+    description: Repository name or URL
+    example: "securedotcom/agent-os"
+  
+  commit_sha:
+    type: string
+    required: true
+    description: Git commit SHA where finding was detected
+    example: "a1b2c3d4..."
+  
+  branch:
+    type: string
+    required: true
+    description: Git branch name
+    example: "main"
+  
+  pr_number:
+    type: integer
+    required: false
+    description: Pull request number if applicable
+    example: 123
+  
+  # Asset Information (required)
+  asset_type:
+    type: enum
+    values: [code, image, iac, binary, config]
+    required: true
+    description: Type of asset where finding was detected
+  
+  path:
+    type: string
+    required: true
+    description: Relative path to file or resource
+    example: "src/api/auth.py"
+  
+  line:
+    type: integer
+    required: false
+    description: Line number in file (null for non-code assets)
+    example: 42
+  
+  resource_id:
+    type: string
+    required: false
+    description: Cloud/IaC resource identifier
+    example: "aws_security_group.web"
+  
+  # Classification (required)
+  rule_id:
+    type: string
+    required: true
+    description: Unique rule identifier from source tool
+    example: "python.lang.security.sql-injection"
+  
+  rule_name:
+    type: string
+    required: true
+    description: Human-readable rule name
+    example: "SQL Injection via string concatenation"
+  
+  category:
+    type: enum
+    values: [SAST, SECRETS, DEPS, IAC, FUZZ, RUNTIME, QUALITY, PERFORMANCE]
+    required: true
+    description: High-level category of finding
+  
+  severity:
+    type: enum
+    values: [info, low, medium, high, critical]
+    required: true
+    description: Severity level (normalized from tool-specific values)
+  
+  # Risk Metrics (optional)
+  cvss:
+    type: float
+    required: false
+    description: CVSS score (0.0-10.0)
+    example: 7.5
+  
+  cve:
+    type: string
+    required: false
+    description: CVE identifier if applicable
+    example: "CVE-2024-1234"
+  
+  cwe:
+    type: string
+    required: false
+    description: CWE identifier
+    example: "CWE-89"
+  
+  stride:
+    type: string
+    required: false
+    description: STRIDE category (from threat modeling)
+    example: "Tampering"
+  
+  # Evidence (required)
+  evidence:
+    type: object
+    required: true
+    properties:
+      message:
+        type: string
+        required: true
+        description: Description of the finding
+      snippet:
+        type: string
+        required: false
+        description: Code snippet showing the issue
+      artifact_url:
+        type: string
+        required: false
+        description: URL to scanner output or artifact
+  
+  references:
+    type: array
+    items:
+      type: string
+    required: false
+    description: URLs to documentation, CVE details, etc.
+    example: ["https://cwe.mitre.org/data/definitions/89.html"]
+  
+  # Enrichment (optional, added by AI or analysis)
+  reachability:
+    type: enum
+    values: [yes, no, unknown]
+    required: false
+    description: Whether vulnerable code is reachable
+    default: unknown
+  
+  exploitability:
+    type: enum
+    values: [trivial, moderate, complex, theoretical, unknown]
+    required: false
+    description: Ease of exploitation (from Aardvark or AI)
+    default: unknown
+  
+  secret_verified:
+    type: enum
+    values: [true, false, na]
+    required: false
+    description: Whether secret was verified via API
+    default: na
+  
+  # Ownership (optional)
+  owner_team:
+    type: string
+    required: false
+    description: Team responsible for remediation
+    example: "platform-team"
+  
+  service_tier:
+    type: enum
+    values: [public, internal, private]
+    required: false
+    description: Service exposure level
+    default: internal
+  
+  # Computed Fields
+  risk_score:
+    type: float
+    required: true
+    description: Computed risk score (0.0-10.0)
+    formula: "base(CVSS|severity) + 3*exploitability + 2*reachability + exposure + secret_boost"
+    example: 8.5
+  
+  # Timestamps (required)
+  first_seen_at:
+    type: timestamp
+    required: true
+    description: When finding was first detected
+    example: "2025-11-06T10:30:00Z"
+  
+  last_seen_at:
+    type: timestamp
+    required: true
+    description: When finding was last detected
+    example: "2025-11-06T10:30:00Z"
+  
+  # Status (required)
+  status:
+    type: enum
+    values: [open, triaged, accepted, fixed, false_positive]
+    required: true
+    default: open
+    description: Current status of finding
+  
+  # Metadata (required)
+  llm_enriched:
+    type: boolean
+    required: true
+    default: false
+    description: Whether finding was enriched by AI
+  
+  confidence:
+    type: float
+    required: true
+    default: 1.0
+    description: Confidence score (0.0-1.0)
+    example: 0.95
+
+# Example Finding (JSON)
+example:
+  id: "a3f5e8c9d2b14f6c8e1a7b3d9c2e4f6a8b1c3d5e7f9a2b4c6d8e1f3a5b7c9d"
+  origin: "semgrep"
+  repo: "securedotcom/agent-os"
+  commit_sha: "a1b2c3d4e5f6"
+  branch: "main"
+  pr_number: 123
+  asset_type: "code"
+  path: "src/api/auth.py"
+  line: 42
+  resource_id: null
+  rule_id: "python.lang.security.sql-injection"
+  rule_name: "SQL Injection via string concatenation"
+  category: "SAST"
+  severity: "critical"
+  cvss: 9.8
+  cve: null
+  cwe: "CWE-89"
+  stride: null
+  evidence:
+    message: "SQL query constructed using string concatenation with user input"
+    snippet: "query = 'SELECT * FROM users WHERE id=' + user_id"
+    artifact_url: "https://github.com/securedotcom/agent-os/security/code-scanning/123"
+  references:
+    - "https://cwe.mitre.org/data/definitions/89.html"
+    - "https://owasp.org/www-community/attacks/SQL_Injection"
+  reachability: "yes"
+  exploitability: "trivial"
+  secret_verified: "na"
+  owner_team: "platform-team"
+  service_tier: "public"
+  risk_score: 9.5
+  first_seen_at: "2025-11-06T10:30:00Z"
+  last_seen_at: "2025-11-06T10:30:00Z"
+  status: "open"
+  llm_enriched: false
+  confidence: 0.98

@@ -1,0 +1,271 @@
+name: Release with SBOM, Signing & SLSA (Day 60)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write  # For SLSA provenance
+
+jobs:
+  # Step 1: Security Scan
+  security-scan:
+    name: Security Scan & Risk Assessment
+    runs-on: ubuntu-latest
+    outputs:
+      findings-count: ${{ steps.scan.outputs.findings_count }}
+      critical-count: ${{ steps.scan.outputs.critical_count }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install scanners (all open source)
+        run: |
+          # TruffleHog (AGPL 3.0)
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh
+          
+          # Gitleaks (MIT)
+          brew install gitleaks
+          
+          # Semgrep (LGPL 2.1)
+          pip install semgrep
+          
+          # Trivy (Apache 2.0)
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          
+          # Checkov (Apache 2.0)
+          pip install checkov
+          
+          # OPA (Apache 2.0)
+          curl -L -o opa https://github.com/open-policy-agent/opa/releases/latest/download/opa_linux_amd64
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+      
+      - name: Run scans
+        id: scan
+        run: |
+          # Secrets
+          trufflehog filesystem . --json > findings_secrets.json || true
+          
+          # SAST
+          semgrep scan --config p/security-audit --json > findings_sast.json || true
+          
+          # IaC
+          checkov --directory . --output json > findings_iac.json || true
+          
+          # Vulnerabilities
+          trivy fs --format json . > findings_vuln.json || true
+          
+          # Normalize all findings (Week 1)
+          python3 scripts/agentos normalize --tool all --input findings_*.json -o findings_normalized.json
+          
+          # Reachability analysis (Day 60)
+          python3 scripts/reachability_analyzer.py findings_normalized.json --repo . -o findings_reachable.json
+          
+          # Risk scoring (Day 60)
+          python3 scripts/risk_scorer.py findings_reachable.json --business-impact critical -o findings_scored.json
+          
+          # Export metrics
+          FINDINGS_COUNT=$(jq 'length' findings_scored.json)
+          CRITICAL_COUNT=$(jq '[.[] | select(.risk_severity == "critical")] | length' findings_scored.json)
+          
+          echo "findings_count=$FINDINGS_COUNT" >> $GITHUB_OUTPUT
+          echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
+      
+      - name: Apply release policy gate (Week 1)
+        run: |
+          python3 scripts/agentos gate --stage release --input findings_scored.json
+      
+      - name: Upload findings artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-findings
+          path: findings_scored.json
+  
+  # Step 2: Build & SBOM Generation
+  build-sbom:
+    name: Build & Generate SBOM
+    runs-on: ubuntu-latest
+    needs: security-scan
+    outputs:
+      sbom-path: ${{ steps.sbom.outputs.path }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Syft (Apache 2.0)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
+      
+      - name: Build application
+        run: |
+          # Your build steps here
+          echo "Building application..."
+      
+      - name: Generate SBOM (Day 60)
+        id: sbom
+        run: |
+          VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+          
+          python3 scripts/sbom_generator.py . \
+            --version $VERSION \
+            -o sbom-${VERSION}.json
+          
+          echo "path=sbom-${VERSION}.json" >> $GITHUB_OUTPUT
+      
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-*.json
+  
+  # Step 3: SLSA Provenance & Signing
+  sign-attest:
+    name: Sign & Generate SLSA Provenance
+    runs-on: ubuntu-latest
+    needs: build-sbom
+    permissions:
+      id-token: write
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+      
+      - name: Install Cosign (Apache 2.0)
+        uses: sigstore/cosign-installer@v3
+      
+      - name: Generate SLSA L2 Provenance (Day 60)
+        run: |
+          VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+          SBOM_FILE=sbom-${VERSION}.json
+          
+          python3 scripts/sign_release.py provenance $SBOM_FILE \
+            --repo ${{ github.repository }} \
+            --commit ${{ github.sha }} \
+            --level L2 \
+            -o provenance-${VERSION}.json
+      
+      - name: Sign SBOM with Cosign (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+          SBOM_FILE=sbom-${VERSION}.json
+          
+          # Keyless signing (uses OIDC with GitHub)
+          cosign sign-blob \
+            --bundle ${SBOM_FILE}.bundle \
+            $SBOM_FILE
+      
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release
+          path: |
+            sbom-*.json
+            sbom-*.json.bundle
+            provenance-*.json
+      
+      - name: Attach to release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: |
+            sbom-*.json
+            sbom-*.json.bundle
+            provenance-*.json
+  
+  # Step 4: Summary Report
+  report:
+    name: Generate Release Report
+    runs-on: ubuntu-latest
+    needs: [security-scan, build-sbom, sign-attest]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Generate report
+        run: |
+          VERSION=${{ github.event.release.tag_name || github.event.inputs.version }}
+          
+          cat > release-report-${VERSION}.md << EOF
+          # Release Report: ${VERSION}
+          
+          ## Security Scan Results
+          - Total Findings: ${{ needs.security-scan.outputs.findings-count }}
+          - Critical Findings: ${{ needs.security-scan.outputs.critical-count }}
+          - Policy Gate: PASSED ✅
+          
+          ## Supply Chain Security
+          - SBOM: ✅ Generated (CycloneDX format)
+          - Signing: ✅ Cosign keyless signature
+          - Provenance: ✅ SLSA L2 attestation
+          
+          ## Artifacts
+          - \`sbom-${VERSION}.json\` - Software Bill of Materials
+          - \`sbom-${VERSION}.json.bundle\` - Cosign signature bundle
+          - \`provenance-${VERSION}.json\` - SLSA provenance attestation
+          
+          ## Verification
+          
+          Verify SBOM signature:
+          \`\`\`bash
+          cosign verify-blob \\
+            --bundle sbom-${VERSION}.json.bundle \\
+            --certificate-identity https://github.com/${{ github.repository }}/.github/workflows/release-day60.yml@${{ github.ref }} \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \\
+            sbom-${VERSION}.json
+          \`\`\`
+          
+          ## Tools Used (All Open Source)
+          - Syft (Apache 2.0) - SBOM generation
+          - Cosign (Apache 2.0) - Signing
+          - SLSA Framework (Apache 2.0) - Provenance
+          - TruffleHog (AGPL 3.0) - Secret scanning
+          - Semgrep (LGPL 2.1) - SAST
+          - Trivy (Apache 2.0) - Vulnerability scanning
+          - Checkov (Apache 2.0) - IaC scanning
+          - OPA (Apache 2.0) - Policy enforcement
+          
+          Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF
+          
+          cat release-report-${VERSION}.md
+      
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-report
+          path: release-report-*.md
+      
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('release-report-*.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+

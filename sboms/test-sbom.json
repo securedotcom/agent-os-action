@@ -1,0 +1,2223 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:6771c6a6-b443-4a15-9659-96af40bbe6b7",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-11-06T11:50:23.537761+05:00",
+    "tools": [
+      {
+        "vendor": "Agent-OS",
+        "name": "Agent-OS Security Control Plane",
+        "version": "1.0.0"
+      },
+      {
+        "vendor": "Anchore",
+        "name": "Syft",
+        "version": "syft"
+      }
+    ],
+    "component": {
+      "bom-ref": "af63bd4c8601b7f1",
+      "type": "file",
+      "name": "."
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "1884284dff10e2d3",
+      "type": "library",
+      "name": "./",
+      "version": "UNKNOWN",
+      "cpe": "cpe:2.3:a:.\\/:.\\/:*:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/contract-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "0aaf96689d75376a",
+      "type": "library",
+      "name": "./",
+      "version": "UNKNOWN",
+      "cpe": "cpe:2.3:a:.\\/:.\\/:*:*:*:*:*:*:*:*",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/smoke-test.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/attest-build-provenance@v1.4.3?package-id=bdbc2f95f9d0fa8b",
+      "type": "library",
+      "name": "actions/attest-build-provenance",
+      "version": "v1.4.3",
+      "cpe": "cpe:2.3:a:actions\\/attest-build-provenance:actions\\/attest-build-provenance:v1.4.3:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/attest-build-provenance@v1.4.3",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest-build-provenance:actions\\/attest_build_provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest_build_provenance:actions\\/attest-build-provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest_build_provenance:actions\\/attest_build_provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest-build:actions\\/attest-build-provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest-build:actions\\/attest_build_provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest_build:actions\\/attest-build-provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest_build:actions\\/attest_build_provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest:actions\\/attest-build-provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/attest:actions\\/attest_build_provenance:v1.4.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/release-attestation.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/cache@v3?package-id=c230444f81efbddb",
+      "type": "library",
+      "name": "actions/cache",
+      "version": "v3",
+      "cpe": "cpe:2.3:a:actions\\/cache:actions\\/cache:v3:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/cache@v3",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4?package-id=39060eb020a0dc6b",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4?package-id=51547a59c31d053d",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/integration-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=4caa387469d09aee",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/automated-audit.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=432dd39c69af7780",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/code-review.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=18334e7ddd1436e7",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/codeql.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=9cca930c5a9eeecf",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/contract-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=bc31a544b2729916",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/gitleaks.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=e4f08a020fda2d1e",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/release-attestation.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=fc3612256d170114",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/scorecard.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=60104ccf3992d292",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/semgrep.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=9052394039a59bc3",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/smoke-test.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/checkout@v4.1.7?package-id=402be24c19aae525",
+      "type": "library",
+      "name": "actions/checkout",
+      "version": "v4.1.7",
+      "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v4.1.7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/checkout@v4.1.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/github-script@v7?package-id=daa00f9e100b9c54",
+      "type": "library",
+      "name": "actions/github-script",
+      "version": "v7",
+      "cpe": "cpe:2.3:a:actions\\/github-script:actions\\/github-script:v7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/github-script@v7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github-script:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github-script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github-script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/github-script@v7?package-id=9ec9e73b15b60f95",
+      "type": "library",
+      "name": "actions/github-script",
+      "version": "v7",
+      "cpe": "cpe:2.3:a:actions\\/github-script:actions\\/github-script:v7:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/github-script@v7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github-script:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github-script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github-script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github_script:v7:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/pr-decline.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/github-script@v7.0.1?package-id=6bf3dfc76b4ceb6b",
+      "type": "library",
+      "name": "actions/github-script",
+      "version": "v7.0.1",
+      "cpe": "cpe:2.3:a:actions\\/github-script:actions\\/github-script:v7.0.1:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/github-script@v7.0.1",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github-script:actions\\/github_script:v7.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github-script:v7.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github_script:actions\\/github_script:v7.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github-script:v7.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/github:actions\\/github_script:v7.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/code-review.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-node@v4.0.2?package-id=0e3298341f620432",
+      "type": "library",
+      "name": "actions/setup-node",
+      "version": "v4.0.2",
+      "cpe": "cpe:2.3:a:actions\\/setup-node:actions\\/setup-node:v4.0.2:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-node@v4.0.2",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-node:actions\\/setup_node:v4.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_node:actions\\/setup-node:v4.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_node:actions\\/setup_node:v4.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-node:v4.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_node:v4.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/code-review.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-python@v5?package-id=b64359ea96fb467c",
+      "type": "library",
+      "name": "actions/setup-python",
+      "version": "v5",
+      "cpe": "cpe:2.3:a:actions\\/setup-python:actions\\/setup-python:v5:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-python@v5",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-python:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup-python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-python@v5?package-id=9112ac02acca9881",
+      "type": "library",
+      "name": "actions/setup-python",
+      "version": "v5",
+      "cpe": "cpe:2.3:a:actions\\/setup-python:actions\\/setup-python:v5:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-python@v5",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-python:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup-python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_python:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/integration-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-python@v5.1.0?package-id=77f88d0bf559b04e",
+      "type": "library",
+      "name": "actions/setup-python",
+      "version": "v5.1.0",
+      "cpe": "cpe:2.3:a:actions\\/setup-python:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-python@v5.1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-python:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/automated-audit.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-python@v5.1.0?package-id=ef62ef0253aac066",
+      "type": "library",
+      "name": "actions/setup-python",
+      "version": "v5.1.0",
+      "cpe": "cpe:2.3:a:actions\\/setup-python:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-python@v5.1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-python:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_python:v5.1.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/setup-python@v5.2.0?package-id=bfdbc4c7f4bd7fc5",
+      "type": "library",
+      "name": "actions/setup-python",
+      "version": "v5.2.0",
+      "cpe": "cpe:2.3:a:actions\\/setup-python:actions\\/setup-python:v5.2.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/setup-python@v5.2.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup-python:actions\\/setup_python:v5.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup-python:v5.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup_python:actions\\/setup_python:v5.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup-python:v5.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/setup:actions\\/setup_python:v5.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/smoke-test.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/stale@v9?package-id=e1e94397417a0fa4",
+      "type": "library",
+      "name": "actions/stale",
+      "version": "v9",
+      "cpe": "cpe:2.3:a:actions\\/stale:actions\\/stale:v9:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/stale@v9",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/stale.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4?package-id=451a356aa212c652",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4?package-id=78ffca74b9ea8343",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/integration-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=c2fd0e46e69bd850",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/automated-audit.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=5ff48cd937c20b7c",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/code-review.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=2b47588335175d70",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/scorecard.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=e238df125468275b",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/semgrep.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=cf45df59d544bcbd",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/smoke-test.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-artifact@v4.4.0?package-id=2264b48a19b7d438",
+      "type": "library",
+      "name": "actions/upload-artifact",
+      "version": "v4.4.0",
+      "cpe": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-artifact@v4.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_artifact:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_artifact:v4.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/actions/upload-release-asset@v1.0.2?package-id=5cf24c87d5a7dcb6",
+      "type": "library",
+      "name": "actions/upload-release-asset",
+      "version": "v1.0.2",
+      "cpe": "cpe:2.3:a:actions\\/upload-release-asset:actions\\/upload-release-asset:v1.0.2:*:*:*:*:*:*:*",
+      "purl": "pkg:github/actions/upload-release-asset@v1.0.2",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-release-asset:actions\\/upload_release_asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_release_asset:actions\\/upload-release-asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_release_asset:actions\\/upload_release_asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-release:actions\\/upload-release-asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload-release:actions\\/upload_release_asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_release:actions\\/upload-release-asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload_release:actions\\/upload_release_asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload-release-asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:actions\\/upload:actions\\/upload_release_asset:v1.0.2:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/release-attestation.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/codecov/codecov-action@v4?package-id=5efe48cf2f9fbceb",
+      "type": "library",
+      "name": "codecov/codecov-action",
+      "version": "v4",
+      "cpe": "cpe:2.3:a:codecov\\/codecov-action:codecov\\/codecov-action:v4:*:*:*:*:*:*:*",
+      "purl": "pkg:github/codecov/codecov-action@v4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:codecov\\/codecov-action:codecov\\/codecov_action:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:codecov\\/codecov_action:codecov\\/codecov-action:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:codecov\\/codecov_action:codecov\\/codecov_action:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:codecov\\/codecov:codecov\\/codecov-action:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:codecov\\/codecov:codecov\\/codecov_action:v4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/integration-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/docker/setup-buildx-action@v3?package-id=768f9d1ae9821dc4",
+      "type": "library",
+      "name": "docker/setup-buildx-action",
+      "version": "v3",
+      "cpe": "cpe:2.3:a:docker\\/setup-buildx-action:docker\\/setup-buildx-action:v3:*:*:*:*:*:*:*",
+      "purl": "pkg:github/docker/setup-buildx-action@v3",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup-buildx-action:docker\\/setup_buildx_action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup_buildx_action:docker\\/setup-buildx-action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup_buildx_action:docker\\/setup_buildx_action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup-buildx:docker\\/setup-buildx-action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup-buildx:docker\\/setup_buildx_action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup_buildx:docker\\/setup-buildx-action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup_buildx:docker\\/setup_buildx_action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup:docker\\/setup-buildx-action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:docker\\/setup:docker\\/setup_buildx_action:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/integration-tests.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3.25.15?package-id=e996a301334a4b93#analyze",
+      "type": "library",
+      "name": "github/codeql-action/analyze",
+      "version": "v3.25.15",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/analyze:github\\/codeql-action\\/analyze:v3.25.15:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3.25.15#analyze",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/analyze:github\\/codeql_action\\/analyze:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/analyze:github\\/codeql-action\\/analyze:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/analyze:github\\/codeql_action\\/analyze:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/analyze:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/analyze:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/codeql.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3.25.15?package-id=c7936ad52ec1e50d#autobuild",
+      "type": "library",
+      "name": "github/codeql-action/autobuild",
+      "version": "v3.25.15",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/autobuild:github\\/codeql-action\\/autobuild:v3.25.15:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3.25.15#autobuild",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/autobuild:github\\/codeql_action\\/autobuild:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/autobuild:github\\/codeql-action\\/autobuild:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/autobuild:github\\/codeql_action\\/autobuild:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/autobuild:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/autobuild:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/codeql.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3.25.15?package-id=b622738f18fabe4e#init",
+      "type": "library",
+      "name": "github/codeql-action/init",
+      "version": "v3.25.15",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/init:github\\/codeql-action\\/init:v3.25.15:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3.25.15#init",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/init:github\\/codeql_action\\/init:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/init:github\\/codeql-action\\/init:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/init:github\\/codeql_action\\/init:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/init:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/init:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/codeql.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3?package-id=d295faf59f7c10e5#upload-sarif",
+      "type": "library",
+      "name": "github/codeql-action/upload-sarif",
+      "version": "v3",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql-action\\/upload-sarif:v3:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3#upload-sarif",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql_action\\/upload_sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql-action\\/upload-sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql_action\\/upload_sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql-action\\/upload-sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql_action\\/upload_sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql-action\\/upload-sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql_action\\/upload_sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/upload-sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/upload_sarif:v3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/hybrid-security-scan.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3.25.15?package-id=d744f027e6c83635#upload-sarif",
+      "type": "library",
+      "name": "github/codeql-action/upload-sarif",
+      "version": "v3.25.15",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3.25.15#upload-sarif",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/scorecard.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/github/codeql-action@v3.25.15?package-id=b576e65219408b2f#upload-sarif",
+      "type": "library",
+      "name": "github/codeql-action/upload-sarif",
+      "version": "v3.25.15",
+      "cpe": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*",
+      "purl": "pkg:github/github/codeql-action@v3.25.15#upload-sarif",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload-sarif:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload_sarif:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql-action\\/upload:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql_action\\/upload:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql-action\\/upload-sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:github\\/codeql:github\\/codeql_action\\/upload_sarif:v3.25.15:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/semgrep.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/gitleaks/gitleaks-action@v2.3.6?package-id=1386ed8ca1036c76",
+      "type": "library",
+      "name": "gitleaks/gitleaks-action",
+      "version": "v2.3.6",
+      "cpe": "cpe:2.3:a:gitleaks\\/gitleaks-action:gitleaks\\/gitleaks-action:v2.3.6:*:*:*:*:*:*:*",
+      "purl": "pkg:github/gitleaks/gitleaks-action@v2.3.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:gitleaks\\/gitleaks-action:gitleaks\\/gitleaks_action:v2.3.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:gitleaks\\/gitleaks_action:gitleaks\\/gitleaks-action:v2.3.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:gitleaks\\/gitleaks_action:gitleaks\\/gitleaks_action:v2.3.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:gitleaks\\/gitleaks:gitleaks\\/gitleaks-action:v2.3.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:gitleaks\\/gitleaks:gitleaks\\/gitleaks_action:v2.3.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/gitleaks.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/ossf/scorecard-action@v2.4.0?package-id=c16299b29ceeb2a9",
+      "type": "library",
+      "name": "ossf/scorecard-action",
+      "version": "v2.4.0",
+      "cpe": "cpe:2.3:a:ossf\\/scorecard-action:ossf\\/scorecard-action:v2.4.0:*:*:*:*:*:*:*",
+      "purl": "pkg:github/ossf/scorecard-action@v2.4.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ossf\\/scorecard-action:ossf\\/scorecard_action:v2.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ossf\\/scorecard_action:ossf\\/scorecard-action:v2.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ossf\\/scorecard_action:ossf\\/scorecard_action:v2.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ossf\\/scorecard:ossf\\/scorecard-action:v2.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:ossf\\/scorecard:ossf\\/scorecard_action:v2.4.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/scorecard.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/peter-evans/create-pull-request@v5?package-id=3ca1ef2e8bea3d22",
+      "type": "library",
+      "name": "peter-evans/create-pull-request",
+      "version": "v5",
+      "cpe": "cpe:2.3:a:peter-evans\\/create-pull-request:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*",
+      "purl": "pkg:github/peter-evans/create-pull-request@v5",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter-evans\\/create-pull-request:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create_pull_request:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create_pull_request:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter-evans\\/create-pull:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter-evans\\/create-pull:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create_pull:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create_pull:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter-evans\\/create:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter-evans\\/create:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter_evans\\/create:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter:peter-evans\\/create-pull-request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:peter:peter_evans\\/create_pull_request:v5:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/automated-audit.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:github/step-security/harden-runner@v2.9.1?package-id=05ef5bae4dda33cb",
+      "type": "library",
+      "name": "step-security/harden-runner",
+      "version": "v2.9.1",
+      "cpe": "cpe:2.3:a:step-security\\/harden-runner:step-security\\/harden-runner:v2.9.1:*:*:*:*:*:*:*",
+      "purl": "pkg:github/step-security/harden-runner@v2.9.1",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "github-actions-usage-cataloger"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "github-action"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "github-actions-use-statement"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step-security\\/harden-runner:step_security\\/harden_runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step_security\\/harden_runner:step-security\\/harden-runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step_security\\/harden_runner:step_security\\/harden_runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step-security\\/harden:step-security\\/harden-runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step-security\\/harden:step_security\\/harden_runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step_security\\/harden:step-security\\/harden-runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step_security\\/harden:step_security\\/harden_runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step:step-security\\/harden-runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:step:step_security\\/harden_runner:v2.9.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/.github/workflows/smoke-test.yml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "fb7f492ac4a374e1",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/automated-audit.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "a4261cad0d155bd75a1161440429b10481f0d8fe"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "e7c27c11d7c92ccd299afbe57613fd63b36dbf4cf77df2f14fc69a0888a5c213"
+        }
+      ]
+    },
+    {
+      "bom-ref": "0c9217ba1cf517cb",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/code-review.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "ccd53045651bf0676ec64ed99ddf2ee8fc0ba2b0"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "4c537dd9536b827fbf46ff4d0edd75d6377c8b4c41aaf38ad36c69fab893a9b8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "f4fe0eee66e1ba99",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/codeql.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "9107d67aca51e337cfeedc74cc0d2b9bfb40a123"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "9e70dea194b5830bfc4f5ebecc99c230c6e30f416e97edaf6892770625f87ed6"
+        }
+      ]
+    },
+    {
+      "bom-ref": "399436c8d6d6aed4",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/contract-tests.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "9296ad2883e88623d5871f32020d09d22c892538"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "5a2366a8c25a4b85209aea7f5b354398bcbbb08b40dbd36fad34da923402c06d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "b2dafcdb7e82e51f",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/gitleaks.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "89f12793af50f6222f537ed63c53c2aa9104e02e"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "1394c8f4b5af2ba7167598bc8f8e66537295daad4625ef53a22263c3b5ec71da"
+        }
+      ]
+    },
+    {
+      "bom-ref": "44ebdf39967c2406",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/hybrid-security-scan.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "bb298529fcc7c2ad3b93cecb1efbd376312bdf9c"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "3d79493e9608092352cc81854ce3eb703a672546e7fa565df990712c26bc4b7c"
+        }
+      ]
+    },
+    {
+      "bom-ref": "5e21284327578004",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/integration-tests.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "2b8b55d92e9380aaabec37ad84b97e20782c3120"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "a6f22779be713d114997403dc0807f6371cc278354e1cf69f538531eb6b2fcec"
+        }
+      ]
+    },
+    {
+      "bom-ref": "13208806f7d9d162",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/pr-decline.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "9a223d6a064766bc1054be9a5c3e6b6c60b628c9"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "0b64247deeadfdbcad798a72b5f711f343b3967ff5571d79d6c4b74b067afb3b"
+        }
+      ]
+    },
+    {
+      "bom-ref": "59033642706a41ab",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/release-attestation.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "5da079e8ac7ada0aa86aec9d442a00da01a77a1c"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "df82af28d0bbdb79867e129486ecce66556db0cf3a2199ad41e065c315b23a92"
+        }
+      ]
+    },
+    {
+      "bom-ref": "f175f3b2ff568407",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/scorecard.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "79fd24450105c4e1e373cc0e4a0c642761f8373c"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "fc09d3d785c4123c51a69dabdf3da84b31c1667310908359724a44eb2084130d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "e5e9e756b5fa50bb",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/semgrep.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "54b526618f3be6afbf0af8286132dd3fa13da022"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "48d7c12ba5074a23253feea95ed9317fca0841d3b74c5edf389a05bd4628a715"
+        }
+      ]
+    },
+    {
+      "bom-ref": "65da5bff7b83594c",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/smoke-test.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "628fab0ef1b3208ab4b8bc65ade8b79f141c9eb2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "426fdcbfe1cc2b086a4b3d5439858990ea894690699f2c2b38b3952320023211"
+        }
+      ]
+    },
+    {
+      "bom-ref": "ffd6ebf112245b93",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/stale.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "c7f0a8bed9a608205f71f42ddda9f2f8e4963ef0"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "c70c0a4e927e9b8016a791278318a461236a75e32bcb8a52b188c6c3653756d9"
+        }
+      ]
+    },
+    {
+      "bom-ref": "9b0927f24570d5cb",
+      "type": "file",
+      "name": "/Users/waseem.ahmed/Repos/agent-os/.github/workflows/tests.yml",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "1a8aad7aad88c5a571dcde5ca80dcebfb37438b3"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "c1365fec58f1643405e4a4113d82ea1b9c1914c900e3754d00f2b6b502bad2dc"
+        }
+      ]
+    }
+  ]
+}

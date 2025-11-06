@@ -1,0 +1,37 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "test-sbom.json",
+      "digest": {
+        "sha256": "c61bdeb3953dac409df1c94f0b49f34022c079a1417a7662d683c40f4eaa9b48"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://agentos.dev/build-types/default@v1",
+      "externalParameters": {
+        "repository": "https://github.com/securedotcom/agent-os",
+        "ref": "abc123"
+      },
+      "internalParameters": {},
+      "resolvedDependencies": []
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://agentos.dev/builder@v1",
+        "version": {
+          "agent-os": "1.0.0"
+        }
+      },
+      "metadata": {
+        "invocationId": "build-20251106-115345",
+        "startedOn": "2025-11-06T11:53:45.181054+05:00",
+        "finishedOn": "2025-11-06T11:53:45.181063+05:00",
+        "slsaLevel": "L1"
+      }
+    }
+  }
+}

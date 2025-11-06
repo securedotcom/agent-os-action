@@ -210,3 +210,4 @@ Provide JSON with: cwe_id, exploitability, severity, recommendation"""
     
     print("\n✅ All tests passed!")
 
+

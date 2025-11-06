@@ -1,0 +1,23 @@
+{
+  "target_path": ".",
+  "scan_timestamp": "2025-11-04T11:03:57.950982",
+  "total_findings": 0,
+  "findings_by_severity": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "findings_by_source": {},
+  "findings": [],
+  "scan_duration_seconds": 23.015388250350952,
+  "cost_usd": 0.0,
+  "phase_timings": {
+    "phase1_static_analysis": 23.01532793045044
+  },
+  "tools_used": [
+    "Semgrep",
+    "Trivy"
+  ],
+  "llm_enrichment_enabled": false
+}

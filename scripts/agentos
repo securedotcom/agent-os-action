@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""
+Agent-OS CLI
+Main command-line interface for security control plane
+"""
+
+import sys
+import argparse
+from pathlib import Path
+
+# Add scripts dir to path
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+
+def cmd_normalize(args):
+    """Normalize security tool outputs"""
+    from normalizer import UnifiedNormalizer
+    import json
+    
+    normalizer = UnifiedNormalizer()
+    
+    # Load tool outputs
+    tool_outputs = {}
+    for input_file in args.inputs:
+        path = Path(input_file)
+        
+        # Detect tool from filename
+        tool = None
+        if 'semgrep' in path.name or path.suffix == '.sarif':
+            tool = 'semgrep'
+        elif 'trivy' in path.name:
+            tool = 'trivy'
+        elif 'trufflehog' in path.name:
+            tool = 'trufflehog'
+        elif 'gitleaks' in path.name:
+            tool = 'gitleaks'
+        elif 'checkov' in path.name:
+            tool = 'checkov'
+        else:
+            print(f"⚠️  Warning: Could not detect tool from {path.name}, skipping")
+            continue
+        
+        with open(path) as f:
+            tool_outputs[tool] = json.load(f)
+    
+    # Normalize
+    print(f"📊 Normalizing {len(tool_outputs)} tool outputs...")
+    findings = normalizer.normalize_all(tool_outputs)
+    
+    print(f"✅ Normalized {len(findings)} findings")
+    
+    # Output
+    output_data = {
+        'findings': [f.to_dict() for f in findings],
+        'summary': {
+            'total': len(findings),
+            'by_severity': {
+                'critical': sum(1 for f in findings if f.severity == 'critical'),
+                'high': sum(1 for f in findings if f.severity == 'high'),
+                'medium': sum(1 for f in findings if f.severity == 'medium'),
+                'low': sum(1 for f in findings if f.severity == 'low'),
+            },
+            'by_category': {}
+        }
+    }
+    
+    # Write output
+    with open(args.output, 'w') as f:
+        json.dump(output_data, f, indent=2)
+    
+    print(f"📝 Wrote findings to {args.output}")
+    
+    # Print summary
+    print("\n" + "="*60)
+    print("SUMMARY")
+    print("="*60)
+    for severity, count in output_data['summary']['by_severity'].items():
+        if count > 0:
+            print(f"  {severity.upper()}: {count}")
+
+
+def cmd_gate(args):
+    """Evaluate policy gate"""
+    from gate import PolicyGate
+    import json
+    
+    # Load findings
+    with open(args.input) as f:
+        data = json.load(f)
+    
+    findings = data if isinstance(data, list) else data.get('findings', [])
+    
+    # Prepare metadata
+    metadata = None
+    if args.stage == 'release':
+        metadata = {
+            'sbom_present': args.sbom_present,
+            'signature_verified': args.signature_verified,
+            'provenance_present': args.provenance_present
+        }
+    
+    # Evaluate
+    gate = PolicyGate()
+    decision = gate.evaluate(args.stage, findings, metadata)
+    
+    # Print
+    gate.print_decision(decision)
+    
+    # Exit
+    sys.exit(0 if decision['decision'] == 'pass' else 1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Agent-OS Security Control Plane",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Normalize scanner outputs
+  agentos normalize --inputs semgrep.sarif trivy.json --output findings.json
+  
+  # Evaluate PR gate
+  agentos gate --stage pr --input findings.json
+  
+  # Evaluate release gate
+  agentos gate --stage release --input findings.json --sbom-present --signature-verified
+"""
+    )
+    
+    subparsers = parser.add_parsers('command', dest='command')
+    
+    # Normalize command
+    parser_normalize = subparsers.add_parser('normalize', help='Normalize security tool outputs')
+    parser_normalize.add_argument('--inputs', nargs='+', required=True, help='Input files from security tools')
+    parser_normalize.add_argument('--output', required=True, help='Output JSON file')
+    parser_normalize.set_defaults(func=cmd_normalize)
+    
+    # Gate command
+    parser_gate = subparsers.add_parser('gate', help='Evaluate policy gate')
+    parser_gate.add_argument('--stage', required=True, choices=['pr', 'release'], help='Gate stage')
+    parser_gate.add_argument('--input', required=True, help='Findings JSON file')
+    parser_gate.add_argument('--sbom-present', action='store_true', help='SBOM present')
+    parser_gate.add_argument('--signature-verified', action='store_true', help='Signature verified')
+    parser_gate.add_argument('--provenance-present', action='store_true', help='Provenance present')
+    parser_gate.set_defaults(func=cmd_gate)
+    
+    args = parser.parse_args()
+    
+    if not hasattr(args, 'func'):
+        parser.print_help()
+        sys.exit(1)
+    
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main()
+

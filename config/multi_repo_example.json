@@ -1,0 +1,23 @@
+{
+  "repositories": [
+    {
+      "repo_url": "https://github.com/securedotcom/spring_auth",
+      "repo_name": "securedotcom/spring_auth",
+      "branch": "main",
+      "scan_types": ["secrets", "sast", "iac", "vuln"]
+    },
+    {
+      "repo_url": "https://github.com/your-org/backend-api",
+      "repo_name": "your-org/backend-api",
+      "branch": "main",
+      "scan_types": ["secrets", "sast", "vuln"]
+    },
+    {
+      "repo_url": "https://github.com/your-org/frontend-app",
+      "repo_name": "your-org/frontend-app",
+      "branch": "main",
+      "scan_types": ["secrets", "sast"]
+    }
+  ]
+}
+

@@ -67,53 +67,109 @@ jobs:
           echo "📦 Installing Semgrep and Trivy..."
           bash scripts/install_security_tools.sh
       
+      - name: Cache Hugging Face Models
+        if: github.event.inputs.enable_foundation_sec == 'true'
+        uses: actions/cache@v3
+        id: cache-hf-models
+        with:
+          path: ~/.cache/huggingface
+          key: hf-foundation-sec-8b-${{ runner.os }}-v1
+          restore-keys: |
+            hf-foundation-sec-8b-${{ runner.os }}-
+
       - name: Setup Foundation-Sec-8B (Optional)
-        if: github.event.inputs.enable_foundation_sec == 'true' || github.event_name == 'schedule'
+        if: github.event.inputs.enable_foundation_sec == 'true'
+        timeout-minutes: 20
+        continue-on-error: true
+        id: setup_foundation_sec
         run: |
           echo "🤖 Installing Foundation-Sec-8B..."
-          echo "⚠️  This requires ~16GB and may take 10-20 minutes"
-          
-          pip install transformers torch accelerate --quiet
-          
+
+          # Install dependencies
+          pip install transformers torch accelerate bitsandbytes --quiet
+
+          # Try to download/load model with timeout
           python3 << 'EOF'
-          from transformers import AutoModelForCausalLM, AutoTokenizer
-          print("📥 Downloading Foundation-Sec-8B model...")
-          tokenizer = AutoTokenizer.from_pretrained("fdtn-ai/Foundation-Sec-8B")
-          model = AutoModelForCausalLM.from_pretrained("fdtn-ai/Foundation-Sec-8B")
-          print("✅ Model ready!")
+          import sys
+          import signal
+          from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+          import torch
+
+          def timeout_handler(signum, frame):
+              print("⏱️  Timeout: Model download/load taking too long")
+              sys.exit(1)
+
+          # Set 15 minute timeout
+          signal.signal(signal.SIGALRM, timeout_handler)
+          signal.alarm(900)
+
+          try:
+              if "${{ steps.cache-hf-models.outputs.cache-hit }}" == "true":
+                  print("✅ Using cached model")
+              else:
+                  print("📥 Downloading Foundation-Sec-8B model (first run, ~16GB)...")
+
+              # Use 4-bit quantization to reduce memory
+              quantization_config = BitsAndBytesConfig(
+                  load_in_4bit=True,
+                  bnb_4bit_compute_dtype=torch.float16
+              )
+
+              tokenizer = AutoTokenizer.from_pretrained("fdtn-ai/Foundation-Sec-8B")
+              model = AutoModelForCausalLM.from_pretrained(
+                  "fdtn-ai/Foundation-Sec-8B",
+                  quantization_config=quantization_config,
+                  device_map="auto",
+                  low_cpu_mem_usage=True
+              )
+
+              print("✅ Foundation-Sec-8B ready!")
+              sys.exit(0)
+          except Exception as e:
+              print(f"❌ Failed to load Foundation-Sec-8B: {e}")
+              sys.exit(1)
+          finally:
+              signal.alarm(0)
           EOF
+
+          echo "foundation_sec_loaded=true" >> $GITHUB_OUTPUT
         env:
-          HF_HOME: /tmp/huggingface  # Cache location
+          HF_HOME: ~/.cache/huggingface
       
       - name: Run Hybrid Security Scan
         id: hybrid_scan
         run: |
           echo "🔒 Starting Hybrid Security Analysis..."
-          
+
           TARGET_PATH="${{ github.event.inputs.target_path || '.' }}"
           SEVERITY_FILTER="${{ github.event.inputs.severity_filter || 'critical,high,medium' }}"
-          ENABLE_FOUNDATION_SEC="${{ github.event.inputs.enable_foundation_sec || 'false' }}"
-          
+          FOUNDATION_SEC_LOADED="${{ steps.setup_foundation_sec.outputs.foundation_sec_loaded || 'false' }}"
+
           # Build command
           CMD="python3 scripts/hybrid_analyzer.py $TARGET_PATH"
           CMD="$CMD --output-dir .agent-os/hybrid-results"
           CMD="$CMD --severity-filter $SEVERITY_FILTER"
           CMD="$CMD --enable-semgrep"
           CMD="$CMD --enable-trivy"
-          
-          if [[ "$ENABLE_FOUNDATION_SEC" == "true" ]]; then
+
+          # Only enable Foundation-Sec if it was successfully loaded
+          if [[ "$FOUNDATION_SEC_LOADED" == "true" ]]; then
+            echo "✅ Foundation-Sec-8B available - enabling AI enrichment"
             CMD="$CMD --enable-foundation-sec"
+          else
+            echo "⚠️  Foundation-Sec-8B not available - running without AI enrichment"
+            echo "💡 Scan will complete using Semgrep + Trivy only"
           fi
-          
+
           # Run scan (allow non-zero exit for findings)
           set +e
           $CMD
           EXIT_CODE=$?
           set -e
-          
+
           # Save exit code for later
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          
+
           # Always succeed workflow (findings reported via SARIF)
           exit 0
         continue-on-error: false
@@ -139,8 +195,13 @@ jobs:
         if: always() && github.event_name == 'pull_request'
         id: parse_results
         run: |
-          if [ -f .agent-os/hybrid-results/*.json ]; then
-            JSON_FILE=$(ls -t .agent-os/hybrid-results/*.json | head -1)
+          if compgen -G ".agent-os/hybrid-results/*.json" > /dev/null; then
+            JSON_FILE=$(ls -t .agent-os/hybrid-results/*.json 2>/dev/null | head -1)
+            
+            if [ ! -f "$JSON_FILE" ]; then
+              echo "No JSON results found"
+              exit 0
+            fi
             
             # Extract summary
             CRITICAL=$(jq -r '.findings_by_severity.critical // 0' "$JSON_FILE")
