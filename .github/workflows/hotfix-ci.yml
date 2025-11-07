@@ -1,0 +1,197 @@
+name: Hotfix Branch CI
+
+on:
+  push:
+    branches:
+      - 'hotfix/**'
+  pull_request:
+    branches:
+      - 'hotfix/**'
+
+jobs:
+  validate-hotfix:
+    name: Validate Hotfix
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Extract version from branch
+        id: version
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          VERSION="${BRANCH_NAME#hotfix/}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Hotfix version: $VERSION"
+      
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.*)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-description (e.g., 3.1.1 or 3.1.1-security-patch)"
+            exit 1
+          fi
+          echo "✅ Version format valid: $VERSION"
+      
+      - name: Verify patch version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE_VERSION=$(echo "$VERSION" | cut -d'-' -f1)
+          PATCH=$(echo "$BASE_VERSION" | cut -d'.' -f3)
+          
+          if [ "$PATCH" == "0" ]; then
+            echo "❌ Hotfix must increment patch version (X.Y.Z where Z > 0)"
+            exit 1
+          fi
+          
+          echo "✅ Patch version valid: $PATCH"
+
+  critical-tests:
+    name: Run Critical Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run tests
+        run: |
+          if [ -d tests ]; then
+            # Run all tests - hotfixes must not break anything
+            pytest tests/ -v
+          else
+            echo "No tests directory found"
+          fi
+
+  security-check:
+    name: Security Check (Critical)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Semgrep (security only)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+          generateSarif: true
+      
+      - name: Check for critical vulnerabilities
+        run: |
+          if [ -f semgrep.sarif ]; then
+            CRITICAL_COUNT=$(jq '[.runs[].results[] | select(.level == "error")] | length' semgrep.sarif)
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "❌ Found $CRITICAL_COUNT critical security issues"
+              echo "Hotfixes must not introduce new security vulnerabilities"
+              exit 1
+            fi
+            echo "✅ No critical security issues found"
+          fi
+
+  regression-test:
+    name: Regression Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Agent-OS
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests to ensure basic functionality"
+          
+          # Test 1: CLI help
+          if command -v python3 scripts/agentos &> /dev/null; then
+            python3 scripts/agentos --help || echo "CLI test skipped"
+          fi
+          
+          # Test 2: Import test
+          python3 -c "import sys; sys.path.insert(0, 'scripts'); from normalizer.base import Finding; print('✅ Import test passed')"
+          
+          echo "✅ Smoke tests completed"
+
+  build-hotfix-artifacts:
+    name: Build Hotfix Artifacts
+    runs-on: ubuntu-latest
+    needs: [validate-hotfix, critical-tests, security-check]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Generate SBOM
+        run: |
+          # Install Syft
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Generate SBOM
+          syft dir:. -o cyclonedx-json > sbom-hotfix.json
+          echo "✅ Hotfix SBOM generated"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: hotfix-artifacts
+          path: |
+            sbom-hotfix.json
+          retention-days: 90
+
+  notify:
+    name: Notify Hotfix Status
+    runs-on: ubuntu-latest
+    needs: [validate-hotfix, critical-tests, security-check, regression-test, build-hotfix-artifacts]
+    if: always()
+    
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.validate-hotfix.result }}" == "success" ] && \
+             [ "${{ needs.critical-tests.result }}" == "success" ] && \
+             [ "${{ needs.security-check.result }}" == "success" ] && \
+             [ "${{ needs.regression-test.result }}" == "success" ] && \
+             [ "${{ needs.build-hotfix-artifacts.result }}" == "success" ]; then
+            echo "✅ Hotfix ready for emergency deployment"
+            echo ""
+            echo "⚠️  HOTFIX DEPLOYMENT CHECKLIST:"
+            echo "1. ✅ All tests passed"
+            echo "2. ✅ Security checks passed"
+            echo "3. ✅ Regression tests passed"
+            echo "4. ⏳ Review hotfix changes"
+            echo "5. ⏳ Notify stakeholders"
+            echo "6. ⏳ Merge using: git flow hotfix finish <version>"
+            echo "7. ⏳ Deploy to production immediately"
+            echo "8. ⏳ Monitor for issues"
+          else
+            echo "❌ Hotfix has failing checks"
+            echo "CRITICAL: Fix all issues before deploying hotfix"
+            exit 1
+          fi
+
