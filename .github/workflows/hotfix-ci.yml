@@ -7,6 +7,12 @@ on:
   pull_request:
     branches:
       - 'hotfix/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
 
 jobs:
   validate-hotfix:
