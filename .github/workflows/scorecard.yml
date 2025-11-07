@@ -59,24 +59,6 @@ jobs:
         name: scorecard-results
         path: results.sarif
         retention-days: 30
-    
-    - name: Post Summary
-      if: always()
-      run: |
-        echo "## 🏆 OpenSSF Scorecard Analysis Complete" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Status**: Analysis complete" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### What was checked:" >> $GITHUB_STEP_SUMMARY
-        echo "- Branch protection" >> $GITHUB_STEP_SUMMARY
-        echo "- Code review practices" >> $GITHUB_STEP_SUMMARY
-        echo "- Dependency update tools" >> $GITHUB_STEP_SUMMARY
-        echo "- Signed commits" >> $GITHUB_STEP_SUMMARY
-        echo "- Security policy" >> $GITHUB_STEP_SUMMARY
-        echo "- Vulnerability disclosure" >> $GITHUB_STEP_SUMMARY
-        echo "- And 15+ more security checks" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "View results in the Security tab → Code scanning alerts" >> $GITHUB_STEP_SUMMARY
 
 # Security Notes:
 # 1. All actions pinned by commit SHA
