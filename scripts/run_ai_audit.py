@@ -535,8 +535,9 @@ class CostCircuitBreaker:
             logger.error(f"🚨 {message}")
             raise CostLimitExceeded(message)
 
-        # Log the check
-        logger.debug(f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({provider}), "
+        # Log the check (sanitize provider name)
+        safe_provider = provider.split('/')[-1] if provider else "unknown"
+        logger.debug(f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({safe_provider}), "
                     f"projected: ${projected_cost:.3f} / ${self.effective_limit:.2f}")
 
     def record_actual_cost(self, actual_cost: float):
@@ -704,14 +705,18 @@ def get_ai_client(provider, config):
         try:
             from openai import OpenAI
             endpoint = config.get('ollama_endpoint', 'http://localhost:11434')
-            print(f"🔑 Using Ollama endpoint: {endpoint}")
+            # Sanitize endpoint URL (hide sensitive parts)
+            safe_endpoint = endpoint.split('@')[-1] if '@' in endpoint else endpoint.split('//')[-1].split('/')[0]
+            print(f"🔑 Using Ollama endpoint: {safe_endpoint}")
             return OpenAI(base_url=f"{endpoint}/v1", api_key="ollama"), 'ollama'
         except ImportError:
             print("❌ openai package not installed. Run: pip install openai")
             sys.exit(2)
 
     else:
-        print(f"❌ Unknown AI provider: {provider}")
+        # Sanitize provider name before logging
+        safe_provider = provider.split('/')[-1] if provider else "unknown"
+        print(f"❌ Unknown AI provider: {safe_provider}")
         sys.exit(2)
 
 def get_model_name(provider, config):
@@ -1629,7 +1634,9 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 """
 
         try:
-            print(f"   🧠 Analyzing with {model}...")
+            # Sanitize model name
+            safe_model = model.split('/')[-1] if model else "unknown"
+            print(f"   🧠 Analyzing with {safe_model}...")
             report, input_tokens, output_tokens = call_llm_api(
                 client, provider, model, agent_prompt, max_tokens,
                 circuit_breaker=circuit_breaker,
@@ -1882,7 +1889,9 @@ Generate the complete audit report as specified in your instructions.
 """
 
     try:
-        print(f"   🧠 Synthesizing with {model}...")
+        # Sanitize model name
+        safe_model = model.split('/')[-1] if model else "unknown"
+        print(f"   🧠 Synthesizing with {safe_model}...")
         final_report, input_tokens, output_tokens = call_llm_api(
             client, provider, model, orchestrator_prompt, max_tokens,
             circuit_breaker=circuit_breaker,
@@ -2033,7 +2042,9 @@ def run_audit(repo_path, config, review_type='audit'):
         print("      Set: OLLAMA_ENDPOINT=http://localhost:11434")
         sys.exit(2)
     
-    print(f"🔧 Provider: {provider}")
+    # Sanitize provider name
+    safe_provider = provider.split('/')[-1] if provider else "unknown"
+    print(f"🔧 Provider: {safe_provider}")
     metrics.metrics["provider"] = provider
     
     # Get AI client
@@ -2045,20 +2056,25 @@ def run_audit(repo_path, config, review_type='audit'):
     # Verify model accessibility and fallback if needed (Anthropic only)
     if provider == 'anthropic':
         try:
-            print(f"🔍 Verifying model accessibility: {model}")
+            # Sanitize model name for logging
+            safe_model = model.split('/')[-1] if model else "unknown"
+            print(f"🔍 Verifying model accessibility: {safe_model}")
             working_model = get_working_model_with_fallback(client, provider, model)
             if working_model != model:
-                print(f"⚠️  Requested model '{model}' not accessible")
-                print(f"✅ Using fallback model: {working_model}")
+                safe_working_model = working_model.split('/')[-1] if working_model else "unknown"
+                print(f"⚠️  Requested model '{safe_model}' not accessible")
+                print(f"✅ Using fallback model: {safe_working_model}")
                 model = working_model
             else:
-                print(f"✅ Model verified: {model}")
+                print(f"✅ Model verified: {safe_model}")
         except Exception as e:
             logger.error(f"Model verification failed: {e}")
             print(f"\n❌ {e}")
             sys.exit(2)
 
-    print(f"🧠 Model: {model}")
+    # Sanitize model name for logging
+    safe_model = model.split('/')[-1] if model else "unknown"
+    print(f"🧠 Model: {safe_model}")
     metrics.metrics["model"] = model
 
     # Check cost limit

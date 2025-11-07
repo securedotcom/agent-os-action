@@ -25,7 +25,8 @@ if not api_key:
     print("Please set it: export ANTHROPIC_API_KEY='sk-ant-...'")
     sys.exit(1)
 
-print("🔑 API Key found (starts with: {}...)".format(api_key[:15]))
+# Sanitize API key for logging (only show prefix pattern, not actual characters)
+print("🔑 API Key found (format: sk-ant-...)")
 print(f"📦 Anthropic SDK Version: {anthropic.__version__}")
 print("🧪 Testing Anthropic API connection with model fallback chain...\n")
 
@@ -123,7 +124,7 @@ else:
     print("="*70)
     print("""
 1. ✅ API Key Format Check:
-   - Your API key starts with: {}...
+   - Your API key format: sk-ant-...
    - Should start with: sk-ant-api03-...
    - Length should be ~108 characters
 
@@ -160,6 +161,6 @@ If ALL models return 404:
    → This indicates the API key doesn't have access to ANY models
    → Contact Anthropic support: support@anthropic.com
    → Reference error: "All model IDs return 404 NotFoundError"
-""".format(api_key[:15]))
+""")
 
     sys.exit(1)
