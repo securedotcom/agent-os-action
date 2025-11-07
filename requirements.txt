@@ -1,14 +1,26 @@
 # Core AI providers
-anthropic>=0.25.0
-openai>=1.0.0
-tenacity>=8.2.0
+anthropic>=0.40.0
+openai>=1.56.0
+tenacity>=9.0.0
+
+# AWS SDK for Foundation-Sec-8B
+boto3>=1.40.68
+botocore>=1.40.68
 
 # Foundation-Sec-8B provider (optional, for local inference)
 # Install only if using Foundation-Sec provider:
 # pip install transformers torch accelerate
-transformers>=4.35.0
-torch>=2.1.0
-accelerate>=0.24.0
+transformers>=4.48.0
+torch>=2.6.0
+accelerate>=1.2.0
+huggingface-hub>=1.1.2
 
-# Testing dependencies (in tests/requirements.txt)
-semgrep>=1.50.0  # SAST scanning with 2,000+ security rules
+# Security scanning tools
+semgrep>=1.100.0  # SAST scanning with 2,000+ security rules
+
+# Additional security dependencies
+pyyaml>=6.0.2  # CVE-2020-14343 fixed in 5.4+
+requests>=2.32.0  # Multiple CVEs fixed
+urllib3>=2.3.0  # CVE-2024-37891 fixed
+certifi>=2024.8.30  # Certificate validation
+cryptography>=44.0.0  # Multiple CVEs fixed
