@@ -177,7 +177,14 @@ compliance_status := {
 }
 
 # Overall compliance (all controls must pass)
-overall_compliant := cc6_1_compliant and cc6_6_compliant and cc7_2_compliant and cc7_3_compliant
+default overall_compliant := false
+
+overall_compliant if {
+    cc6_1_compliant
+    cc6_6_compliant
+    cc7_2_compliant
+    cc7_3_compliant
+}
 
 # Compliance decision
 decision := {
@@ -201,17 +208,33 @@ failing_controls := count([c |
 remediation_steps := steps if {
     not overall_compliant
     
-    # Build remediation steps list
-    steps_cc6_1 := cc6_1_remediation if not cc6_1_compliant else []
-    steps_cc6_6 := cc6_6_remediation if not cc6_6_compliant else []
-    steps_cc7_2 := cc7_2_remediation if not cc7_2_compliant else []
-    steps_cc7_3 := cc7_3_remediation if not cc7_3_compliant else []
-    
-    steps := array.concat(
-        array.concat(steps_cc6_1, steps_cc6_6),
-        array.concat(steps_cc7_2, steps_cc7_3)
+    # Build remediation steps list conditionally
+    all_steps := array.concat(
+        array.concat(
+            cc6_1_steps,
+            cc6_6_steps
+        ),
+        array.concat(
+            cc7_2_steps,
+            cc7_3_steps
+        )
     )
+    
+    steps := all_steps
 } else := []
+
+# Helper rules for conditional steps
+cc6_1_steps := cc6_1_remediation if not cc6_1_compliant
+cc6_1_steps := [] if cc6_1_compliant
+
+cc6_6_steps := cc6_6_remediation if not cc6_6_compliant
+cc6_6_steps := [] if cc6_6_compliant
+
+cc7_2_steps := cc7_2_remediation if not cc7_2_compliant
+cc7_2_steps := [] if cc7_2_compliant
+
+cc7_3_steps := cc7_3_remediation if not cc7_3_compliant
+cc7_3_steps := [] if cc7_3_compliant
 
 cc6_1_remediation := [
     "1. Remove all verified secrets from code",
