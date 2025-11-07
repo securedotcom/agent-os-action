@@ -27,7 +27,7 @@ Thanks for considering a contribution! Agent-OS is free and open source, and we 
 
 ### Submitting Pull Requests
 
-We follow a standard GitHub workflow:
+We follow **Git Flow** branching strategy. See [GITFLOW.md](GITFLOW.md) for complete details.
 
 #### 1. Fork and Clone
 
@@ -37,13 +37,34 @@ git clone https://github.com/YOUR_USERNAME/agent-os.git
 cd agent-os
 ```
 
-#### 2. Create a Branch
+#### 2. Set Up Git Flow
 
 ```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/bug-description
+# Install git-flow
+brew install git-flow-avh  # macOS
+# or: apt-get install git-flow  # Linux
+
+# Initialize Git Flow (already configured)
+git flow init -d
 ```
+
+#### 3. Create a Feature Branch
+
+```bash
+# Always start from develop
+git checkout develop
+git pull origin develop
+
+# Create feature branch using Git Flow
+git flow feature start your-feature-name
+
+# This creates: feature/your-feature-name
+```
+
+**Branch Types:**
+- `feature/*` - New features (from `develop`)
+- `bugfix/*` - Bug fixes (from `develop`)
+- `hotfix/*` - Production fixes (from `main`)
 
 #### 3. Make Your Changes
 
@@ -84,16 +105,27 @@ git commit -m "fix: Fix critical bug"
 - `perf:` Performance improvements
 - `chore:` Maintenance tasks
 
-#### 6. Push and Create PR
+#### 6. Finish Feature and Push
 
 ```bash
-git push origin feature/your-feature-name
+# Finish feature (merges to develop)
+git flow feature finish your-feature-name
+
+# Push develop to your fork
+git push origin develop
 ```
 
-Then create a Pull Request on GitHub with:
-- Clear title and description
-- Reference any related issues
-- Screenshots/examples if applicable
+#### 7. Create Pull Request
+
+Create a Pull Request on GitHub:
+- **Base branch**: `develop` (NOT `main`)
+- **Compare branch**: `your-fork:develop`
+- **Title**: Clear and descriptive
+- **Description**: What, why, and how
+- **Reference**: Link related issues
+- **Screenshots**: If applicable
+
+**Important**: All PRs should target `develop` branch, not `main`.
 
 ---
 
@@ -105,9 +137,11 @@ Before submitting your PR, ensure:
 - [ ] All tests pass (`pytest tests/`)
 - [ ] New tests added for new functionality
 - [ ] Documentation updated (README, docstrings)
-- [ ] Commit messages are clear and descriptive
-- [ ] No merge conflicts with main branch
+- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
+- [ ] No merge conflicts with `develop` branch
+- [ ] PR targets `develop` branch (not `main`)
 - [ ] PR description explains the changes
+- [ ] Git Flow workflow followed (see [GITFLOW.md](GITFLOW.md))
 
 ---
 

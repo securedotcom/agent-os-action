@@ -454,6 +454,41 @@ Configure scanners in `config/`:
 
 ## Development
 
+### Branching Strategy (Git Flow)
+
+Agent-OS follows **Git Flow** for structured development. See [.github/GITFLOW.md](.github/GITFLOW.md) for complete details.
+
+**Quick Reference:**
+
+```bash
+# Install Git Flow
+brew install git-flow-avh  # macOS
+# or: apt-get install git-flow  # Linux
+
+# Start a feature
+git checkout develop
+git pull origin develop
+git flow feature start my-feature
+
+# Work on feature
+git add .
+git commit -m "feat: add new feature"
+
+# Finish feature (merges to develop)
+git flow feature finish my-feature
+git push origin develop
+```
+
+**Branch Structure:**
+- `main` - Production releases (tagged with versions)
+- `develop` - Integration branch for next release
+- `feature/*` - New features (branch from `develop`)
+- `bugfix/*` - Bug fixes (branch from `develop`)
+- `release/*` - Release preparation (branch from `develop`)
+- `hotfix/*` - Production fixes (branch from `main`)
+
+**Important:** All pull requests should target `develop`, not `main`.
+
 ### Project Structure
 
 ```
