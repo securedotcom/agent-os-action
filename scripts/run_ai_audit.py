@@ -2423,7 +2423,10 @@ Note any areas where human judgment is essential (architecture, business logic, 
 Be specific with file names and line numbers. Use format: `filename.ext:123` for references.
 """
     
-    print(f"🧠 Analyzing code with {provider} ({model})...")
+    # Sanitize provider/model names for logging (avoid potential sensitive data exposure)
+    safe_provider = provider.split('/')[-1] if provider else "unknown"
+    safe_model = model.split('/')[-1] if model else "unknown"
+    print(f"🧠 Analyzing code with {safe_provider} ({safe_model})...")
     
     try:
         # Call LLM API with cost enforcement
@@ -2493,7 +2496,10 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"   Low: {metrics.metrics['findings']['low']}")
         print(f"\n💰 Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Duration: {metrics.metrics['duration_seconds']}s")
-        print(f"🔧 Provider: {provider} ({model})")
+        # Sanitize for logging
+        safe_provider = provider.split('/')[-1] if provider else "unknown"
+        safe_model = model.split('/')[-1] if model else "unknown"
+        print(f"🔧 Provider: {safe_provider} ({safe_model})")
         
         # Check fail-on conditions
         fail_on = config.get('fail_on', '')
