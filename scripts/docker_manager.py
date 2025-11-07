@@ -70,7 +70,8 @@ class DockerManager:
     def _find_available_port(self) -> int:
         """Find an available port on the host"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
+            # Bind to localhost only for security (not 0.0.0.0)
+            s.bind(("127.0.0.1", 0))
             return cast(int, s.getsockname()[1])
 
     def _verify_image_available(self, max_retries: int = 3) -> None:
