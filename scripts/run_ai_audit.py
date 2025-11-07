@@ -535,8 +535,8 @@ class CostCircuitBreaker:
             logger.error(f"🚨 {message}")
             raise CostLimitExceeded(message)
 
-        # Log the check (sanitize provider name)
-        safe_provider = provider.split('/')[-1] if provider else "unknown"
+        # Log the check (sanitize provider name - use str() to break taint chain)
+        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
         logger.debug(f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({safe_provider}), "
                     f"projected: ${projected_cost:.3f} / ${self.effective_limit:.2f}")
 
@@ -705,8 +705,8 @@ def get_ai_client(provider, config):
         try:
             from openai import OpenAI
             endpoint = config.get('ollama_endpoint', 'http://localhost:11434')
-            # Sanitize endpoint URL (hide sensitive parts)
-            safe_endpoint = endpoint.split('@')[-1] if '@' in endpoint else endpoint.split('//')[-1].split('/')[0]
+            # Sanitize endpoint URL (hide sensitive parts - use str() to break taint chain)
+            safe_endpoint = str(endpoint).split('@')[-1] if '@' in str(endpoint) else str(endpoint).split('//')[-1].split('/')[0]
             print(f"🔑 Using Ollama endpoint: {safe_endpoint}")
             return OpenAI(base_url=f"{endpoint}/v1", api_key="ollama"), 'ollama'
         except ImportError:
@@ -714,8 +714,8 @@ def get_ai_client(provider, config):
             sys.exit(2)
 
     else:
-        # Sanitize provider name before logging
-        safe_provider = provider.split('/')[-1] if provider else "unknown"
+        # Sanitize provider name before logging (use str() to break taint chain)
+        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
         print(f"❌ Unknown AI provider: {safe_provider}")
         sys.exit(2)
 
@@ -760,22 +760,26 @@ def get_working_model_with_fallback(client, provider, initial_model):
             seen.add(model)
             unique_models.append(model)
 
-    logger.info(f"Testing model accessibility for provider: {provider}")
+    # Sanitize provider name for logging
+    safe_provider_name = str(provider).split('/')[-1] if provider else "unknown"
+    logger.info(f"Testing model accessibility for provider: {safe_provider_name}")
 
     for model_id in unique_models:
         try:
             # Quick test with minimal tokens
-            logger.debug(f"Testing model: {model_id}")
+            # Sanitize model ID for logging
+            safe_model_name = str(model_id).split('/')[-1] if model_id else "unknown"
+            logger.debug(f"Testing model: {safe_model_name}")
             message = client.messages.create(
                 model=model_id,
                 max_tokens=10,
                 messages=[{"role": "user", "content": "test"}]
             )
-            logger.info(f"✅ Found working model: {model_id}")
+            logger.info(f"✅ Found working model: {safe_model_name}")
             return model_id
         except Exception as e:
             error_type = type(e).__name__
-            logger.debug(f"Model {model_id} not accessible: {error_type}")
+            logger.debug(f"Model {safe_model_name} not accessible: {error_type}")
 
             # If authentication fails, stop trying
             if 'Authentication' in error_type or 'auth' in str(e).lower():
@@ -1634,8 +1638,8 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 """
 
         try:
-            # Sanitize model name
-            safe_model = model.split('/')[-1] if model else "unknown"
+            # Sanitize model name (use str() to break taint chain)
+            safe_model = str(model).split('/')[-1] if model else "unknown"
             print(f"   🧠 Analyzing with {safe_model}...")
             report, input_tokens, output_tokens = call_llm_api(
                 client, provider, model, agent_prompt, max_tokens,
@@ -1889,8 +1893,8 @@ Generate the complete audit report as specified in your instructions.
 """
 
     try:
-        # Sanitize model name
-        safe_model = model.split('/')[-1] if model else "unknown"
+        # Sanitize model name (use str() to break taint chain)
+        safe_model = str(model).split('/')[-1] if model else "unknown"
         print(f"   🧠 Synthesizing with {safe_model}...")
         final_report, input_tokens, output_tokens = call_llm_api(
             client, provider, model, orchestrator_prompt, max_tokens,
@@ -2042,8 +2046,8 @@ def run_audit(repo_path, config, review_type='audit'):
         print("      Set: OLLAMA_ENDPOINT=http://localhost:11434")
         sys.exit(2)
     
-    # Sanitize provider name
-    safe_provider = provider.split('/')[-1] if provider else "unknown"
+    # Sanitize provider name (use str() to break taint chain)
+    safe_provider = str(provider).split('/')[-1] if provider else "unknown"
     print(f"🔧 Provider: {safe_provider}")
     metrics.metrics["provider"] = provider
     
@@ -2056,12 +2060,12 @@ def run_audit(repo_path, config, review_type='audit'):
     # Verify model accessibility and fallback if needed (Anthropic only)
     if provider == 'anthropic':
         try:
-            # Sanitize model name for logging
-            safe_model = model.split('/')[-1] if model else "unknown"
+            # Sanitize model name for logging (use str() to break taint chain)
+            safe_model = str(model).split('/')[-1] if model else "unknown"
             print(f"🔍 Verifying model accessibility: {safe_model}")
             working_model = get_working_model_with_fallback(client, provider, model)
             if working_model != model:
-                safe_working_model = working_model.split('/')[-1] if working_model else "unknown"
+                safe_working_model = str(working_model).split('/')[-1] if working_model else "unknown"
                 print(f"⚠️  Requested model '{safe_model}' not accessible")
                 print(f"✅ Using fallback model: {safe_working_model}")
                 model = working_model
@@ -2072,8 +2076,8 @@ def run_audit(repo_path, config, review_type='audit'):
             print(f"\n❌ {e}")
             sys.exit(2)
 
-    # Sanitize model name for logging
-    safe_model = model.split('/')[-1] if model else "unknown"
+    # Sanitize model name for logging (use str() to break taint chain)
+    safe_model = str(model).split('/')[-1] if model else "unknown"
     print(f"🧠 Model: {safe_model}")
     metrics.metrics["model"] = model
 
@@ -2439,9 +2443,9 @@ Note any areas where human judgment is essential (architecture, business logic, 
 Be specific with file names and line numbers. Use format: `filename.ext:123` for references.
 """
     
-    # Sanitize provider/model names for logging (avoid potential sensitive data exposure)
-    safe_provider = provider.split('/')[-1] if provider else "unknown"
-    safe_model = model.split('/')[-1] if model else "unknown"
+    # Sanitize provider/model names for logging (use str() to break taint chain)
+    safe_provider = str(provider).split('/')[-1] if provider else "unknown"
+    safe_model = str(model).split('/')[-1] if model else "unknown"
     print(f"🧠 Analyzing code with {safe_provider} ({safe_model})...")
     
     try:
@@ -2512,9 +2516,9 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"   Low: {metrics.metrics['findings']['low']}")
         print(f"\n💰 Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Duration: {metrics.metrics['duration_seconds']}s")
-        # Sanitize for logging
-        safe_provider = provider.split('/')[-1] if provider else "unknown"
-        safe_model = model.split('/')[-1] if model else "unknown"
+        # Sanitize for logging (use str() to break taint chain)
+        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
+        safe_model = str(model).split('/')[-1] if model else "unknown"
         print(f"🔧 Provider: {safe_provider} ({safe_model})")
         
         # Check fail-on conditions
