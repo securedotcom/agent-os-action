@@ -16,7 +16,18 @@ class PolicyGate:
     """Policy engine for security gates"""
     
     def __init__(self, policy_dir: str = "policy/rego"):
-        self.policy_dir = Path(policy_dir)
+        # Support both relative and absolute paths
+        policy_path = Path(policy_dir)
+        if not policy_path.is_absolute():
+            # Try relative to current directory first
+            if policy_path.exists():
+                self.policy_dir = policy_path
+            else:
+                # Try relative to script directory
+                script_dir = Path(__file__).parent.parent
+                self.policy_dir = script_dir / policy_dir
+        else:
+            self.policy_dir = policy_path
         self._check_opa_installed()
     
     def _check_opa_installed(self):

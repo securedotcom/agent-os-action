@@ -126,6 +126,52 @@ class SageMakerFoundationSecProvider:
             logger.error(f"❌ SageMaker inference failed: {e}")
             raise RuntimeError(f"SageMaker inference error: {e}")
     
+    def analyze_code(
+        self,
+        code: str,
+        context: str = "",
+        focus: str = "security_analysis"
+    ) -> str:
+        """
+        Analyze code for security issues using Foundation-Sec
+        
+        Args:
+            code: Code snippet to analyze
+            context: Additional context or prompt
+            focus: Analysis focus (security_analysis, false_positive_analysis, etc.)
+            
+        Returns:
+            AI analysis response
+        """
+        # Build prompt based on focus
+        if focus == "false_positive_analysis":
+            prompt = context  # Context already contains the full prompt
+        elif focus == "correlation_analysis":
+            prompt = context  # Context already contains the full prompt
+        elif focus == "exploitability_assessment":
+            prompt = context  # Context already contains the full prompt
+        elif focus == "secret_detection":
+            prompt = context  # Context already contains the full prompt
+        else:
+            # Default security analysis
+            prompt = f"""Analyze this code for security vulnerabilities:
+
+{context}
+
+Code:
+```
+{code}
+```
+
+Provide a detailed security analysis including:
+1. Vulnerabilities found
+2. Severity assessment
+3. Exploitability
+4. Recommendations
+"""
+        
+        return self.generate(prompt, max_new_tokens=512)
+    
     def test_connection(self) -> Dict[str, Any]:
         """Test SageMaker endpoint connectivity"""
         try:

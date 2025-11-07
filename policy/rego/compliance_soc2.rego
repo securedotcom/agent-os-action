@@ -201,21 +201,16 @@ failing_controls := count([c |
 remediation_steps := steps if {
     not overall_compliant
     
-    steps_list := []
+    # Build remediation steps list
+    steps_cc6_1 := cc6_1_remediation if not cc6_1_compliant else []
+    steps_cc6_6 := cc6_6_remediation if not cc6_6_compliant else []
+    steps_cc7_2 := cc7_2_remediation if not cc7_2_compliant else []
+    steps_cc7_3 := cc7_3_remediation if not cc7_3_compliant else []
     
-    # CC6.1 remediation
-    steps_list := array.concat(steps_list, cc6_1_remediation) if not cc6_1_compliant
-    
-    # CC6.6 remediation
-    steps_list := array.concat(steps_list, cc6_6_remediation) if not cc6_6_compliant
-    
-    # CC7.2 remediation
-    steps_list := array.concat(steps_list, cc7_2_remediation) if not cc7_2_compliant
-    
-    # CC7.3 remediation
-    steps_list := array.concat(steps_list, cc7_3_remediation) if not cc7_3_compliant
-    
-    steps := steps_list
+    steps := array.concat(
+        array.concat(steps_cc6_1, steps_cc6_6),
+        array.concat(steps_cc7_2, steps_cc7_3)
+    )
 } else := []
 
 cc6_1_remediation := [

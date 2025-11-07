@@ -44,10 +44,10 @@ class Correlator:
         self.foundation_sec = None
         
         # Initialize Foundation-Sec if available
-            try:
-                self.foundation_sec = SageMakerFoundationSecProvider()
-                print("✅ Foundation-Sec-8B initialized for correlation analysis")
-            except Exception as e:
+        try:
+            self.foundation_sec = SageMakerFoundationSecProvider()
+            print("✅ Foundation-Sec-8B initialized for correlation analysis")
+        except Exception as e:
             print(f"⚠️  Foundation-Sec not available, using heuristics only: {e}")
     
     def correlate_findings(self, findings: List[Finding]) -> Tuple[List[Finding], List[CorrelationGroup]]:
