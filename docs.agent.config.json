@@ -1,0 +1,20 @@
+{
+  "docs_root": "docs",
+  "bootstrap_docusaurus": true,
+  "use_mdx": true,
+  "sections": [
+    "architecture",
+    "adrs",
+    "rfcs",
+    "playbooks",
+    "ml",
+    "references"
+  ],
+  "create_pr": true,
+  "branch_prefix": "ai/docs-architect",
+  "target_branch": "main",
+  "run_docusaurus_build_check": true,
+  "validate_links": true,
+  "respect_human_edits": true,
+  "incremental_updates": true
+}

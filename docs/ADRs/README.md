@@ -1,75 +1,87 @@
+---
+title: Architecture Decision Records
+sidebar_position: 1
+---
+
 # Architecture Decision Records (ADRs)
 
-This directory contains Architecture Decision Records (ADRs) for the Agent OS Code Reviewer project.
+This directory contains Architecture Decision Records documenting significant architectural and technical decisions made in the Agent OS Code Reviewer project.
 
-## What is an ADR?
+## What are ADRs?
 
-An Architecture Decision Record (ADR) is a document that captures an important architectural decision made along with its context and consequences.
+Architecture Decision Records (ADRs) are documents that capture important architectural decisions along with their context and consequences. They help teams:
 
-## ADR Index
+- Understand why decisions were made
+- Avoid revisiting settled decisions
+- Onboard new team members
+- Track the evolution of the system
 
-- [ADR-001: Multi-Agent Architecture](001-multi-agent-architecture.md) - Decision to use specialized agents instead of single generalist agent
-- [ADR-002: Cost Guardrails](002-cost-guardrails.md) - Implementation of pre-flight cost estimation and fail-fast mechanisms
+## Active ADRs
 
-### Planned ADRs
-- ADR-003: Provider Abstraction - Design of AI provider abstraction layer (Coming soon)
-- ADR-004: SARIF Output Format - Choice of SARIF 2.1.0 for security findings (Coming soon)
-- ADR-005: File Selection Algorithm - Priority-based file selection strategy (Coming soon)
+### AI & LLM
+- [ADR-0001: Use Anthropic Claude for AI Analysis](./0001-use-anthropic-claude.md) - **Accepted**
 
-## ADR Format
+### Architecture & Design
+- [ADR-0002: Multi-Agent Architecture](./001-multi-agent-architecture.md) - **Accepted** (existing)
 
-Each ADR follows this structure:
+### Cost & Performance
+- [ADR-0003: Cost Guardrails](./002-cost-guardrails.md) - **Accepted** (existing)
+
+## ADR Status Definitions
+
+- **Draft**: Under discussion, not yet decided
+- **Accepted**: Decision made and being implemented
+- **Deprecated**: No longer relevant or recommended
+- **Superseded**: Replaced by another ADR (with link)
+
+## Creating New ADRs
+
+When making significant technical decisions:
+
+1. Copy the ADR template
+2. Number it sequentially (next available number)
+3. Fill in all sections with context and reasoning
+4. Get team review and approval
+5. Mark as "Accepted" when implemented
+
+## ADR Template
 
 ```markdown
-# ADR-XXX: [Title]
+---
+title: ADR-NNNN: Title
+status: Draft
+date: YYYY-MM-DD
+---
+
+# ADR-NNNN: Title
 
 ## Status
-
-[Proposed | Accepted | Deprecated | Superseded]
+[Draft | Accepted | Deprecated | Superseded]
 
 ## Context
-
-[What is the issue we're facing? What factors are influencing this decision?]
+[What is the issue we're facing?]
 
 ## Decision
-
-[What is the change we're proposing and/or doing?]
+[What decision did we make?]
 
 ## Consequences
-
 ### Positive
-- [List positive consequences]
+- [Benefit 1]
 
 ### Negative
-- [List negative consequences]
-
-### Neutral
-- [List neutral consequences]
+- [Tradeoff 1]
 
 ## Alternatives Considered
-
-[What other options were considered?]
+### Alternative 1
+- Pros: ...
+- Cons: ...
+- Why not chosen: ...
 
 ## References
-
-[Links to related resources, discussions, or documents]
+- [Links to relevant documentation]
 ```
 
-## When to Write an ADR
+## Learn More
 
-Write an ADR when making decisions about:
-- Architecture patterns and system design
-- Technology choices (frameworks, libraries, tools)
-- Integration approaches
-- Security mechanisms
-- Performance optimization strategies
-- User experience trade-offs
-- Operational concerns
-
-## How to Create a New ADR
-
-1. Copy the template: `cp 000-template.md XXX-your-title.md`
-2. Fill in all sections
-3. Get review from team members
-4. Update status from "Proposed" to "Accepted" after approval
-5. Add entry to this README's index
+- [ADR GitHub Organization](https://adr.github.io/)
+- [Documenting Architecture Decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
