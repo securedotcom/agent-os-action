@@ -374,16 +374,7 @@ runs:
 
           # Pre-download and cache model (first time: ~5min for 4GB, subsequent: instant)
           echo "📥 Pre-downloading Foundation-Sec model (4GB with quantization)..."
-          python3 -c "
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-import torch
-print('Downloading tokenizer...')
-AutoTokenizer.from_pretrained('fdtn-ai/Foundation-Sec-8B')
-print('Downloading model (4GB with quantization)...')
-quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
-AutoModelForCausalLM.from_pretrained('fdtn-ai/Foundation-Sec-8B', quantization_config=quantization_config, device_map='auto')
-print('✅ Model cached successfully')
-          " || echo "⚠️  Model pre-download failed, will download at runtime"
+          python3 -c 'from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig; import torch; print("Downloading tokenizer..."); AutoTokenizer.from_pretrained("fdtn-ai/Foundation-Sec-8B"); print("Downloading model (4GB with quantization)..."); quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16); AutoModelForCausalLM.from_pretrained("fdtn-ai/Foundation-Sec-8B", quantization_config=quantization_config, device_map="auto"); print("✅ Model cached successfully")' || echo "⚠️  Model pre-download failed, will download at runtime"
         fi
         
         # Run AI-powered audit with guardrails
