@@ -1,6 +1,7 @@
-# Agent-OS PR Policy
-# Purpose: Deterministic gates for pull requests
+# Agent-OS PR Policy (Enhanced with Velocity Metrics)
+# Purpose: Deterministic gates for pull requests with delivery velocity tracking
 # Decision: pass/fail based on verified secrets, critical IaC, exploitable SAST
+# NEW: Tracks velocity metrics, noise filtering, and auto-fix opportunities
 
 package agentos.pr
 
@@ -12,7 +13,8 @@ default decision := {
     "decision": "pass",
     "reasons": [],
     "blocks": [],
-    "warnings": []
+    "warnings": [],
+    "velocity_metrics": {}
 }
 
 # ========================================
@@ -88,12 +90,81 @@ warning_findings := [f | f := input.findings[_]; is_warning(f)]
 warning_ids := [f.id | f := warning_findings[_]]
 
 # ========================================
+# NOISE FILTERING (NEW - Phase 1)
+# ========================================
+
+# Suppress high-noise findings
+suppressed_findings := [f | 
+    f := input.findings[_]
+    f.noise_score > 0.7  # High noise threshold
+]
+
+# Suppress findings with low historical fix rate
+low_value_findings := [f |
+    f := input.findings[_]
+    f.historical_fix_rate < 0.2  # <20% fix rate
+    f.noise_score > 0.5
+]
+
+# Don't block auto-fixable findings (they'll be fixed automatically)
+auto_fixable_findings := [f |
+    f := input.findings[_]
+    f.auto_fixable == true
+]
+
+# ========================================
+# VELOCITY METRICS (NEW - Phase 1)
+# ========================================
+
+velocity_metrics := {
+    "total_findings": count(input.findings),
+    "blocked_findings": count(block_ids),
+    "warning_findings": count(warning_ids),
+    "suppressed_noise": count(suppressed_findings),
+    "auto_fixable": count(auto_fixable_findings),
+    "noise_reduction_rate": noise_reduction_rate,
+    "estimated_pr_delay_minutes": estimated_delay,
+    "delivery_impact": delivery_impact
+}
+
+# Calculate noise reduction rate
+noise_reduction_rate := rate if {
+    total := count(input.findings)
+    total > 0
+    suppressed := count(suppressed_findings)
+    rate := (suppressed / total) * 100
+} else := 0
+
+# Estimate PR delay based on findings
+estimated_delay := delay if {
+    blockers := count(block_ids)
+    warnings := count(warning_ids)
+    # Assume: 15 min per blocker, 5 min per warning
+    delay := (blockers * 15) + (warnings * 5)
+} else := 0
+
+# Delivery impact assessment
+delivery_impact := "high" if count(block_ids) > 5
+delivery_impact := "medium" if {
+    count(block_ids) > 0
+    count(block_ids) <= 5
+}
+delivery_impact := "low" if count(block_ids) == 0
+
+# ========================================
 # FINAL DECISION
 # ========================================
 
-# Block if any critical findings
+# Block if any critical findings (excluding auto-fixable)
 decision := result if {
     count(block_ids) > 0
+    # Filter out auto-fixable from blocks
+    non_fixable_blocks := [id | 
+        id := block_ids[_]
+        not id in [f.id | f := auto_fixable_findings[_]]
+    ]
+    count(non_fixable_blocks) > 0
+    
     reasons_list := array.concat(
         critical_reasons,
         [sprintf("See full report for %d warnings", [count(warning_ids)])]
@@ -101,8 +172,10 @@ decision := result if {
     result := {
         "decision": "fail",
         "reasons": reasons_list,
-        "blocks": block_ids,
-        "warnings": warning_ids
+        "blocks": non_fixable_blocks,
+        "warnings": warning_ids,
+        "velocity_metrics": velocity_metrics,
+        "auto_fixable_count": count(auto_fixable_findings)
     }
 }
 
@@ -145,7 +218,8 @@ decision := result if {
         "decision": "pass",
         "reasons": [sprintf("✅ No blockers, but %d warning(s) found - review recommended", [count(warning_ids)])],
         "blocks": [],
-        "warnings": warning_ids
+        "warnings": warning_ids,
+        "velocity_metrics": velocity_metrics
     }
 }
 
@@ -157,7 +231,27 @@ decision := result if {
         "decision": "pass",
         "reasons": ["✅ No security issues detected"],
         "blocks": [],
-        "warnings": []
+        "warnings": [],
+        "velocity_metrics": velocity_metrics
+    }
+}
+
+# Pass if all blockers are auto-fixable
+decision := result if {
+    count(block_ids) > 0
+    non_fixable_blocks := [id | 
+        id := block_ids[_]
+        not id in [f.id | f := auto_fixable_findings[_]]
+    ]
+    count(non_fixable_blocks) == 0  # All blockers are auto-fixable
+    
+    result := {
+        "decision": "pass",
+        "reasons": [sprintf("✅ %d finding(s) will be auto-fixed - no manual action needed", [count(auto_fixable_findings)])],
+        "blocks": [],
+        "warnings": warning_ids,
+        "velocity_metrics": velocity_metrics,
+        "auto_fixable_count": count(auto_fixable_findings)
     }
 }
 

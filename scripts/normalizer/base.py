@@ -57,12 +57,35 @@ class Finding:
     # Computed
     risk_score: float = 0.0
     
+    # Noise & Intelligence (NEW - Phase 1)
+    noise_score: float = 0.0  # 0-1, higher = more likely noise/FP
+    false_positive_probability: float = 0.0  # ML-based FP prediction
+    historical_fix_rate: float = 0.0  # % of similar findings that were fixed
+    correlation_group_id: Optional[str] = None  # Links related findings
+    
+    # Business Context (NEW - Phase 1)
+    business_context: Dict[str, Any] = field(default_factory=lambda: {
+        'service_tier': 'internal',  # critical/high/medium/low
+        'exposure': 'internal',  # public/internal/private
+        'data_classification': 'public'  # pii/financial/public
+    })
+    
+    # Suppression (NEW - Phase 1)
+    suppression_id: Optional[str] = None
+    suppression_expires_at: Optional[str] = None
+    suppression_reason: Optional[str] = None
+    
+    # Auto-fix (NEW - Phase 1)
+    auto_fixable: bool = False
+    fix_suggestion: Optional[str] = None
+    fix_confidence: float = 0.0
+    
     # Timestamps
     first_seen_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     last_seen_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
     # Status
-    status: str = 'open'  # open, triaged, accepted, fixed, false_positive
+    status: str = 'open'  # open, triaged, accepted, fixed, false_positive, suppressed
     
     # Metadata
     llm_enriched: bool = False
