@@ -31,13 +31,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import threat model generator
+# Import threat model generator (hybrid: pytm + optional Anthropic)
 try:
-    from threat_model_generator import ThreatModelGenerator
+    from threat_model_generator import HybridThreatModelGenerator
     THREAT_MODELING_AVAILABLE = True
 except ImportError:
-    THREAT_MODELING_AVAILABLE = False
-    logger.warning("Threat model generator not available")
+    # Fallback to pytm-only if hybrid not available
+    try:
+        from pytm_threat_model import PytmThreatModelGenerator as HybridThreatModelGenerator
+        THREAT_MODELING_AVAILABLE = True
+        logger.info("Using pytm-only threat modeling (hybrid generator not available)")
+    except ImportError:
+        THREAT_MODELING_AVAILABLE = False
+        logger.warning("No threat modeling available (install pytm: pip install pytm)")
 
 # Import sandbox validator
 try:
@@ -2088,13 +2094,17 @@ def run_audit(repo_path, config, review_type='audit'):
     # Initialize cost circuit breaker for runtime enforcement
     circuit_breaker = CostCircuitBreaker(cost_limit_usd=cost_limit)
 
-    # Generate or load threat model (if enabled)
+    # Generate or load threat model (always runs if pytm available)
     threat_model = None
-    if config.get('enable_threat_modeling', 'true').lower() == 'true' and THREAT_MODELING_AVAILABLE:
+    if THREAT_MODELING_AVAILABLE:
         print("🛡️  Generating threat model...")
         try:
             threat_model_path = Path(repo_path) / '.agent-os/threat-model.json'
-            generator = ThreatModelGenerator(config.get('anthropic_api_key', ''))
+            
+            # Initialize hybrid generator (pytm + optional Anthropic)
+            # API key is optional - pytm works without it
+            api_key = config.get('anthropic_api_key', '') if config.get('enable_threat_modeling', 'true').lower() == 'true' else None
+            generator = HybridThreatModelGenerator(api_key)
 
             # Load existing or generate new
             threat_model = generator.load_existing_threat_model(threat_model_path)
@@ -2103,6 +2113,7 @@ def run_audit(repo_path, config, review_type='audit'):
                 threat_model = generator.generate_threat_model(repo_context)
                 generator.save_threat_model(threat_model, threat_model_path)
                 print(f"✅ Threat model generated: {threat_model_path}")
+                print(f"   Generator: {threat_model.get('generator', 'pytm')}")
             else:
                 print(f"✅ Loaded existing threat model: {threat_model_path}")
 
@@ -2114,8 +2125,11 @@ def run_audit(repo_path, config, review_type='audit'):
             print(f"   Trust boundaries: {len(threat_model.get('trust_boundaries', []))}")
 
         except Exception as e:
-            logger.warning(f"Failed to generate threat model: {e}")
-            print(f"⚠️  Threat modeling failed, continuing without threat model")
+            logger.error(f"Threat modeling failed: {e}")
+            print(f"⚠️  Threat modeling failed: {e}")
+            print(f"   Continuing without threat model")
+    else:
+        print("⚠️  Threat modeling not available (install pytm: pip install pytm)")
 
     # Get codebase context with guardrails
     print("📂 Analyzing codebase structure...")
