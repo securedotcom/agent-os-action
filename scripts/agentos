@@ -128,7 +128,7 @@ Examples:
 """
     )
     
-    subparsers = parser.add_parsers('command', dest='command')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Normalize command
     parser_normalize = subparsers.add_parser('normalize', help='Normalize security tool outputs')
