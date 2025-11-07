@@ -11,6 +11,11 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   audit-repositories:
     runs-on: ubuntu-latest
