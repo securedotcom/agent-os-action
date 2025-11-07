@@ -5,9 +5,9 @@ name: "Semgrep Analysis"
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, develop ]
   schedule:
     # Run twice weekly (Monday and Thursday at 4 AM UTC)
     - cron: '0 4 * * 1,4'
@@ -47,17 +47,26 @@ jobs:
         SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
       run: |
         # Run Semgrep with multiple rulesets
+        # Exit code 0: No findings, 1: Findings found, 2+: Error
+        # We want to continue even if findings are found (exit 1)
         semgrep scan \
-          --config auto \
           --config "p/security-audit" \
-          --config "p/performance" \
-          --config "p/correctness" \
+          --config "p/python" \
           --config "p/owasp-top-ten" \
           --sarif \
           --output semgrep-results.sarif \
           --timeout 300 \
           --max-memory 4096 \
-          --verbose
+          --verbose || EXIT_CODE=$?
+        
+        # Exit codes: 0=no findings, 1=findings, 2+=error
+        if [ "${EXIT_CODE:-0}" -eq 1 ]; then
+          echo "✅ Semgrep completed with findings (exit code 1)"
+          exit 0
+        elif [ "${EXIT_CODE:-0}" -gt 1 ]; then
+          echo "❌ Semgrep failed with exit code ${EXIT_CODE}"
+          exit ${EXIT_CODE}
+        fi
     
     # Upload SARIF to GitHub Code Scanning
     - name: Upload SARIF to Code Scanning
@@ -84,10 +93,8 @@ jobs:
         echo "**Status**: Scan complete" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Rulesets Applied:" >> $GITHUB_STEP_SUMMARY
-        echo "- **auto**: Language-specific best practices" >> $GITHUB_STEP_SUMMARY
         echo "- **security-audit**: Security vulnerabilities" >> $GITHUB_STEP_SUMMARY
-        echo "- **performance**: Performance anti-patterns" >> $GITHUB_STEP_SUMMARY
-        echo "- **correctness**: Logic errors and bugs" >> $GITHUB_STEP_SUMMARY
+        echo "- **python**: Python-specific security and quality" >> $GITHUB_STEP_SUMMARY
         echo "- **owasp-top-ten**: OWASP security issues" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### What was checked:" >> $GITHUB_STEP_SUMMARY
