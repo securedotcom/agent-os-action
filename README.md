@@ -279,6 +279,122 @@ More examples: [examples/workflows/](examples/workflows/)
 
 ---
 
+## When to Use Agent-OS
+
+### ✅ Perfect For
+
+**You should use Agent-OS if you want to:**
+
+- ✅ **Block PRs with verified secrets** (not just pattern matches)
+- ✅ **Reduce security alert noise** by 60-70% automatically
+- ✅ **Get AI-generated fix suggestions** for vulnerabilities
+- ✅ **Run multiple scanners** without managing each separately
+- ✅ **Enforce security policies** via Rego gates
+- ✅ **Generate SBOMs** for supply chain transparency
+- ✅ **Zero-cost security scanning** (with Foundation-Sec)
+- ✅ **Enterprise compliance** (SOC2, PCI-DSS)
+
+**Ideal Teams:**
+
+| Team Type | Why Agent-OS Fits |
+|-----------|-------------------|
+| **Startups** | Free tier (Foundation-Sec), easy setup, production-ready |
+| **Scale-ups** | Handles repos at scale, multi-repo support, cost-efficient |
+| **Enterprises** | Compliance packs, policy enforcement, self-hosted option |
+| **Security Teams** | Comprehensive scanning, prioritization, metrics |
+| **DevOps Teams** | CI/CD integration, automated gates, low maintenance |
+
+### ❌ Not Ideal For
+
+**Consider alternatives if you:**
+
+- ❌ **Need runtime security** (Agent-OS is static analysis only)
+- ❌ **Want dynamic testing** (use DAST tools like OWASP ZAP)
+- ❌ **Need penetration testing** (hire pen testers)
+- ❌ **Want network security** (use Wiz, Lacework, etc.)
+- ❌ **Need real-time monitoring** (use Datadog, Sentry, etc.)
+- ❌ **Have <10 PRs/month** (GitHub's free tools may suffice)
+- ❌ **Can't use GitHub Actions** (use CLI mode instead)
+
+**What Agent-OS Doesn't Do:**
+
+| What It's NOT | What to Use Instead |
+|---------------|---------------------|
+| Dynamic Application Security Testing (DAST) | OWASP ZAP, Burp Suite |
+| Runtime monitoring | Datadog, Sentry, New Relic |
+| Network security | Wiz, Lacework, Prisma Cloud |
+| Penetration testing | Professional pen testers |
+| Container runtime security | Falco, Aqua, Sysdig |
+| Web Application Firewall (WAF) | Cloudflare, AWS WAF |
+
+**Best Practice**: Use Agent-OS *alongside* these tools, not instead of them. Agent-OS excels at **shift-left security** (catching issues before production).
+
+---
+
+## Comparison: Agent-OS vs Alternatives
+
+### vs Running Scanners Manually
+
+| Aspect | Manual (Trivy + Semgrep + Gitleaks) | Agent-OS |
+|--------|--------------------------------------|----------|
+| **Setup Time** | 2-4 hours per repo | 3 minutes (copy YAML) |
+| **Raw Findings** | 50-200+ per scan | 3-10 actionable (60-70% noise reduction) |
+| **Triage Time** | 2-4 hours/week | Automated (0 hours) |
+| **Fix Guidance** | Manual research | AI-generated suggestions |
+| **Policy Enforcement** | Manual review | Automated Rego gates |
+| **Cost** | Engineer time ($100+/hr) | $0-0.35 per scan |
+| **Maintenance** | Update each tool | Single action update |
+| **Expertise Required** | High (know each tool) | Low (unified interface) |
+
+**ROI**: Agent-OS pays for itself if you value your time at >$20/hour.
+
+### vs GitHub Advanced Security
+
+| Feature | GitHub Advanced Security | Agent-OS | Winner |
+|---------|-------------------------|----------|--------|
+| **Cost** | $49/user/month | Free (open source) | 🏆 Agent-OS |
+| **Secret Scanning** | Pattern-based | Pattern + API verification | 🏆 Agent-OS |
+| **Noise Reduction** | Manual review | 60-70% auto-suppression | 🏆 Agent-OS |
+| **SAST Coverage** | CodeQL | Semgrep (2000+ rules) | 🤝 Tie |
+| **Dependency Scanning** | Dependabot | Trivy + reachability | 🤝 Tie |
+| **Fix Suggestions** | Limited | AI-generated | 🏆 Agent-OS |
+| **Policy Enforcement** | Manual | Rego-based automation | 🏆 Agent-OS |
+| **Self-Hosted** | ❌ Cloud only | ✅ Full control | 🏆 Agent-OS |
+| **GitHub Integration** | Native | Action-based | 🏆 GitHub |
+
+**Recommendation**: Use **both**! GitHub Advanced Security for ongoing monitoring, Agent-OS for PR gates with AI triage.
+
+### vs Commercial Tools (Snyk, Checkmarx, Veracode)
+
+| Feature | Commercial SAST/SCA | Agent-OS | Notes |
+|---------|---------------------|----------|-------|
+| **Pricing** | $1,000-10,000+/year | $0 | Commercial tools include support |
+| **Coverage** | Excellent (mature) | Very Good (5 tools) | Commercial tools more specialized |
+| **Noise Reduction** | Good (tuned rulesets) | Very Good (AI-powered) | Agent-OS learns from feedback |
+| **Fix Suggestions** | Basic | AI-generated | Agent-OS uses LLMs |
+| **Policy Engine** | Proprietary | Open (Rego) | Agent-OS more flexible |
+| **Self-Hosted** | Enterprise plans | ✅ Always | Agent-OS full control |
+| **Vendor Lock-in** | High | None | Agent-OS open source |
+| **Support** | SLA-backed | Community | Commercial wins here |
+
+**Best For**:
+- **Commercial**: Large enterprises, require SLA support, deep integrations
+- **Agent-OS**: Startups to mid-size, value flexibility, OSS-first culture
+
+### vs Security-as-a-Service (GuardRails, Semgrep Cloud)
+
+| Feature | Security-as-a-Service | Agent-OS |
+|---------|----------------------|----------|
+| **Data Handling** | Sent to vendor cloud | Stays in your runner |
+| **Pricing Model** | Per-repo or per-scan | Free (OSS) |
+| **Customization** | Vendor dashboard | Full Rego policies |
+| **Privacy** | Trust vendor | Self-hosted option |
+| **Integration** | Vendor-managed | GitHub Action |
+
+**Agent-OS Advantage**: Zero external data sharing (use Foundation-Sec for 100% local processing).
+
+---
+
 ## Outputs
 
 Agent-OS generates multiple artifact formats:
