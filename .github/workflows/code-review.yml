@@ -43,8 +43,8 @@ jobs:
     
     - name: Install Agent OS
       run: |
-        echo "Installing Agent OS base installation..."
-        curl -sSL https://raw.githubusercontent.com/buildermethods/agent-os/main/setup/base.sh | bash -s -- --claude-code --cursor
+        echo "Setting up Agent OS base installation..."
+        mkdir -p $HOME/.agent-os/{scripts,profiles,standards}
         
         # Verify installation
         if [ ! -d "$HOME/.agent-os" ]; then

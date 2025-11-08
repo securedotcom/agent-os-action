@@ -30,6 +30,16 @@ jobs:
     - name: Checkout test fixture
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -q anthropic openai tenacity
+    
     - name: Create test fixture
       run: |
         mkdir -p test-fixture/src
@@ -113,6 +123,16 @@ jobs:
     - name: Checkout test fixture
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -q anthropic openai tenacity
+    
     - name: Create test fixture
       run: |
         mkdir -p test-fixture/src
@@ -195,6 +215,16 @@ jobs:
     - name: Checkout test fixture
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -q anthropic openai tenacity
+    
     - name: Create test fixture with blockers
       run: |
         mkdir -p test-fixture/src
@@ -235,6 +265,16 @@ jobs:
     steps:
     - name: Checkout test fixture
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+    
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -q anthropic openai tenacity
     
     - name: Create large test fixture
       run: |
@@ -281,6 +321,16 @@ jobs:
     steps:
     - name: Checkout test fixture
       uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+    
+    - name: Set up Python
+      uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -q anthropic openai tenacity
     
     - name: Test Invalid Review Type
       id: invalid-type

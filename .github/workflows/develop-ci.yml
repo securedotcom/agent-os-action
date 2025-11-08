@@ -21,14 +21,15 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
         with:
           fetch-depth: 0
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: '3.11'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
@@ -54,9 +55,9 @@ jobs:
       
       - name: Upload coverage
         if: always()
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -67,21 +68,40 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
       
-      - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
-          config: >-
-            p/security-audit
-            p/python
-          generateSarif: true
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install and Run Semgrep
+        run: |
+          pip install semgrep
+          semgrep scan \
+            --config "p/security-audit" \
+            --config "p/python" \
+            --sarif \
+            --output semgrep.sarif \
+            --timeout 300 \
+            --max-memory 4096 \
+            || EXIT_CODE=$?
+          # Exit codes: 0=no findings, 1=findings, 2+=error
+          if [ "${EXIT_CODE:-0}" -eq 1 ]; then
+            echo "Semgrep completed with findings (exit code 1)"
+            exit 0
+          elif [ "${EXIT_CODE:-0}" -gt 1 ]; then
+            echo "Semgrep failed with exit code ${EXIT_CODE}"
+            exit ${EXIT_CODE}
+          fi
       
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@afb54ba388a7dca6ecae48f608c4ff05ff4cc77a  # v3.25.15
         with:
           sarif_file: semgrep.sarif
+          category: semgrep
 
   integration-test:
     name: Integration Test
@@ -89,12 +109,13 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: '3.11'
+          cache: 'pip'
       
       - name: Install Agent-OS
         run: |

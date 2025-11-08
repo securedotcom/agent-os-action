@@ -179,11 +179,11 @@ runs:
       with:
         fetch-depth: 0
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
-        node-version: '18'
-        # Cache disabled - repositories may not have lock files
+        python-version: '3.11'
+        cache: 'pip'
 
     - name: Install Agent OS
       shell: bash

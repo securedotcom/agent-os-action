@@ -107,6 +107,16 @@ jobs:
           }
           EOF
       
+      - name: Set up Python
+        uses: actions/setup-python@f677139bbe7f9c59b41e40162b753c062f5d49a3  # v5.2.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -q anthropic openai tenacity
+      
       - name: Run Agent OS Code Review
         id: review
         uses: ./
@@ -210,22 +220,7 @@ jobs:
         if: matrix.mode == 'single'  # Only test once
         run: |
           echo "Testing fail-on logic..."
-          
-          # Test that fail-on works (should fail with security:critical)
-          set +e
-          ./action.yml \
-            anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
-            project-path="./test-repo" \
-            fail-on="security:critical" \
-            > /dev/null 2>&1
-          EXIT_CODE=$?
-          set -e
-          
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ Fail-on logic working (or no critical issues found)"
-          else
-            echo "✅ Fail-on logic triggered as expected"
-          fi
+          echo "✅ Skipping fail-on test in smoke test (tested in contract tests)"
       
       - name: Upload Smoke Test Artifacts
         if: always()
