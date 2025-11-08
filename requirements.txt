@@ -9,11 +9,11 @@ botocore>=1.40.68
 
 # Foundation-Sec-8B provider (optional, for local inference)
 # Install only if using Foundation-Sec provider:
-# pip install transformers torch accelerate
-transformers>=4.48.0
-torch>=2.6.0
-accelerate>=1.2.0
-huggingface-hub>=1.1.2
+# pip install transformers torch accelerate huggingface-hub
+# transformers>=4.48.0
+# torch>=2.6.0
+# accelerate>=1.2.0
+# huggingface-hub>=1.1.2
 
 # Security scanning tools
 semgrep>=1.100.0  # SAST scanning with 2,000+ security rules
