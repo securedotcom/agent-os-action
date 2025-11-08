@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 class TestDockerManager(unittest.TestCase):
     """Test DockerManager functionality"""
 
-    @patch('docker_manager.docker')
+    @patch("docker_manager.docker")
     def test_docker_manager_initialization(self, mock_docker):
         """Test DockerManager can be initialized"""
         mock_client = MagicMock()
@@ -31,7 +31,7 @@ class TestDockerManager(unittest.TestCase):
         self.assertEqual(manager.image, "agent-os-sandbox:latest")
         mock_docker.from_env.assert_called_once()
 
-    @patch('docker_manager.docker')
+    @patch("docker_manager.docker")
     def test_docker_manager_custom_image(self, mock_docker):
         """Test DockerManager with custom image"""
         mock_client = MagicMock()
@@ -44,7 +44,7 @@ class TestDockerManager(unittest.TestCase):
         manager = DockerManager(image=custom_image)
         self.assertEqual(manager.image, custom_image)
 
-    @patch('docker_manager.docker')
+    @patch("docker_manager.docker")
     def test_create_container(self, mock_docker):
         """Test container creation"""
         mock_client = MagicMock()
@@ -79,11 +79,11 @@ class TestDockerManager(unittest.TestCase):
         # Verify container was created with correct parameters
         mock_client.containers.run.assert_called_once()
         call_kwargs = mock_client.containers.run.call_args[1]
-        self.assertEqual(call_kwargs['name'], 'test-container')
-        self.assertEqual(call_kwargs['mem_limit'], '256m')
-        self.assertTrue(call_kwargs['detach'])
+        self.assertEqual(call_kwargs["name"], "test-container")
+        self.assertEqual(call_kwargs["mem_limit"], "256m")
+        self.assertTrue(call_kwargs["detach"])
 
-    @patch('docker_manager.docker')
+    @patch("docker_manager.docker")
     def test_execute_code_python(self, mock_docker):
         """Test code execution in container"""
         mock_client = MagicMock()
@@ -114,7 +114,7 @@ class TestDockerManager(unittest.TestCase):
         self.assertEqual(result["exit_code"], 0)
         self.assertIn("Hello from Python", result["stdout"])
 
-    @patch('docker_manager.docker')
+    @patch("docker_manager.docker")
     def test_list_containers(self, mock_docker):
         """Test listing containers"""
         mock_client = MagicMock()
@@ -178,7 +178,7 @@ class TestSandboxValidator(unittest.TestCase):
         self.assertEqual(exploit.language, "python")
         self.assertEqual(exploit.timeout, 30)
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_sandbox_validator_initialization(self, mock_docker_manager):
         """Test SandboxValidator initialization"""
         from sandbox_validator import SandboxValidator
@@ -188,7 +188,7 @@ class TestSandboxValidator(unittest.TestCase):
         self.assertEqual(validator._validation_count, 0)
         self.assertEqual(len(validator._metrics), 0)
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_safety_check_dangerous_patterns(self, mock_docker_manager):
         """Test safety checks for dangerous code"""
         from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType
@@ -208,7 +208,7 @@ class TestSandboxValidator(unittest.TestCase):
         self.assertFalse(safety_result["safe"])
         self.assertIn("root filesystem", safety_result["reason"])
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_safety_check_safe_code(self, mock_docker_manager):
         """Test safety checks pass for safe code"""
         from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType
@@ -226,7 +226,7 @@ class TestSandboxValidator(unittest.TestCase):
         safety_result = validator._safety_check(safe_exploit)
         self.assertTrue(safety_result["safe"])
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_analyze_results(self, mock_docker_manager):
         """Test result analysis for indicators"""
         from sandbox_validator import SandboxValidator
@@ -243,7 +243,7 @@ class TestSandboxValidator(unittest.TestCase):
         self.assertIn("MISSING", missing)
         self.assertNotIn("EXPLOIT_VERIFIED", found)
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_determine_result_exploitable(self, mock_docker_manager):
         """Test determining exploitable result"""
         from sandbox_validator import SandboxValidator, ValidationResult
@@ -262,7 +262,7 @@ class TestSandboxValidator(unittest.TestCase):
 
         self.assertEqual(result, ValidationResult.EXPLOITABLE)
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_determine_result_not_exploitable(self, mock_docker_manager):
         """Test determining not exploitable result"""
         from sandbox_validator import SandboxValidator, ValidationResult
@@ -283,7 +283,7 @@ class TestSandboxValidator(unittest.TestCase):
         # With no indicators found and failed execution, result is ERROR
         self.assertEqual(result, ValidationResult.ERROR)
 
-    @patch('sandbox_validator.DockerManager')
+    @patch("sandbox_validator.DockerManager")
     def test_get_metrics_summary(self, mock_docker_manager):
         """Test metrics summary generation"""
         from sandbox_validator import (

@@ -14,10 +14,7 @@ from typing import Dict, List, Optional, Any
 import glob as glob_module
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +29,7 @@ class ThreatModelGenerator:
         """
         try:
             from anthropic import Anthropic
+
             self.client = Anthropic(api_key=api_key)
             logger.info("Initialized Anthropic client for threat modeling")
         except ImportError:
@@ -58,49 +56,81 @@ class ThreatModelGenerator:
             "key_files": [],
             "file_tree": [],
             "technologies": set(),
-            "package_files": []
+            "package_files": [],
         }
 
         # Language extensions
         lang_map = {
-            '.py': 'Python',
-            '.js': 'JavaScript',
-            '.ts': 'TypeScript',
-            '.jsx': 'React',
-            '.tsx': 'React/TypeScript',
-            '.java': 'Java',
-            '.go': 'Go',
-            '.rs': 'Rust',
-            '.rb': 'Ruby',
-            '.php': 'PHP',
-            '.cs': 'C#',
-            '.swift': 'Swift',
-            '.kt': 'Kotlin',
-            '.scala': 'Scala'
+            ".py": "Python",
+            ".js": "JavaScript",
+            ".ts": "TypeScript",
+            ".jsx": "React",
+            ".tsx": "React/TypeScript",
+            ".java": "Java",
+            ".go": "Go",
+            ".rs": "Rust",
+            ".rb": "Ruby",
+            ".php": "PHP",
+            ".cs": "C#",
+            ".swift": "Swift",
+            ".kt": "Kotlin",
+            ".scala": "Scala",
         }
 
         # Key files to analyze
         key_file_patterns = [
-            'README.md', 'README.rst', 'README.txt',
-            'package.json', 'package-lock.json',
-            'requirements.txt', 'Pipfile', 'pyproject.toml',
-            'pom.xml', 'build.gradle', 'build.gradle.kts',
-            'go.mod', 'go.sum',
-            'Cargo.toml', 'Cargo.lock',
-            'Gemfile', 'Gemfile.lock',
-            'composer.json', 'composer.lock',
-            'docker-compose.yml', 'docker-compose.yaml', 'Dockerfile',
-            '.env.example', 'config.yml', 'config.yaml',
-            'tsconfig.json', '.eslintrc', '.prettierrc'
+            "README.md",
+            "README.rst",
+            "README.txt",
+            "package.json",
+            "package-lock.json",
+            "requirements.txt",
+            "Pipfile",
+            "pyproject.toml",
+            "pom.xml",
+            "build.gradle",
+            "build.gradle.kts",
+            "go.mod",
+            "go.sum",
+            "Cargo.toml",
+            "Cargo.lock",
+            "Gemfile",
+            "Gemfile.lock",
+            "composer.json",
+            "composer.lock",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "Dockerfile",
+            ".env.example",
+            "config.yml",
+            "config.yaml",
+            "tsconfig.json",
+            ".eslintrc",
+            ".prettierrc",
         ]
 
         # Scan repository
         for root, dirs, files in os.walk(repo_path):
             # Skip common directories
-            dirs[:] = [d for d in dirs if d not in {
-                '.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build',
-                '.next', 'target', 'vendor', '.gradle', '.idea', '.vscode'
-            }]
+            dirs[:] = [
+                d
+                for d in dirs
+                if d
+                not in {
+                    ".git",
+                    "node_modules",
+                    "venv",
+                    "__pycache__",
+                    "dist",
+                    "build",
+                    ".next",
+                    "target",
+                    "vendor",
+                    ".gradle",
+                    ".idea",
+                    ".vscode",
+                }
+            ]
 
             for file in files:
                 file_path = Path(root) / file
@@ -118,20 +148,13 @@ class ThreatModelGenerator:
                 # Find key files
                 if file in key_file_patterns or file.lower() in [p.lower() for p in key_file_patterns]:
                     try:
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                             content = f.read(10000)  # Read first 10KB
-                            context["key_files"].append({
-                                "path": str(rel_path),
-                                "name": file,
-                                "content": content
-                            })
+                            context["key_files"].append({"path": str(rel_path), "name": file, "content": content})
 
                             # Track package files for dependency analysis
-                            if file in ['package.json', 'requirements.txt', 'go.mod', 'Cargo.toml', 'pom.xml']:
-                                context["package_files"].append({
-                                    "path": str(rel_path),
-                                    "content": content
-                                })
+                            if file in ["package.json", "requirements.txt", "go.mod", "Cargo.toml", "pom.xml"]:
+                                context["package_files"].append({"path": str(rel_path), "content": content})
                     except Exception as e:
                         logger.warning(f"Could not read {file_path}: {e}")
 
@@ -159,77 +182,77 @@ class ThreatModelGenerator:
             name = key_file["name"].lower()
 
             # JavaScript/TypeScript frameworks
-            if 'package.json' in name:
-                if 'react' in content:
-                    context["frameworks"].add('React')
-                if 'next' in content:
-                    context["frameworks"].add('Next.js')
-                if 'vue' in content:
-                    context["frameworks"].add('Vue')
-                if 'angular' in content:
-                    context["frameworks"].add('Angular')
-                if 'express' in content:
-                    context["frameworks"].add('Express')
-                if 'nestjs' in content or '@nestjs' in content:
-                    context["frameworks"].add('NestJS')
-                if 'fastify' in content:
-                    context["frameworks"].add('Fastify')
+            if "package.json" in name:
+                if "react" in content:
+                    context["frameworks"].add("React")
+                if "next" in content:
+                    context["frameworks"].add("Next.js")
+                if "vue" in content:
+                    context["frameworks"].add("Vue")
+                if "angular" in content:
+                    context["frameworks"].add("Angular")
+                if "express" in content:
+                    context["frameworks"].add("Express")
+                if "nestjs" in content or "@nestjs" in content:
+                    context["frameworks"].add("NestJS")
+                if "fastify" in content:
+                    context["frameworks"].add("Fastify")
 
             # Python frameworks
-            if 'requirements.txt' in name or 'pyproject.toml' in name:
-                if 'django' in content:
-                    context["frameworks"].add('Django')
-                if 'flask' in content:
-                    context["frameworks"].add('Flask')
-                if 'fastapi' in content:
-                    context["frameworks"].add('FastAPI')
-                if 'pytest' in content:
-                    context["technologies"].add('pytest')
+            if "requirements.txt" in name or "pyproject.toml" in name:
+                if "django" in content:
+                    context["frameworks"].add("Django")
+                if "flask" in content:
+                    context["frameworks"].add("Flask")
+                if "fastapi" in content:
+                    context["frameworks"].add("FastAPI")
+                if "pytest" in content:
+                    context["technologies"].add("pytest")
 
             # Java frameworks
-            if 'pom.xml' in name or 'build.gradle' in name:
-                if 'spring' in content:
-                    context["frameworks"].add('Spring Boot')
-                if 'quarkus' in content:
-                    context["frameworks"].add('Quarkus')
+            if "pom.xml" in name or "build.gradle" in name:
+                if "spring" in content:
+                    context["frameworks"].add("Spring Boot")
+                if "quarkus" in content:
+                    context["frameworks"].add("Quarkus")
 
             # Go frameworks
-            if 'go.mod' in name:
-                if 'gin' in content:
-                    context["frameworks"].add('Gin')
-                if 'echo' in content:
-                    context["frameworks"].add('Echo')
+            if "go.mod" in name:
+                if "gin" in content:
+                    context["frameworks"].add("Gin")
+                if "echo" in content:
+                    context["frameworks"].add("Echo")
 
             # Rust frameworks
-            if 'cargo.toml' in name:
-                if 'actix' in content:
-                    context["frameworks"].add('Actix')
-                if 'rocket' in content:
-                    context["frameworks"].add('Rocket')
+            if "cargo.toml" in name:
+                if "actix" in content:
+                    context["frameworks"].add("Actix")
+                if "rocket" in content:
+                    context["frameworks"].add("Rocket")
 
             # Databases and storage
-            if 'postgres' in content or 'postgresql' in content:
-                context["technologies"].add('PostgreSQL')
-            if 'mysql' in content:
-                context["technologies"].add('MySQL')
-            if 'mongodb' in content or 'mongo' in content:
-                context["technologies"].add('MongoDB')
-            if 'redis' in content:
-                context["technologies"].add('Redis')
+            if "postgres" in content or "postgresql" in content:
+                context["technologies"].add("PostgreSQL")
+            if "mysql" in content:
+                context["technologies"].add("MySQL")
+            if "mongodb" in content or "mongo" in content:
+                context["technologies"].add("MongoDB")
+            if "redis" in content:
+                context["technologies"].add("Redis")
 
             # Authentication
-            if 'jwt' in content or 'jsonwebtoken' in content:
-                context["technologies"].add('JWT')
-            if 'oauth' in content:
-                context["technologies"].add('OAuth')
-            if 'passport' in content:
-                context["technologies"].add('Passport')
+            if "jwt" in content or "jsonwebtoken" in content:
+                context["technologies"].add("JWT")
+            if "oauth" in content:
+                context["technologies"].add("OAuth")
+            if "passport" in content:
+                context["technologies"].add("Passport")
 
             # Containerization
-            if 'dockerfile' in name or 'docker-compose' in name:
-                context["technologies"].add('Docker')
-            if 'kubernetes' in content or 'k8s' in content:
-                context["technologies"].add('Kubernetes')
+            if "dockerfile" in name or "docker-compose" in name:
+                context["technologies"].add("Docker")
+            if "kubernetes" in content or "k8s" in content:
+                context["technologies"].add("Kubernetes")
 
     def generate_threat_model(self, repo_context: Dict[str, Any]) -> Dict[str, Any]:
         """Generate threat model using Claude API
@@ -248,20 +271,20 @@ class ThreatModelGenerator:
         try:
             # Call Claude API
             message = self.client.messages.create(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=8000,
-                messages=[{"role": "user", "content": prompt}]
+                model="claude-sonnet-4-5-20250929", max_tokens=8000, messages=[{"role": "user", "content": prompt}]
             )
 
             response_text = message.content[0].text
-            logger.info(f"Received threat model (tokens: {message.usage.input_tokens} in, {message.usage.output_tokens} out)")
+            logger.info(
+                f"Received threat model (tokens: {message.usage.input_tokens} in, {message.usage.output_tokens} out)"
+            )
 
             # Extract JSON from response (handle markdown code blocks)
             json_text = response_text.strip()
             if json_text.startswith("```"):
                 # Remove markdown code fence
-                lines = json_text.split('\n')
-                json_text = '\n'.join(lines[1:-1])  # Remove first and last lines
+                lines = json_text.split("\n")
+                json_text = "\n".join(lines[1:-1])  # Remove first and last lines
                 json_text = json_text.strip()
 
             # Parse JSON response
@@ -269,7 +292,7 @@ class ThreatModelGenerator:
 
             # Add metadata
             threat_model["version"] = "1.0"
-            threat_model["generated_at"] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            threat_model["generated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             threat_model["repository"] = repo_context["name"]
 
             return threat_model
@@ -292,10 +315,12 @@ class ThreatModelGenerator:
             Formatted prompt string
         """
         # Format key files
-        key_files_text = "\n\n".join([
-            f"File: {kf['path']}\n```\n{kf['content'][:2000]}\n```"
-            for kf in repo_context["key_files"][:5]  # Limit to 5 files
-        ])
+        key_files_text = "\n\n".join(
+            [
+                f"File: {kf['path']}\n```\n{kf['content'][:2000]}\n```"
+                for kf in repo_context["key_files"][:5]  # Limit to 5 files
+            ]
+        )
 
         prompt = f"""You are a security architect performing threat modeling for a software repository.
 
@@ -363,20 +388,16 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
         """
         return {
             "version": "1.0",
-            "generated_at": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "repository": repo_context["name"],
             "attack_surface": {
                 "entry_points": ["API endpoints", "User input"],
                 "external_dependencies": repo_context.get("technologies", []),
                 "authentication_methods": ["To be determined"],
-                "data_stores": []
+                "data_stores": [],
             },
-            "trust_boundaries": [
-                {"name": "Public API", "trust_level": "untrusted", "description": "External access"}
-            ],
-            "assets": [
-                {"name": "User data", "sensitivity": "high", "description": "User information"}
-            ],
+            "trust_boundaries": [{"name": "Public API", "trust_level": "untrusted", "description": "External access"}],
+            "assets": [{"name": "User data", "sensitivity": "high", "description": "User information"}],
             "threats": [
                 {
                     "id": "THREAT-001",
@@ -386,13 +407,10 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
                     "impact": "medium",
                     "affected_components": ["application"],
                     "description": "Manual threat modeling required",
-                    "mitigation": "Conduct security review"
+                    "mitigation": "Conduct security review",
                 }
             ],
-            "security_objectives": [
-                "Protect user data",
-                "Prevent unauthorized access"
-            ]
+            "security_objectives": ["Protect user data", "Prevent unauthorized access"],
         }
 
     def save_threat_model(self, threat_model: Dict[str, Any], output_path: str) -> None:
@@ -405,7 +423,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(threat_model, f, indent=2)
 
         logger.info(f"Threat model saved to: {output_path}")
@@ -425,7 +443,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             return None
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 threat_model = json.load(f)
             logger.info(f"Loaded existing threat model from {path}")
             return threat_model
@@ -433,11 +451,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             logger.error(f"Failed to load threat model: {e}")
             return None
 
-    def update_threat_model(
-        self,
-        existing: Dict[str, Any],
-        new_context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def update_threat_model(self, existing: Dict[str, Any], new_context: Dict[str, Any]) -> Dict[str, Any]:
         """Update existing threat model with new context
 
         Args:
@@ -458,35 +472,21 @@ def main():
     """Main entry point for CLI usage"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Generate threat model for a repository"
-    )
+    parser = argparse.ArgumentParser(description="Generate threat model for a repository")
+    parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository (default: current directory)")
     parser.add_argument(
-        'repo_path',
-        nargs='?',
-        default='.',
-        help='Path to repository (default: current directory)'
+        "--output",
+        "-o",
+        default=".agent-os/threat-model.json",
+        help="Output path for threat model (default: .agent-os/threat-model.json)",
     )
-    parser.add_argument(
-        '--output',
-        '-o',
-        default='.agent-os/threat-model.json',
-        help='Output path for threat model (default: .agent-os/threat-model.json)'
-    )
-    parser.add_argument(
-        '--api-key',
-        help='Anthropic API key (or set ANTHROPIC_API_KEY env var)'
-    )
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force regeneration even if threat model exists'
-    )
+    parser.add_argument("--api-key", help="Anthropic API key (or set ANTHROPIC_API_KEY env var)")
+    parser.add_argument("--force", action="store_true", help="Force regeneration even if threat model exists")
 
     args = parser.parse_args()
 
     # Get API key
-    api_key = args.api_key or os.environ.get('ANTHROPIC_API_KEY')
+    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("Error: ANTHROPIC_API_KEY not set")
         print("Set via environment or --api-key flag")
@@ -528,9 +528,10 @@ def main():
     except Exception as e:
         logger.error(f"Failed to generate threat model: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
