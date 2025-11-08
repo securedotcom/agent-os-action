@@ -1,0 +1,121 @@
+# Advanced Agent-OS Configuration Example
+# For production use with all features enabled
+
+# AI Provider Configuration
+ai_provider: anthropic
+model: claude-3-5-sonnet-20241022
+
+# Multi-Agent Mode
+multi_agent_mode: parallel  # Options: single, sequential, parallel
+
+# Analysis Scope
+max_files: 100
+max_tokens: 16000
+max_file_size: 100000
+
+# File Patterns
+file_patterns:
+  - "**/*.py"
+  - "**/*.js"
+  - "**/*.ts"
+  - "**/*.java"
+  - "**/*.go"
+  - "**/*.rb"
+
+# Excluded Paths
+excluded_paths:
+  - tests/
+  - vendor/
+  - node_modules/
+  - dist/
+  - build/
+  - "*.lock"
+  - "*.min.js"
+
+# Severity & Policy
+severity_threshold: high
+fail_on_severity: high
+fail_on_blockers: true
+block_on_secrets: true
+
+# Enabled Scanners
+enabled_scanners:
+  - semgrep
+  - gitleaks
+  - trufflehog
+  - trivy
+  - checkov
+
+# Advanced Features
+enable_threat_modeling: true
+enable_sandbox_validation: true
+enable_exploit_analysis: true
+enable_auto_fix: true
+generate_security_tests: true
+
+# Noise Reduction
+noise_threshold: 0.7  # Suppress 70%+ noise probability
+use_historical_data: true
+ml_noise_detection: true
+
+# Cost Controls
+cost_limit: 5.00
+rate_limit:
+  requests_per_minute: 10
+  max_retries: 3
+  backoff_factor: 2
+
+# Output Formats
+sarif_output: true
+json_output: true
+markdown_report: true
+create_github_issues: true
+create_jira_tickets: false
+
+# Notifications
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ""
+  email:
+    enabled: false
+    recipients: []
+
+# Integrations
+integrations:
+  jira:
+    enabled: false
+    url: ""
+    project: ""
+    auto_create_tickets: false
+  
+  github:
+    enabled: true
+    auto_comment_pr: true
+    auto_label: true
+    
+  sonarqube:
+    enabled: false
+    url: ""
+
+# Policy Enforcement (Rego)
+policy_files:
+  - policy/rego/pr.rego
+  - policy/rego/release.rego
+
+# SBOM Generation
+sbom:
+  enabled: true
+  format: spdx-json
+  include_dependencies: true
+
+# Signing
+signing:
+  enabled: true
+  key_path: ""
+
+# Metrics
+metrics:
+  enabled: true
+  export_to_prometheus: false
+  export_to_datadog: false

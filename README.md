@@ -6,6 +6,37 @@ Deterministic Scanning + AI Analysis + Supply Chain Security + Policy Enforcemen
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 [![Foundation-Sec](https://img.shields.io/badge/AI-Foundation--Sec--8B-green.svg)](#architecture)
+[![Docker](https://img.shields.io/badge/Docker-Available-blue?logo=docker)](https://github.com/devatsecure/agent-os-action/pkgs/container/agent-os-action)
+
+---
+
+## ⚡ 5-Minute Quick Start
+
+**Get started in 2 minutes with Docker (no installation required):**
+
+```bash
+# 1. Get API key: https://console.anthropic.com/
+
+# 2. Run security audit
+docker run --rm \
+  -v $(pwd):/workspace \
+  -e ANTHROPIC_API_KEY=your_key_here \
+  ghcr.io/devatsecure/agent-os-action:latest \
+  /workspace audit
+
+# 3. View results
+cat .agent-os/reviews/audit-report.md
+```
+
+**Or add to GitHub Actions:**
+
+```yaml
+- uses: devatsecure/agent-os-action@v1
+  with:
+    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**[📖 Full Quick Start Guide](./QUICKSTART.md)** | **[🎬 Watch Video Tutorials](./DEMO.md)** | **[🧪 Try Live Demo](./DEMO.md#live-demo-repositories)**
 
 ---
 

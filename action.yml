@@ -1,6 +1,10 @@
-name: 'Code Reviewer'
-description: 'Comprehensive code review system with security, performance, testing, and quality analysis'
+name: 'Agent-OS Code Reviewer'
+description: 'AI-powered security and code quality analysis with 60%+ false positive reduction. Integrates Semgrep, Gitleaks, Trivy, and LLM analysis.'
 author: 'Agent OS Team'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
 
 inputs:
   review-type:

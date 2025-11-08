@@ -1,0 +1,33 @@
+# Simple Security Scan Example
+# Add this to: .github/workflows/security.yml
+
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  security:
+    name: AI Security Review
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Agent-OS Security Scan
+        uses: devatsecure/agent-os-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          severity_threshold: high
+          fail-on-blockers: true
+      
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-results
+          path: .agent-os/reviews/

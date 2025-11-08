@@ -36,7 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          pip install pytest pytest-cov pytest-mock black pylint mypy types-requests
+          pip install pytest pytest-cov pytest-mock ruff mypy types-requests
 
       - name: Run linting (pylint)
         if: matrix.python-version == '3.10'
@@ -51,7 +51,7 @@ jobs:
       - name: Run code formatting check (black)
         if: matrix.python-version == '3.10'
         run: |
-          black --check scripts/ tests/ --line-length=120
+          ruff format --check scripts/ tests/
 
       - name: Run tests with coverage
         run: |
@@ -93,15 +93,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          pip install pytest pytest-cov pytest-mock black pylint mypy types-requests
+          pip install pytest pytest-cov pytest-mock ruff mypy types-requests
 
-      - name: Check code formatting with black
+      - name: Check code formatting with ruff
         run: |
-          black --check --diff scripts/ tests/ --line-length=120
-
-      - name: Run pylint
+          ruff format --check --diff scripts/ tests/
+      
+      - name: Run ruff linter
         run: |
-          pylint scripts/*.py --rcfile=.pylintrc --exit-zero
+          ruff check scripts/ tests/ --exit-zero
 
       - name: Run mypy
         run: |
