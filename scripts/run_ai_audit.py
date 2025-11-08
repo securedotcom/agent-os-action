@@ -2685,6 +2685,69 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         sys.exit(1)
 
 
+def load_config_from_env():
+    """Load configuration from environment variables (for testing)"""
+    config = {}
+    
+    # AI Provider settings
+    if os.getenv("AI_PROVIDER"):
+        config["ai_provider"] = os.getenv("AI_PROVIDER")
+    if os.getenv("ANTHROPIC_API_KEY"):
+        config["anthropic_api_key"] = os.getenv("ANTHROPIC_API_KEY")
+    if os.getenv("OPENAI_API_KEY"):
+        config["openai_api_key"] = os.getenv("OPENAI_API_KEY")
+    
+    # Feature flags
+    if os.getenv("ENABLE_THREAT_MODELING"):
+        config["enable_threat_modeling"] = os.getenv("ENABLE_THREAT_MODELING").lower() == "true"
+    if os.getenv("ENABLE_SANDBOX_VALIDATION"):
+        config["enable_sandbox_validation"] = os.getenv("ENABLE_SANDBOX_VALIDATION").lower() == "true"
+    if os.getenv("FOUNDATION_SEC_ENABLED"):
+        config["foundation_sec_enabled"] = os.getenv("FOUNDATION_SEC_ENABLED").lower() == "true"
+    
+    # Multi-agent mode
+    if os.getenv("MULTI_AGENT_MODE"):
+        config["multi_agent_mode"] = os.getenv("MULTI_AGENT_MODE")
+    
+    # Cost and limit settings
+    if os.getenv("MAX_FILES"):
+        config["max_files"] = os.getenv("MAX_FILES")
+    if os.getenv("MAX_TOKENS"):
+        config["max_tokens"] = os.getenv("MAX_TOKENS")
+    if os.getenv("COST_LIMIT"):
+        config["cost_limit"] = os.getenv("COST_LIMIT")
+    
+    return config
+
+
+def generate_sarif_output(findings, repo_path, metrics=None):
+    """Alias for generate_sarif for backward compatibility"""
+    return generate_sarif(findings, repo_path, metrics)
+
+
+def validate_config(config):
+    """Validate configuration and raise errors for missing required fields"""
+    errors = []
+    
+    # Check for API provider
+    provider = config.get("ai_provider", "auto")
+    
+    if provider in ["anthropic", "auto"] and not config.get("anthropic_api_key"):
+        if provider == "anthropic":
+            errors.append("ANTHROPIC_API_KEY is required when ai_provider is 'anthropic'")
+    
+    if provider == "openai" and not config.get("openai_api_key"):
+        errors.append("OPENAI_API_KEY is required when ai_provider is 'openai'")
+    
+    if provider == "ollama" and not config.get("ollama_endpoint"):
+        errors.append("OLLAMA_ENDPOINT is required when ai_provider is 'ollama'")
+    
+    if errors:
+        raise ValueError("; ".join(errors))
+    
+    return True
+
+
 if __name__ == "__main__":
     repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
     review_type = sys.argv[2] if len(sys.argv) > 2 else "audit"
