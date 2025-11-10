@@ -366,10 +366,8 @@ class SandboxValidator:
                 return {"safe": False, "reason": reason}
 
         # Additional checks based on exploit type
-        if exploit.exploit_type == ExploitType.DENIAL_OF_SERVICE:
-            # DoS exploits need extra scrutiny
-            if re.search(r"while\s+true", code_lower):
-                return {"safe": False, "reason": "Infinite loop detected in DoS exploit"}
+        if exploit.exploit_type == ExploitType.DENIAL_OF_SERVICE and re.search(r"while\s+true", code_lower):
+            return {"safe": False, "reason": "Infinite loop detected in DoS exploit"}
 
         return {"safe": True, "reason": ""}
 
@@ -424,11 +422,10 @@ class SandboxValidator:
             return ValidationResult.TIMEOUT
 
         # Check for errors
-        if not execution_result["success"] and execution_result["exit_code"] != 0:
+        if not execution_result["success"] and execution_result["exit_code"] != 0 and not indicators_found:
             # Some exploits may intentionally return non-zero
             # Only consider it an error if no indicators were found
-            if not indicators_found:
-                return ValidationResult.ERROR
+            return ValidationResult.ERROR
 
         # Determine based on indicators
         total_indicators = len(indicators_found) + len(indicators_missing)

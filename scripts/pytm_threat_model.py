@@ -87,10 +87,8 @@ class PytmThreatModelGenerator:
             return "api"
 
         # Check for CLI indicators
-        if any(f in key_files for f in ["setup.py", "pyproject.toml", "Cargo.toml"]):
-            # Check if it's a library or CLI
-            if "bin" in str(repo_context.get("path", "")).lower():
-                return "cli"
+        if any(f in key_files for f in ["setup.py", "pyproject.toml", "Cargo.toml"]) and "bin" in str(repo_context.get("path", "")).lower():
+            return "cli"
 
         # Default to library
         return "library"

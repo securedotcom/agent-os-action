@@ -203,7 +203,7 @@ Respond with ONLY a JSON object:
                 json_str = response[start:end]
                 data = json.loads(json_str)
                 return float(data.get("false_positive_probability", 0.0))
-        except:
+        except Exception:
             pass
 
         # Fallback: look for probability in text

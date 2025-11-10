@@ -307,7 +307,7 @@ def main():
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
         git_context = {"repo": repo, "commit_sha": commit, "branch": branch}
-    except:
+    except Exception:
         git_context = {"repo": "unknown", "commit_sha": "unknown", "branch": "unknown"}
 
     # Detect secrets

@@ -114,7 +114,7 @@ class HeuristicScanner:
                         complexity = self._calculate_complexity(node)
                         if complexity > 15:
                             flags.append(f"high-complexity-{node.name}")
-            except:
+            except Exception:
                 pass  # Skip if AST parsing fails
 
         # JavaScript/TypeScript patterns
@@ -226,7 +226,7 @@ class ConsensusBuilder:
         # Build consensus results
         consensus_findings = []
 
-        for key, group in grouped.items():
+        for _key, group in grouped.items():
             votes = group["votes"]
             findings = group["findings"]
             agents_agree = group["agents"]
@@ -445,7 +445,7 @@ class ReviewMetrics:
         print(f"📊 Metrics saved to: {path}")
 
 
-class CostLimitExceeded(Exception):
+class CostLimitExceededErrorError(Exception):
     """Raised when cost limit would be exceeded by an operation"""
 
     pass
@@ -458,7 +458,7 @@ class CostCircuitBreaker:
     - Checks before each LLM call if limit would be exceeded
     - Maintains 10% safety buffer to prevent overage
     - Logs warnings at 50%, 75%, 90% thresholds
-    - Raises CostLimitExceeded when limit reached
+    - Raises CostLimitExceededError when limit reached
 
     Example:
         breaker = CostCircuitBreaker(cost_limit_usd=1.0)
@@ -494,7 +494,7 @@ class CostCircuitBreaker:
             operation: Description of operation (for logging)
 
         Raises:
-            CostLimitExceeded: If operation would exceed cost limit
+            CostLimitExceededError: If operation would exceed cost limit
         """
         projected_cost = self.current_cost + estimated_cost
         utilization = (self.current_cost / self.effective_limit) * 100 if self.effective_limit > 0 else 0
@@ -517,7 +517,7 @@ class CostCircuitBreaker:
                 f"Current cost: ${self.current_cost:.3f}"
             )
             logger.error(f"🚨 {message}")
-            raise CostLimitExceeded(message)
+            raise CostLimitExceededError(message)
 
         # Log the check (sanitize provider name - use str() to break taint chain)
         safe_provider = str(provider).split("/")[-1] if provider else "unknown"
@@ -609,16 +609,7 @@ def detect_ai_provider(config):
 
     # Explicit provider selection (overrides auto-detection)
     if provider != "auto":
-        if provider == "foundation-sec":
-            return "foundation-sec"
-        elif provider == "anthropic":
-            return "anthropic"
-        elif provider == "openai":
-            return "openai"
-        elif provider == "ollama":
-            return "ollama"
-        else:
-            return provider
+        return provider
 
     # Auto-detect based on available API keys/config
     # Check Foundation-Sec first (zero-cost, security-optimized)
@@ -669,7 +660,6 @@ def get_ai_client(provider, config):
     elif provider == "foundation-sec":
         try:
             # Add scripts directory to path for provider imports
-            import sys
             from pathlib import Path
 
             scripts_dir = Path(__file__).parent
@@ -731,7 +721,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
         return initial_model
 
     # Model fallback chain for Anthropic (most universally available first)
-    MODEL_FALLBACK_CHAIN = [
+    model_fallback_chain = [
         initial_model,  # Try user's requested model first
         "claude-3-haiku-20240307",  # Most lightweight and universally available
         "claude-3-sonnet-20240229",  # Balanced
@@ -744,7 +734,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
     # Remove duplicates while preserving order
     seen = set()
     unique_models = []
-    for model in MODEL_FALLBACK_CHAIN:
+    for model in model_fallback_chain:
         if model not in seen:
             seen.add(model)
             unique_models.append(model)
@@ -1272,7 +1262,7 @@ def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=No
         Tuple of (response_text, input_tokens, output_tokens)
 
     Raises:
-        CostLimitExceeded: If cost limit would be exceeded
+        CostLimitExceededError: If cost limit would be exceeded
     """
     # Estimate cost and check circuit breaker before making call
     if circuit_breaker:
@@ -1736,7 +1726,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             )
             print(f"   ⏱️  Duration: {agent_duration:.1f}s | 💰 Cost: ${agent_metrics[agent_name]['cost_usd']:.4f}")
 
-        except CostLimitExceeded as e:
+        except CostLimitExceededError as e:
             # Cost limit reached - stop immediately
             print(f"   🚨 Cost limit exceeded: {e}")
             print(
@@ -1982,7 +1972,7 @@ Generate the complete audit report as specified in your instructions.
             f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}"
         )
 
-    except CostLimitExceeded as e:
+    except CostLimitExceededError as e:
         # Cost limit reached during orchestration
         error_msg = str(e)
         print(f"   🚨 Cost limit exceeded during synthesis: {error_msg}")

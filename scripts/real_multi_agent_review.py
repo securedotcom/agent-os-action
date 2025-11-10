@@ -197,55 +197,6 @@ class RealMultiAgentReview:
         ]
         return not any(indicator in file_path for indicator in dev_indicators)
 
-    def pre_scan_heuristics(self, file_path: str, content: str) -> list[str]:
-        """
-        Feature #7: Heuristic Guardrails
-        Pre-scan files with lightweight checks to identify suspicious patterns
-        """
-        flags = []
-
-        # Security patterns
-        if re.search(r'(password|secret|api[_-]?key|token|credential)\s*=\s*["\'][^"\']{8,}["\']', content, re.I):
-            flags.append("hardcoded-secrets")
-
-        if re.search(r"eval\(|exec\(|__import__\(|compile\(", content):
-            flags.append("dangerous-exec")
-
-        if re.search(r"(SELECT|INSERT|UPDATE|DELETE).*[\+\%].*", content, re.I):
-            flags.append("sql-concatenation")
-
-        if re.search(r"\.innerHTML\s*=|dangerouslySetInnerHTML|document\.write\(", content):
-            flags.append("xss-risk")
-
-        # Performance patterns
-        if re.search(r"for\s+\w+\s+in.*:\s*for\s+\w+\s+in", content, re.DOTALL):
-            flags.append("nested-loops")
-
-        if content.count("SELECT ") > 5:
-            flags.append("n-plus-one-query-risk")
-
-        # Python-specific complexity
-        if file_path.endswith(".py"):
-            try:
-                tree = ast.parse(content)
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef):
-                        complexity = self._calculate_complexity(node)
-                        if complexity > 15:
-                            flags.append(f"high-complexity-{node.name}")
-            except:
-                pass  # Skip if AST parsing fails
-
-        # JavaScript/TypeScript patterns
-        if file_path.endswith((".js", ".ts", ".jsx", ".tsx")):
-            if re.search(r"JSON\.parse\([^)]*\)", content) and "try" not in content:
-                flags.append("unsafe-json-parse")
-
-            if re.search(r"localStorage\.|sessionStorage\.", content):
-                flags.append("client-storage-usage")
-
-        return flags
-
     def _calculate_complexity(self, node: ast.FunctionDef) -> int:
         """Calculate cyclomatic complexity of a function"""
         complexity = 1
@@ -352,7 +303,7 @@ class RealMultiAgentReview:
                         complexity = self._calculate_complexity(node)
                         if complexity > 15:
                             flags.append(f"high-complexity-{node.name}")
-            except:
+            except Exception:
                 pass  # Syntax errors will be caught by AI review
 
         return flags
@@ -382,7 +333,7 @@ class RealMultiAgentReview:
             )
             if result.returncode == 0 and result.stdout:
                 context["recent_changes"] = result.stdout.strip()
-        except:
+        except Exception:
             pass
 
         try:
@@ -397,7 +348,7 @@ class RealMultiAgentReview:
             if result.returncode == 0 and result.stdout:
                 authors = result.stdout.strip().split("\n")
                 context["recent_authors"] = len(set(authors))
-        except:
+        except Exception:
             pass
 
         return context
@@ -767,7 +718,7 @@ Return ONLY the JSON array, no other text.
 
         consensus_results = []
 
-        for key, group in grouped.items():
+        for _key, group in grouped.items():
             votes = len(group)
             total_agents = len(self.agents)
             avg_confidence = sum(f.confidence for f in group) / len(group)

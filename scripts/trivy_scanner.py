@@ -380,7 +380,7 @@ The CWE is CWE-"""
         try:
             result = subprocess.run(["trivy", "--version"], capture_output=True, text=True, timeout=5)
             return result.stdout.strip().split("\n")[0]
-        except:
+        except Exception:
             return "unknown"
 
     def _save_results(self, scan_result: TrivyScanResult, output_file: str) -> None:

@@ -72,7 +72,7 @@ class FindingDeduplicator:
         deduplicated = []
         duplicate_groups = []
 
-        for content_hash, group in hash_groups.items():
+        for _content_hash, group in hash_groups.items():
             if len(group) == 1:
                 # Not a duplicate
                 deduplicated.append(group[0])
@@ -182,7 +182,7 @@ class FindingDeduplicator:
         deduplicated = []
         duplicate_groups = []
 
-        for key, group in fuzzy_groups.items():
+        for _key, group in fuzzy_groups.items():
             if len(group) <= 1:
                 deduplicated.extend(group)
             else:

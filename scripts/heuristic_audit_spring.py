@@ -97,8 +97,7 @@ class HeuristicAuditor:
             )
 
         # Input validation
-        if re.search(r'request\.(args|form|json)\.get\(["\']', content):
-            if "validate" not in content.lower() and "sanitize" not in content.lower():
+        if re.search(r'request\.(args|form|json)\.get\(["\']', content) and "validate" not in content.lower() and "sanitize" not in content.lower():
                 findings.append(
                     {
                         "type": "missing-input-validation",
@@ -146,7 +145,7 @@ class HeuristicAuditor:
                                     "description": f'Function "{node.name}" has cyclomatic complexity of {complexity} (>15 threshold)',
                                 }
                             )
-            except:
+            except Exception:
                 pass
 
         return findings

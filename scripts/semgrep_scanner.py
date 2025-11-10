@@ -206,7 +206,7 @@ class SemgrepScanner:
         try:
             result = subprocess.run(["semgrep", "--version"], capture_output=True, text=True, timeout=5)
             return result.stdout.strip()
-        except:
+        except Exception:
             return "unknown"
 
     def save_results(self, results: dict, output_path: str):

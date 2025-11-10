@@ -619,7 +619,7 @@ Respond with JSON only:"""
         try:
             # Import Agent-OS components
             sys.path.insert(0, str(Path(__file__).parent))
-            from run_ai_audit import ConsensusBuilder, HeuristicScanner
+            from run_ai_audit import ConsensusBuilder
         except ImportError as e:
             logger.error(f"Failed to import Agent-OS components: {e}")
             return findings

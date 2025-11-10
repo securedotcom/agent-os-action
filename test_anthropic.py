@@ -2,8 +2,8 @@
 """Enhanced diagnostic script to test Anthropic API key and find working model"""
 
 import os
-import sys
 import subprocess
+import sys
 
 try:
     import anthropic
@@ -18,7 +18,7 @@ except ImportError:
         sys.exit(1)
 
 # Get API key from environment or prompt
-api_key = os.environ.get('ANTHROPIC_API_KEY')
+api_key = os.environ.get("ANTHROPIC_API_KEY")
 
 if not api_key:
     print("❌ ANTHROPIC_API_KEY not found in environment")
@@ -34,17 +34,13 @@ print("🧪 Testing Anthropic API connection with model fallback chain...\n")
 MODEL_FALLBACK_CHAIN = [
     # Claude 3 Haiku - Most lightweight and universally available
     ("claude-3-haiku-20240307", "Claude 3 Haiku (March 2024) - Most lightweight"),
-
     # Claude 3 Sonnet - Balanced performance
     ("claude-3-sonnet-20240229", "Claude 3 Sonnet (February 2024) - Balanced"),
-
     # Claude 3.5 Sonnet variants
     ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5 (September 2025) - Latest"),
     ("claude-3-5-sonnet-20240620", "Claude 3.5 Sonnet (June 2024) - Stable"),
-
     # Claude 3 Opus - Most powerful
     ("claude-3-opus-20240229", "Claude 3 Opus (February 2024) - Most powerful"),
-
     # Alternative naming patterns (if available)
     ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet (Latest alias)"),
     ("claude-3-haiku-latest", "Claude 3 Haiku (Latest alias)"),
@@ -61,11 +57,7 @@ for model_id, description in MODEL_FALLBACK_CHAIN:
 
         # Simple test message - minimal tokens to save credits
         message = client.messages.create(
-            model=model_id,
-            max_tokens=10,
-            messages=[
-                {"role": "user", "content": "Say 'Hello' in 1 word"}
-            ]
+            model=model_id, max_tokens=10, messages=[{"role": "user", "content": "Say 'Hello' in 1 word"}]
         )
 
         # Success!
@@ -74,21 +66,21 @@ for model_id, description in MODEL_FALLBACK_CHAIN:
         print(f"📝 Response: {message.content[0].text}")
         print(f"🎯 Model: {message.model}")
         print(f"💰 Tokens used: {message.usage.input_tokens} input + {message.usage.output_tokens} output")
-        print(f"💵 Estimated cost: ~$0.0001")
+        print("💵 Estimated cost: ~$0.0001")
         print(f"\n✨ Your Anthropic API key is working with: {description}")
         break
 
     except anthropic.NotFoundError as e:
-        print(f"   ❌ 404 Not Found - Model not accessible with this API key")
+        print("   ❌ 404 Not Found - Model not accessible with this API key")
         error_log.append((model_id, "404 NotFoundError", str(e)))
     except anthropic.AuthenticationError as e:
-        print(f"   ❌ Authentication failed - Check API key")
+        print("   ❌ Authentication failed - Check API key")
         error_log.append((model_id, "401 AuthenticationError", str(e)))
-        print(f"\n🔴 FATAL: API key authentication failed")
+        print("\n🔴 FATAL: API key authentication failed")
         print(f"Error: {e}")
         sys.exit(1)
     except anthropic.PermissionDeniedError as e:
-        print(f"   ❌ 403 Permission Denied - API key lacks permissions")
+        print("   ❌ 403 Permission Denied - API key lacks permissions")
         error_log.append((model_id, "403 PermissionDeniedError", str(e)))
     except anthropic.APIError as e:
         print(f"   ❌ API Error: {e}")
@@ -101,27 +93,27 @@ for model_id, description in MODEL_FALLBACK_CHAIN:
 
 # Summary
 if working_model:
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("✅ DIAGNOSTIC COMPLETE - WORKING MODEL FOUND")
-    print("="*70)
+    print("=" * 70)
     print(f"\n🎯 Use this model ID in your configuration: {working_model}")
     print("\nTo update Agent OS configuration:")
-    print(f"1. Edit scripts/run_ai_audit.py line 166")
+    print("1. Edit scripts/run_ai_audit.py line 166")
     print(f"2. Change 'anthropic' default to: '{working_model}'")
     sys.exit(0)
 else:
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("❌ DIAGNOSTIC COMPLETE - NO WORKING MODEL FOUND")
-    print("="*70)
+    print("=" * 70)
     print("\n🔍 Detailed Error Log:")
     for model_id, error_type, error_msg in error_log:
         print(f"\n  Model: {model_id}")
         print(f"  Error: {error_type}")
         print(f"  Details: {error_msg[:200]}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🚨 TROUBLESHOOTING STEPS:")
-    print("="*70)
+    print("=" * 70)
     print("""
 1. ✅ API Key Format Check:
    - Your API key format: sk-ant-...

@@ -171,7 +171,7 @@ class Normalizer(ABC):
             branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
 
             return {"repo": repo, "commit_sha": commit_sha, "branch": branch}
-        except:
+        except Exception:
             return {"repo": "unknown", "commit_sha": "unknown", "branch": "unknown"}
 
     def _generate_id(self, finding_data: dict) -> str:
