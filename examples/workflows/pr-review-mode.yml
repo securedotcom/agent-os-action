@@ -1,4 +1,4 @@
-name: PR Code Review
+name: Agent-OS PR Security Review
 
 # Only analyze changed files in pull requests
 # Optimized for speed and cost
@@ -29,9 +29,9 @@ jobs:
       with:
         fetch-depth: 0  # Need full history for changed files detection
     
-    - name: Run Agent OS PR Review
+    - name: Run Agent-OS Security Scan
       id: review
-      uses: securedotcom/agent-os-action@v1  # Our action - use semver tag
+      uses: securedotcom/agent-os-action@v1
       with:
         anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
         review-type: 'audit'
@@ -75,7 +75,7 @@ jobs:
           const status = blockers > 0 ? '⚠️ Issues Found' : '✅ Looks Good';
           const emoji = blockers > 0 ? '🔴' : '🟢';
           
-          const body = `## ${emoji} Agent OS Code Review
+          const body = `## ${emoji} Agent-OS Security Review
           
           **Status**: ${status}  
           **Analyzed**: ${files} files (changed only)  
