@@ -13,30 +13,30 @@ from typing import Dict, List, Any
 
 class DashboardGenerator:
     """Generate interactive HTML dashboards from scan results"""
-    
+
     def __init__(self, results_dir: str = ".agent-os/reviews"):
         self.results_dir = Path(results_dir)
         self.metrics_file = self.results_dir / "metrics.json"
         self.findings_file = self.results_dir / "results.json"
-        
+
     def generate(self, output_file: str = None) -> str:
         """Generate dashboard HTML"""
         if output_file is None:
             output_file = str(self.results_dir / "dashboard.html")
-            
+
         # Load data
         metrics = self._load_metrics()
         findings = self._load_findings()
-        
+
         # Generate HTML
         html = self._generate_html(metrics, findings)
-        
+
         # Write file
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(html)
-            
+
         return output_file
-    
+
     def _load_metrics(self) -> Dict[str, Any]:
         """Load metrics.json"""
         if not self.metrics_file.exists():
@@ -48,26 +48,30 @@ class DashboardGenerator:
                 "noise_suppressed": 0,
                 "false_positive_rate": 0.0,
             }
-        
+
         with open(self.metrics_file) as f:
             return json.load(f)
-    
+
     def _load_findings(self) -> List[Dict[str, Any]]:
         """Load findings from results.json"""
         if not self.findings_file.exists():
             return []
-        
+
         with open(self.findings_file) as f:
             data = json.load(f)
             return data.get("findings", [])
-    
+
     def _generate_html(self, metrics: Dict, findings: List[Dict]) -> str:
         """Generate complete HTML dashboard"""
-        
+
         total_findings = sum(metrics.get("findings", {}).values())
         noise_suppressed = metrics.get("noise_suppressed", 0)
-        noise_rate = (noise_suppressed / (total_findings + noise_suppressed) * 100) if (total_findings + noise_suppressed) > 0 else 0
-        
+        noise_rate = (
+            (noise_suppressed / (total_findings + noise_suppressed) * 100)
+            if (total_findings + noise_suppressed) > 0
+            else 0
+        )
+
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -298,25 +302,25 @@ class DashboardGenerator:
     <div class="container">
         <div class="header">
             <h1>🛡️ Agent-OS Security Dashboard</h1>
-            <p class="subtitle">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p class="subtitle">Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
         </div>
         
         <div class="metrics-grid">
             <div class="metric-card critical">
                 <div class="label">Critical Findings</div>
-                <div class="value">{metrics.get('findings', {}).get('critical', 0)}</div>
+                <div class="value">{metrics.get("findings", {}).get("critical", 0)}</div>
                 <div class="subvalue">Requires immediate action</div>
             </div>
             
             <div class="metric-card high">
                 <div class="label">High Priority</div>
-                <div class="value">{metrics.get('findings', {}).get('high', 0)}</div>
+                <div class="value">{metrics.get("findings", {}).get("high", 0)}</div>
                 <div class="subvalue">Fix before release</div>
             </div>
             
             <div class="metric-card medium">
                 <div class="label">Medium Priority</div>
-                <div class="value">{metrics.get('findings', {}).get('medium', 0)}</div>
+                <div class="value">{metrics.get("findings", {}).get("medium", 0)}</div>
                 <div class="subvalue">Address soon</div>
             </div>
             
@@ -328,13 +332,13 @@ class DashboardGenerator:
             
             <div class="metric-card info">
                 <div class="label">Files Analyzed</div>
-                <div class="value">{metrics.get('files_reviewed', 0)}</div>
-                <div class="subvalue">In {metrics.get('duration_seconds', 0):.1f} seconds</div>
+                <div class="value">{metrics.get("files_reviewed", 0)}</div>
+                <div class="subvalue">In {metrics.get("duration_seconds", 0):.1f} seconds</div>
             </div>
             
             <div class="metric-card info">
                 <div class="label">Total Cost</div>
-                <div class="value">${metrics.get('cost_usd', 0):.2f}</div>
+                <div class="value">${metrics.get("cost_usd", 0):.2f}</div>
                 <div class="subvalue">AI analysis cost</div>
             </div>
         </div>
@@ -342,20 +346,20 @@ class DashboardGenerator:
         <div class="chart-section">
             <h2>📊 Findings Distribution</h2>
             <div class="bar-chart">
-                <div class="bar" style="height: {self._scale_height(metrics.get('findings', {}).get('critical', 0), metrics)}%">
-                    <span class="bar-value">{metrics.get('findings', {}).get('critical', 0)}</span>
+                <div class="bar" style="height: {self._scale_height(metrics.get("findings", {}).get("critical", 0), metrics)}%">
+                    <span class="bar-value">{metrics.get("findings", {}).get("critical", 0)}</span>
                     <span class="bar-label">Critical</span>
                 </div>
-                <div class="bar" style="height: {self._scale_height(metrics.get('findings', {}).get('high', 0), metrics)}%">
-                    <span class="bar-value">{metrics.get('findings', {}).get('high', 0)}</span>
+                <div class="bar" style="height: {self._scale_height(metrics.get("findings", {}).get("high", 0), metrics)}%">
+                    <span class="bar-value">{metrics.get("findings", {}).get("high", 0)}</span>
                     <span class="bar-label">High</span>
                 </div>
-                <div class="bar" style="height: {self._scale_height(metrics.get('findings', {}).get('medium', 0), metrics)}%">
-                    <span class="bar-value">{metrics.get('findings', {}).get('medium', 0)}</span>
+                <div class="bar" style="height: {self._scale_height(metrics.get("findings", {}).get("medium", 0), metrics)}%">
+                    <span class="bar-value">{metrics.get("findings", {}).get("medium", 0)}</span>
                     <span class="bar-label">Medium</span>
                 </div>
-                <div class="bar" style="height: {self._scale_height(metrics.get('findings', {}).get('low', 0), metrics)}%">
-                    <span class="bar-value">{metrics.get('findings', {}).get('low', 0)}</span>
+                <div class="bar" style="height: {self._scale_height(metrics.get("findings", {}).get("low", 0), metrics)}%">
+                    <span class="bar-value">{metrics.get("findings", {}).get("low", 0)}</span>
                     <span class="bar-label">Low</span>
                 </div>
                 <div class="bar" style="height: {self._scale_height(noise_suppressed, metrics)}%; background: linear-gradient(180deg, #28a745 0%, #20c997 100%)">
@@ -374,20 +378,20 @@ class DashboardGenerator:
     </div>
 </body>
 </html>"""
-    
+
     def _scale_height(self, value: int, metrics: Dict) -> float:
         """Scale bar height to percentage (10-100%)"""
-        all_values = list(metrics.get('findings', {}).values())
-        all_values.append(metrics.get('noise_suppressed', 0))
+        all_values = list(metrics.get("findings", {}).values())
+        all_values.append(metrics.get("noise_suppressed", 0))
         max_value = max(all_values) if all_values else 1
-        
+
         if max_value == 0:
             return 0
-        
+
         # Scale to 10-100% range
         percentage = (value / max_value) * 90 + 10
         return min(percentage, 100)
-    
+
     def _generate_findings_table(self, findings: List[Dict]) -> str:
         """Generate findings table HTML"""
         if not findings:
@@ -396,18 +400,18 @@ class DashboardGenerator:
             <h2>✅ No Security Findings</h2>
             <p>No critical security issues detected. Great job!</p>
         </div>"""
-        
+
         # Sort by severity
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         sorted_findings = sorted(findings, key=lambda x: severity_order.get(x.get("severity", "low").lower(), 99))
-        
+
         rows = ""
         for finding in sorted_findings[:20]:  # Limit to top 20
             severity = finding.get("severity", "medium").lower()
             title = finding.get("title", "Unknown issue")
             file_path = finding.get("file", "Unknown")
             line = finding.get("line", "?")
-            
+
             rows += f"""
             <tr>
                 <td><span class="severity {severity}">{severity}</span></td>
@@ -415,7 +419,7 @@ class DashboardGenerator:
                 <td>{file_path}</td>
                 <td>{line}</td>
             </tr>"""
-        
+
         return f"""
         <div class="findings-table">
             <h2>🔍 Top Findings</h2>
@@ -438,13 +442,13 @@ class DashboardGenerator:
 def main():
     """Generate dashboard from command line"""
     import sys
-    
+
     results_dir = sys.argv[1] if len(sys.argv) > 1 else ".agent-os/reviews"
     output_file = sys.argv[2] if len(sys.argv) > 2 else None
-    
+
     generator = DashboardGenerator(results_dir)
     dashboard_path = generator.generate(output_file)
-    
+
     print(f"✅ Dashboard generated: {dashboard_path}")
     print(f"🌐 Open in browser: file://{os.path.abspath(dashboard_path)}")
 

@@ -435,7 +435,7 @@ Review all aspects: security, performance, and code quality.""",
         heuristic_context = ""
         if heuristic_flags:
             heuristic_context = f"""
-**⚠️  PRE-SCAN ALERTS**: Heuristic analysis flagged: {', '.join(heuristic_flags)}
+**⚠️  PRE-SCAN ALERTS**: Heuristic analysis flagged: {", ".join(heuristic_flags)}
 These are lightweight pattern matches. Verify each one carefully before reporting."""
 
         git_context = ""
@@ -449,7 +449,7 @@ These are lightweight pattern matches. Verify each one carefully before reportin
 {category_focus[category]}
 
 **FILE**: {file_path}
-**TYPE**: {context.get('file_type', 'unknown')}
+**TYPE**: {context.get("file_type", "unknown")}
 **PRODUCTION CODE**: {"Yes" if is_prod else "No (dev infrastructure)"}{git_context}{heuristic_context}
 
 **CRITICAL CONTEXT RULES**:
@@ -838,8 +838,8 @@ Return ONLY the JSON array, no other text.
 **Issue**: {finding.issue_type}
 **File**: {finding.file}:{finding.line}
 **Severity**: {finding.severity}
-**Description**: {finding.descriptions[0] if finding.descriptions else 'No description'}
-**Recommendation**: {finding.recommendations[0] if finding.recommendations else 'No recommendation'}
+**Description**: {finding.descriptions[0] if finding.descriptions else "No description"}
+**Recommendation**: {finding.recommendations[0] if finding.recommendations else "No recommendation"}
 
 Generate a specific, executable test case that would catch this issue.
 
@@ -926,7 +926,7 @@ Return ONLY the JSON object, no other text."""
         report = f"""# 🤖 Real Multi-Agent Consensus Code Review
 
 **Repository**: {repo_name}  
-**Agents**: {', '.join(self.agents)} (REAL API CALLS)  
+**Agents**: {", ".join(self.agents)} (REAL API CALLS)  
 **Review Date**: {datetime.utcnow().isoformat()}Z  
 
 ---
@@ -950,7 +950,7 @@ Return ONLY the JSON object, no other text."""
 
         for result in critical:
             report += f"""
-### {result.issue_type.replace('-', ' ').title()}
+### {result.issue_type.replace("-", " ").title()}
 
 **File**: `{result.file}:{result.line}`  
 **Votes**: {result.votes}/{result.total_agents} ({result.consensus_level.upper()})  
@@ -983,11 +983,11 @@ Return ONLY the JSON object, no other text."""
 
         for result in high:
             report += f"""
-### {result.issue_type.replace('-', ' ').title()}
+### {result.issue_type.replace("-", " ").title()}
 
 **File**: `{result.file}:{result.line}`  
 **Votes**: {result.votes}/{result.total_agents}  
-**Agents**: {', '.join(result.agents_agree)}  
+**Agents**: {", ".join(result.agents_agree)}  
 
 {result.descriptions[0]}
 """

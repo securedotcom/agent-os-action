@@ -30,7 +30,8 @@ async def main():
 
     # Initialize enhanced reviewer
     reviewer = RealMultiAgentReview(
-        anthropic_api_key=anthropic_key, openai_api_key=None  # Using only Anthropic for now
+        anthropic_api_key=anthropic_key,
+        openai_api_key=None,  # Using only Anthropic for now
     )
 
     print()

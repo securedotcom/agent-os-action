@@ -468,7 +468,9 @@ class HybridSecurityAnalyzer:
 
                 # Call Foundation-Sec model
                 response = self.foundation_sec_model.generate(
-                    prompt=prompt, max_new_tokens=1000, temperature=0.3  # Low temp for consistent security analysis
+                    prompt=prompt,
+                    max_new_tokens=1000,
+                    temperature=0.3,  # Low temp for consistent security analysis
                 )
                 input_tokens, output_tokens = 0, 0  # SageMaker doesn't return token counts
 
@@ -528,7 +530,7 @@ class HybridSecurityAnalyzer:
 - Title: {finding.title}
 - Description: {finding.description}
 - File: {finding.file_path}
-- Line: {finding.line_number or 'N/A'}
+- Line: {finding.line_number or "N/A"}
 """
 
         if finding.cve_id:

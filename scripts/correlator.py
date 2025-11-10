@@ -251,7 +251,9 @@ Respond with ONLY a JSON array:
 """
 
             response = self.foundation_sec.analyze_code(
-                code="", context=prompt, focus="correlation_analysis"  # No specific code, analyzing findings
+                code="",
+                context=prompt,
+                focus="correlation_analysis",  # No specific code, analyzing findings
             )
 
             # Parse AI response

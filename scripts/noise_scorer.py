@@ -180,7 +180,7 @@ class NoiseScorer:
 - Severity: {finding.severity}
 - Path: {finding.path}
 - Line: {finding.line}
-- Evidence: {finding.evidence.get('message', 'N/A')}
+- Evidence: {finding.evidence.get("message", "N/A")}
 
 **Historical Context:**
 - Historical fix rate for similar findings: {finding.historical_fix_rate:.1%}

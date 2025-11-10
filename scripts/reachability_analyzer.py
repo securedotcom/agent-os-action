@@ -74,7 +74,7 @@ class ReachabilityAnalyzer:
         reachable_count = sum(1 for r in results if r.is_reachable)
         print(f"\n📊 Reachability Analysis:")
         print(f"   Total CVEs: {len(results)}")
-        print(f"   Reachable: {reachable_count} ({reachable_count/len(results)*100:.1f}%)")
+        print(f"   Reachable: {reachable_count} ({reachable_count / len(results) * 100:.1f}%)")
         print(f"   Not Reachable: {len(results) - reachable_count}")
 
         return results

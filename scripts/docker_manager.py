@@ -55,7 +55,7 @@ class DockerManager:
         except DockerException as e:
             logger.exception("Failed to connect to Docker daemon")
             raise RuntimeError(
-                "Docker is not available or not running. " "Please ensure Docker is installed and running."
+                "Docker is not available or not running. Please ensure Docker is installed and running."
             ) from e
 
         self.image = image or self.DEFAULT_IMAGE

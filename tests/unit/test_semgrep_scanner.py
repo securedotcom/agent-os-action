@@ -115,7 +115,9 @@ class TestSemgrepScanner:
         }
 
         mock_run.return_value = Mock(
-            returncode=1, stdout=json.dumps(semgrep_output), stderr=""  # Semgrep returns 1 when findings found
+            returncode=1,
+            stdout=json.dumps(semgrep_output),
+            stderr="",  # Semgrep returns 1 when findings found
         )
 
         scanner = SemgrepScanner()

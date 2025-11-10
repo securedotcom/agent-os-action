@@ -142,7 +142,7 @@ class AgentOSAudit:
             commit_message = f"""Add {audit_type} audit findings
 
 Automated audit performed by Agent OS
-Date: {datetime.now().strftime('%Y-%m-%d')}
+Date: {datetime.now().strftime("%Y-%m-%d")}
 """
 
             subprocess.run(["git", "commit", "-m", commit_message], cwd=repo_path, check=True)

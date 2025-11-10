@@ -256,8 +256,8 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
 
 | Metric | Count |
 |--------|-------|
-| **Files Scanned** | {results['total_files']} |
-| **Total Findings** | {results['total_findings']} |
+| **Files Scanned** | {results["total_files"]} |
+| **Total Findings** | {results["total_findings"]} |
 | **Critical Issues** | {len(critical)} 🔴 |
 | **High Severity** | {len(high)} 🟠 |
 | **Medium Severity** | {len(medium)} 🟡 |
@@ -277,12 +277,12 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
 
     if critical:
         for finding in critical[:10]:  # Top 10
-            report += f"""### {finding['type'].replace('-', ' ').title()}
+            report += f"""### {finding["type"].replace("-", " ").title()}
 
-**File**: `{finding['file']}:{finding['line']}`  
+**File**: `{finding["file"]}:{finding["line"]}`  
 **Severity**: CRITICAL 🔴
 
-{finding['description']}
+{finding["description"]}
 
 ---
 
