@@ -450,6 +450,10 @@ class CostLimitExceededError(Exception):
     pass
 
 
+# Alias for backwards compatibility
+CostLimitExceeded = CostLimitExceededError
+
+
 class CostCircuitBreaker:
     """Runtime cost enforcement to prevent budget overruns
 
@@ -1212,13 +1216,14 @@ def parse_findings_from_report(report_text):
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
+def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str, model: str = None) -> float:
     """Estimate cost of a single LLM API call before making it (for circuit breaker)
 
     Args:
         prompt_length: Character length of prompt (rough proxy for tokens)
         max_output_tokens: Maximum output tokens requested
         provider: AI provider name
+        model: Optional model name (for provider-specific pricing)
 
     Returns:
         Estimated cost in USD
@@ -2076,6 +2081,240 @@ Orchestrator synthesis failed. Below are individual agent reports.
     print(f"{'=' * 80}\n")
 
     return final_report
+
+
+def load_config_from_env():
+    """Load configuration from environment variables"""
+    return {
+        "ai_provider": os.environ.get("AI_PROVIDER", os.environ.get("INPUT_AI_PROVIDER", "auto")),
+        "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+        "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
+        "ollama_endpoint": os.environ.get("OLLAMA_ENDPOINT", ""),
+        "foundation_sec_enabled": os.environ.get("FOUNDATION_SEC_ENABLED", "false").lower() == "true",
+        "foundation_sec_model": os.environ.get("FOUNDATION_SEC_MODEL", "cisco-ai/foundation-sec-8b-instruct"),
+        "foundation_sec_device": os.environ.get("FOUNDATION_SEC_DEVICE", ""),
+        "model": os.environ.get("MODEL", os.environ.get("INPUT_MODEL", "auto")),
+        "multi_agent_mode": os.environ.get("MULTI_AGENT_MODE", os.environ.get("INPUT_MULTI_AGENT_MODE", "single")),
+        "only_changed": os.environ.get("ONLY_CHANGED", os.environ.get("INPUT_ONLY_CHANGED", "false")).lower() == "true",
+        "include_paths": os.environ.get("INCLUDE_PATHS", os.environ.get("INPUT_INCLUDE_PATHS", "")),
+        "exclude_paths": os.environ.get("EXCLUDE_PATHS", os.environ.get("INPUT_EXCLUDE_PATHS", "")),
+        "max_file_size": os.environ.get("MAX_FILE_SIZE", os.environ.get("INPUT_MAX_FILE_SIZE", "50000")),
+        "max_files": os.environ.get("MAX_FILES", os.environ.get("INPUT_MAX_FILES", "100")),
+        "max_tokens": os.environ.get("MAX_TOKENS", os.environ.get("INPUT_MAX_TOKENS", "8000")),
+        "cost_limit": os.environ.get("COST_LIMIT", os.environ.get("INPUT_COST_LIMIT", "1.0")),
+        "fail_on": os.environ.get("FAIL_ON", os.environ.get("INPUT_FAIL_ON", "")),
+        "enable_threat_modeling": os.environ.get("ENABLE_THREAT_MODELING", "true").lower() == "true",
+        "enable_sandbox_validation": os.environ.get("ENABLE_SANDBOX_VALIDATION", "true").lower() == "true",
+        "enable_heuristics": os.environ.get("ENABLE_HEURISTICS", "true").lower() == "true",
+        "enable_consensus": os.environ.get("ENABLE_CONSENSUS", "true").lower() == "true",
+        "consensus_threshold": float(os.environ.get("CONSENSUS_THRESHOLD", "0.5")),
+        "category_passes": os.environ.get("CATEGORY_PASSES", "true").lower() == "true",
+        "enable_semgrep": os.environ.get("SEMGREP_ENABLED", "true").lower() == "true",
+    }
+
+
+def validate_config(config):
+    """Validate configuration"""
+    provider = config.get("ai_provider", "auto")
+
+    if provider == "anthropic":
+        if not config.get("anthropic_api_key"):
+            raise ValueError("Anthropic API key is required")
+    elif provider == "openai":
+        if not config.get("openai_api_key"):
+            raise ValueError("OpenAI API key is required")
+    elif provider not in ["auto", "ollama", "foundation-sec"]:
+        raise ValueError(f"Invalid AI provider: {provider}")
+
+    return True
+
+
+def select_files_for_review(repo_path, config):
+    """Select files for review based on configuration"""
+    max_files = int(config.get("max_files", "100"))
+    max_file_size = int(config.get("max_file_size", "50000"))
+    include_patterns = config.get("include_paths", "").split(",") if config.get("include_paths") else []
+    exclude_patterns = config.get("exclude_paths", "").split(",") if config.get("exclude_paths") else []
+
+    # Get all files
+    all_files = []
+    for root, dirs, files in os.walk(repo_path):
+        # Skip hidden directories and common ignore patterns
+        dirs[:] = [
+            d
+            for d in dirs
+            if not d.startswith(".") and d not in ["node_modules", "__pycache__", "venv", "dist", "build"]
+        ]
+
+        for file in files:
+            if file.startswith("."):
+                continue
+
+            file_path = os.path.join(root, file)
+            rel_path = os.path.relpath(file_path, repo_path)
+
+            # Check file extension
+            if not should_review_file(file):
+                continue
+
+            # Check size
+            try:
+                if os.path.getsize(file_path) > max_file_size:
+                    continue
+            except (OSError, FileNotFoundError):
+                continue
+
+            # Check include/exclude patterns
+            if include_patterns and not any(
+                matches_glob_patterns(rel_path, [p]) for p in include_patterns if p.strip()
+            ):
+                continue
+            if exclude_patterns and any(matches_glob_patterns(rel_path, [p]) for p in exclude_patterns if p.strip()):
+                continue
+
+            all_files.append({"path": rel_path, "size": os.path.getsize(file_path)})
+
+    # Sort by size (smaller first) and limit
+    all_files.sort(key=lambda x: x["size"])
+    return all_files[:max_files]
+
+
+def should_review_file(filename):
+    """Check if file should be reviewed based on extension"""
+    code_extensions = {
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".java",
+        ".go",
+        ".rs",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".rb",
+        ".php",
+        ".swift",
+        ".kt",
+        ".scala",
+        ".sh",
+        ".bash",
+        ".yml",
+        ".yaml",
+        ".json",
+        ".tf",
+        ".hcl",
+        ".sql",
+        ".r",
+        ".m",
+        ".mm",
+        ".pl",
+        ".pm",
+        ".lua",
+        ".vim",
+        ".el",
+        ".clj",
+        ".ex",
+        ".exs",
+        ".erl",
+        ".hrl",
+        ".hs",
+        ".ml",
+        ".fs",
+        ".fsx",
+        ".fsi",
+        ".vb",
+        ".pas",
+        ".pp",
+        ".asm",
+        ".s",
+        ".dart",
+        ".nim",
+        ".cr",
+        ".v",
+        ".sv",
+        ".vhd",
+        ".vhdl",
+        ".tcl",
+        ".groovy",
+        ".gradle",
+        ".cmake",
+        ".mk",
+        ".dockerfile",
+        ".vue",
+        ".svelte",
+        ".astro",
+    }
+    return any(filename.lower().endswith(ext) for ext in code_extensions)
+
+
+def generate_sarif_output(findings, repo_path, metrics=None):
+    """Generate SARIF output (alias for generate_sarif)"""
+    return generate_sarif(findings, repo_path, metrics)
+
+
+def estimate_tokens(text):
+    """Estimate number of tokens in text"""
+    # Rough estimation: ~4 characters per token
+    return len(text) // 4
+
+
+def map_severity_to_level(severity):
+    """Map severity to SARIF level (alias for map_severity_to_sarif)"""
+    return map_severity_to_sarif(severity)
+
+
+def classify_finding_category(finding):
+    """Classify finding into a category"""
+    title = finding.get("title", "").lower()
+    description = finding.get("description", "").lower()
+
+    # Security categories
+    if any(term in title or term in description for term in ["injection", "xss", "csrf", "auth", "secret", "crypto"]):
+        return "security"
+    elif any(term in title or term in description for term in ["performance", "memory", "cpu", "slow"]):
+        return "performance"
+    elif any(term in title or term in description for term in ["bug", "error", "exception", "crash"]):
+        return "reliability"
+    elif any(term in title or term in description for term in ["style", "format", "naming", "convention"]):
+        return "style"
+    else:
+        return "general"
+
+
+def parse_args():
+    """Parse command line arguments"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="AI-powered code audit")
+    parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
+    parser.add_argument("review_type", nargs="?", default="audit", help="Type of review")
+    parser.add_argument("--provider", help="AI provider")
+    parser.add_argument("--model", help="Model name")
+    parser.add_argument("--max-files", type=int, help="Maximum files to review")
+    parser.add_argument("--cost-limit", type=float, help="Cost limit in USD")
+
+    return parser.parse_args()
+
+
+def build_config(args=None):
+    """Build configuration from arguments and environment"""
+    config = load_config_from_env()
+
+    if args:
+        if hasattr(args, "provider") and args.provider:
+            config["ai_provider"] = args.provider
+        if hasattr(args, "model") and args.model:
+            config["model"] = args.model
+        if hasattr(args, "max_files") and args.max_files:
+            config["max_files"] = str(args.max_files)
+        if hasattr(args, "cost_limit") and args.cost_limit:
+            config["cost_limit"] = str(args.cost_limit)
+
+    return config
 
 
 def run_audit(repo_path, config, review_type="audit"):

@@ -49,6 +49,48 @@ class PolicyGate:
             print("          chmod +x opa && sudo mv opa /usr/local/bin/")
             sys.exit(2)
 
+    def _fallback_policy_evaluation(self, stage, findings, metadata=None):
+        """Fallback policy evaluation when OPA is not available (for testing)"""
+        blocks = []
+        warnings = []
+        reasons = []
+
+        if stage == "pr":
+            # PR policy: Block verified secrets and critical public IAC
+            for finding in findings:
+                category = finding.get("category", "").upper()
+                severity = finding.get("severity", "").lower()
+
+                # Block verified secrets
+                if category == "SECRETS" and finding.get("secret_verified") == "true":
+                    blocks.append(finding)
+                    reasons.append(f"Verified secret detected in {finding.get('path', 'unknown')}")
+
+                # Warn on unverified secrets
+                elif category == "SECRETS" and finding.get("secret_verified") == "false":
+                    warnings.append(finding)
+
+                # Block critical IAC with public exposure
+                elif category == "IAC" and severity == "critical" and finding.get("service_tier") == "public":
+                    blocks.append(finding)
+                    reasons.append(f"Critical IAC issue with public exposure in {finding.get('path', 'unknown')}")
+
+        elif stage == "release":
+            # Release policy: Require SBOM and no critical findings
+            if metadata:
+                if not metadata.get("sbom_generated"):
+                    blocks.append({"type": "missing_sbom"})
+                    reasons.append("SBOM not generated")
+
+            # Block any critical findings
+            for finding in findings:
+                if finding.get("severity", "").lower() == "critical":
+                    blocks.append(finding)
+                    reasons.append(f"Critical finding in {finding.get('path', 'unknown')}")
+
+        decision = "fail" if blocks else "pass"
+        return {"decision": decision, "reasons": reasons, "blocks": blocks, "warnings": warnings}
+
     def evaluate(self, stage: str, findings: list[dict], metadata: dict[str, bool] = None) -> dict[str, Any]:
         """
         Evaluate policy for given stage
@@ -64,14 +106,9 @@ class PolicyGate:
         if stage not in ["pr", "release"]:
             raise ValueError(f"Invalid stage: {stage}. Must be 'pr' or 'release'")
 
-        # If OPA not available (e.g., in test environment), return default pass
+        # If OPA not available (e.g., in test environment), use fallback policy
         if not getattr(self, "opa_available", True):
-            return {
-                "decision": "pass",
-                "reasons": ["OPA not available in test environment"],
-                "blocks": False,
-                "warnings": [],
-            }
+            return self._fallback_policy_evaluation(stage, findings, metadata)
 
         policy_file = self.policy_dir / f"{stage}.rego"
         if not policy_file.exists():
