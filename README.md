@@ -581,4 +581,4 @@ Special thanks to the open-source security community.
 
 **Built by security engineers, for security engineers.** 🛡️
 
-*Need enterprise support, custom policies, or professional services? [Contact us](mailto:security@example.com)*
+*Need enterprise support, custom policies, or professional services? [Contact us](mailto:developer@secure.com)*
