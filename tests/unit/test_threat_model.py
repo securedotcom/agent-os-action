@@ -1,13 +1,13 @@
 """Unit tests for ThreatModelGenerator class"""
 
-import pytest
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 # Add scripts directory to path for imports
 import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
@@ -251,7 +251,7 @@ class TestThreatModelGenerator:
         generator.save_threat_model(threat_model, str(output_path))
 
         assert output_path.exists()
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             loaded = json.load(f)
         assert loaded["version"] == "1.0"
         assert loaded["repository"] == "test"

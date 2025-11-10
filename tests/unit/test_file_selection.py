@@ -1,7 +1,7 @@
 """Unit tests for file selection logic"""
 
 import pytest
-from run_ai_audit import matches_glob_patterns, estimate_cost
+from run_ai_audit import estimate_cost, matches_glob_patterns
 
 
 class TestFileSelection:

@@ -8,10 +8,10 @@ import json
 import logging
 import subprocess
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class CVEFinding:
     fixed_version: Optional[str]
     title: str
     description: str
-    references: List[str]
+    references: list[str]
     cvss_score: Optional[float] = None
     cwe_id: Optional[str] = None  # Enriched by Foundation-Sec
     exploitability: Optional[str] = None  # Enriched by Foundation-Sec
@@ -48,7 +48,7 @@ class TrivyScanResult:
     high: int
     medium: int
     low: int
-    findings: List[CVEFinding]
+    findings: list[CVEFinding]
     scan_duration_seconds: float
     trivy_version: str
 
@@ -209,7 +209,7 @@ class TrivyScanner:
 
             if result.returncode != 0:
                 logger.error(f"❌ Image scan failed: {result.stderr}")
-                raise RuntimeError(f"Trivy image scan failed")
+                raise RuntimeError("Trivy image scan failed")
 
             trivy_data = json.loads(result.stdout) if result.stdout else {}
 
@@ -247,7 +247,7 @@ class TrivyScanner:
 
         return scan_result
 
-    def _parse_trivy_results(self, trivy_data: Dict) -> List[CVEFinding]:
+    def _parse_trivy_results(self, trivy_data: dict) -> list[CVEFinding]:
         """Parse Trivy JSON output into CVEFinding objects"""
         findings = []
 
@@ -275,7 +275,7 @@ class TrivyScanner:
 
         return findings
 
-    def _extract_cvss_score(self, vuln: Dict) -> Optional[float]:
+    def _extract_cvss_score(self, vuln: dict) -> Optional[float]:
         """Extract CVSS score from vulnerability data"""
         cvss = vuln.get("CVSS", {})
 
@@ -284,7 +284,7 @@ class TrivyScanner:
             return cvss["nvd"]["V3Score"]
 
         # Fall back to any available score
-        for source, data in cvss.items():
+        for _source, data in cvss.items():
             if "V3Score" in data:
                 return data["V3Score"]
             if "V2Score" in data:
@@ -292,7 +292,7 @@ class TrivyScanner:
 
         return None
 
-    def _enrich_with_foundation_sec(self, findings: List[CVEFinding]) -> List[CVEFinding]:
+    def _enrich_with_foundation_sec(self, findings: list[CVEFinding]) -> list[CVEFinding]:
         """
         Enrich CVE findings with Foundation-Sec-8B analysis
 
@@ -362,7 +362,7 @@ The CWE is CWE-"""
         severity_map = {"CRITICAL": "trivial", "HIGH": "moderate", "MEDIUM": "complex", "LOW": "theoretical"}
         return severity_map.get(finding.severity, "theoretical")
 
-    def _calculate_severity_counts(self, findings: List[CVEFinding]) -> Dict[str, int]:
+    def _calculate_severity_counts(self, findings: list[CVEFinding]) -> dict[str, int]:
         """Calculate counts by severity level"""
         counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNKNOWN": 0}
 

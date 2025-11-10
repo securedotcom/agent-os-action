@@ -6,7 +6,6 @@ Risk Score = CVSS × Exploitability × Reachability × Business Impact
 """
 
 import json
-from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -46,7 +45,7 @@ class RiskScore:
     raw_score: float  # 0-10 scale
     normalized_score: int  # 0-100 scale
     severity: str  # critical, high, medium, low
-    factors: Dict[str, float]
+    factors: dict[str, float]
     priority: int  # 1 (highest) to 4 (lowest)
 
 
@@ -92,7 +91,7 @@ class RiskScorer:
         """
         self.default_business_impact = BusinessImpact(default_business_impact)
 
-    def score_finding(self, finding: Dict) -> RiskScore:
+    def score_finding(self, finding: dict) -> RiskScore:
         """
         Calculate risk score for a single finding
 
@@ -141,7 +140,7 @@ class RiskScorer:
             priority=priority,
         )
 
-    def score_findings(self, findings: List[Dict]) -> List[RiskScore]:
+    def score_findings(self, findings: list[dict]) -> list[RiskScore]:
         """Score multiple findings and sort by risk"""
         scores = [self.score_finding(f) for f in findings]
 
@@ -153,7 +152,7 @@ class RiskScorer:
 
         return scores
 
-    def enrich_findings(self, findings: List[Dict]) -> List[Dict]:
+    def enrich_findings(self, findings: list[dict]) -> list[dict]:
         """
         Enrich findings with risk scores
 
@@ -184,7 +183,7 @@ class RiskScorer:
 
         return enriched
 
-    def _get_cvss(self, finding: Dict) -> float:
+    def _get_cvss(self, finding: dict) -> float:
         """Extract CVSS score (0-10)"""
         # Try various fields where CVSS might be
         cvss = finding.get("cvss_score", 0.0)
@@ -202,7 +201,7 @@ class RiskScorer:
 
         return float(cvss)
 
-    def _get_exploitability(self, finding: Dict) -> Exploitability:
+    def _get_exploitability(self, finding: dict) -> Exploitability:
         """Extract exploitability level"""
         exploit = finding.get("exploitability", "").lower()
 
@@ -221,7 +220,7 @@ class RiskScorer:
             else:
                 return Exploitability.LOW
 
-    def _get_reachability(self, finding: Dict) -> Reachability:
+    def _get_reachability(self, finding: dict) -> Reachability:
         """Extract reachability level"""
         # Check if reachability analysis was done
         if "reachable" in finding:
@@ -241,7 +240,7 @@ class RiskScorer:
             else:
                 return Reachability.DIRECT
 
-    def _get_business_impact(self, finding: Dict) -> BusinessImpact:
+    def _get_business_impact(self, finding: dict) -> BusinessImpact:
         """Extract business impact level"""
         impact = finding.get("business_impact", "").lower()
 
@@ -278,7 +277,7 @@ class RiskScorer:
         else:
             return 4  # P4 - Low
 
-    def _print_summary(self, scores: List[RiskScore]):
+    def _print_summary(self, scores: list[RiskScore]):
         """Print risk score summary"""
         if not scores:
             return
@@ -287,7 +286,7 @@ class RiskScorer:
         for score in scores:
             by_severity[score.severity] += 1
 
-        print(f"\n📊 Risk Score Summary:")
+        print("\n📊 Risk Score Summary:")
         print(f"   Total Findings: {len(scores)}")
         print(f"   Critical (P1): {by_severity['critical']}")
         print(f"   High (P2): {by_severity['high']}")
@@ -296,7 +295,7 @@ class RiskScorer:
 
         # Show top 5 riskiest findings
         if scores:
-            print(f"\n🔥 Top 5 Riskiest Findings:")
+            print("\n🔥 Top 5 Riskiest Findings:")
             for i, score in enumerate(scores[:5], 1):
                 print(
                     f"   {i}. Score: {score.normalized_score}/100 ({score.severity}) - ID: {score.finding_id[:16]}..."

@@ -11,12 +11,12 @@ Features:
 """
 
 import json
-import subprocess
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+import subprocess
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,14 +37,14 @@ class SemgrepFinding:
     owasp: Optional[str] = None
     confidence: str = "HIGH"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
 class SemgrepScanner:
     """Wrapper for Semgrep SAST scanning"""
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: Optional[dict] = None):
         """
         Initialize Semgrep scanner
 
@@ -74,7 +74,7 @@ class SemgrepScanner:
         except (subprocess.SubprocessError, FileNotFoundError):
             return False
 
-    def scan(self, target_path: str, output_format: str = "json") -> Dict[str, Any]:
+    def scan(self, target_path: str, output_format: str = "json") -> dict[str, Any]:
         """
         Run Semgrep scan on target path
 
@@ -147,7 +147,7 @@ class SemgrepScanner:
             logger.error(f"Semgrep scan error: {e}")
             return {"error": str(e), "findings": []}
 
-    def _parse_semgrep_output(self, semgrep_output: Dict) -> List[SemgrepFinding]:
+    def _parse_semgrep_output(self, semgrep_output: dict) -> list[SemgrepFinding]:
         """Parse Semgrep JSON output into SemgrepFinding objects"""
         findings = []
 
@@ -209,7 +209,7 @@ class SemgrepScanner:
         except:
             return "unknown"
 
-    def save_results(self, results: Dict, output_path: str):
+    def save_results(self, results: dict, output_path: str):
         """Save scan results to file"""
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)

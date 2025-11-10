@@ -3,19 +3,19 @@ Week 1 Tests - Normalizer + Policy Engine
 Tests the core Week 1 deliverables
 """
 
-import pytest
-import json
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Add scripts to path
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+from gate import PolicyGate
 from normalizer import Finding, UnifiedNormalizer
 from normalizer.semgrep import SemgrepNormalizer
 from normalizer.trufflehog import TruffleHogNormalizer
-from gate import PolicyGate
 
 
 class TestFindingSchema:

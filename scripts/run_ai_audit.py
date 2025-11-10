@@ -5,23 +5,24 @@ Supports multiple LLM providers: Anthropic, OpenAI, Ollama
 With cost guardrails, SARIF/JSON output, and observability
 """
 
-import os
-import sys
-import json
-import time
-import glob
-import subprocess
-import logging
-import re
 import ast
-from pathlib import Path
+import glob
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+import time
 from datetime import datetime, timezone
+from pathlib import Path
+
 from tenacity import (
+    before_sleep_log,
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
 )
 
 # Configure logging
@@ -46,7 +47,7 @@ except ImportError:
 
 # Import sandbox validator
 try:
-    from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType, ValidationResult
+    from sandbox_validator import ExploitConfig, ExploitType, SandboxValidator, ValidationResult
 
     SANDBOX_VALIDATION_AVAILABLE = True
 except ImportError:
@@ -57,8 +58,6 @@ Heuristic Scanner and Consensus Builder classes
 Extracted from real_multi_agent_review.py for merging into run_ai_audit.py
 """
 
-import re
-import ast
 
 
 class HeuristicScanner:
@@ -760,7 +759,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
             # Sanitize model ID for logging
             safe_model_name = str(model_id).split("/")[-1] if model_id else "unknown"
             logger.debug(f"Testing model: {safe_model_name}")
-            message = client.messages.create(
+            client.messages.create(
                 model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}]
             )
             logger.info(f"✅ Found working model: {safe_model_name}")
@@ -771,7 +770,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
 
             # If authentication fails, stop trying
             if "Authentication" in error_type or "auth" in str(e).lower():
-                logger.error(f"Authentication failed with API key")
+                logger.error("Authentication failed with API key")
                 raise
 
             continue
@@ -819,14 +818,7 @@ def matches_glob_patterns(file_path, patterns):
         return False
     from pathlib import Path
 
-    for pattern in patterns:
-        # Use pathlib's match for better glob support including **
-        if Path(file_path).match(pattern):
-            return True
-        # Fallback to fnmatch for simple patterns
-        elif glob.fnmatch.fnmatch(file_path, pattern):
-            return True
-    return False
+    return any(Path(file_path).match(pattern) or glob.fnmatch.fnmatch(file_path, pattern) for pattern in patterns)
 
 
 def get_codebase_context(repo_path, config):
@@ -927,7 +919,7 @@ def get_codebase_context(repo_path, config):
                         print(f"⏭️  Skipping {rel_path} (too large: {file_size} bytes)")
                         continue
 
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(file_path, encoding="utf-8", errors="ignore") as f:
                         content = f.read()
                         lines = len(content.split("\n"))
 
@@ -1020,10 +1012,7 @@ def estimate_review_cost(mode="single", num_files=50):
     Returns:
         Estimated cost in USD
     """
-    if mode == "single":
-        base_cost = COST_ESTIMATES["single_agent"]
-    else:
-        base_cost = COST_ESTIMATES["multi_agent_sequential"]
+    base_cost = COST_ESTIMATES["single_agent"] if mode == "single" else COST_ESTIMATES["multi_agent_sequential"]
 
     # Adjust for file count
     file_factor = num_files / 50.0  # 50 files is baseline
@@ -1389,7 +1378,7 @@ def load_agent_prompt(agent_name):
 
     for prompt_path in possible_paths:
         if prompt_path.exists():
-            with open(prompt_path, "r") as f:
+            with open(prompt_path) as f:
                 return f.read()
 
     print(f"⚠️  Agent prompt not found for: {agent_name}")
@@ -1427,15 +1416,15 @@ def build_enhanced_agent_prompt(
     # Category-specific focus instructions
     category_focus = {
         "security": """**YOUR FOCUS: SECURITY ONLY**
-Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS, 
+Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS,
 CSRF, cryptography, secrets management, session handling, API security, dependency vulnerabilities.
 Ignore performance and code quality unless it creates a security risk.""",
         "performance": """**YOUR FOCUS: PERFORMANCE ONLY**
-Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O, 
+Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O,
 database query optimization, caching opportunities, unnecessary computations, resource exhaustion.
 Ignore security and code style unless it impacts performance.""",
         "quality": """**YOUR FOCUS: CODE QUALITY ONLY**
-Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles, 
+Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles,
 error handling, logging, documentation, dead code, code duplication, naming conventions.
 Ignore security and performance unless code quality creates those risks.""",
         "general": """**YOUR FOCUS: COMPREHENSIVE REVIEW**
@@ -1464,16 +1453,16 @@ Use this as context but focus on your specialized area."""
 **SEVERITY RUBRIC** (Use this to score consistently):
 - **CRITICAL** (0.9-1.0 confidence): Exploitable security flaw, production data loss, system-wide outage
   Examples: SQL injection, hardcoded secrets, authentication bypass, RCE
-  
+
 - **HIGH** (0.7-0.89 confidence): Major security gap, significant performance degradation, data corruption risk
   Examples: Missing auth checks, N+1 queries causing timeouts, memory leaks
-  
+
 - **MEDIUM** (0.5-0.69 confidence): Moderate issue with workaround, sub-optimal design
   Examples: Weak validation, inefficient algorithm, poor error handling
-  
+
 - **LOW** (0.3-0.49 confidence): Minor issue, edge case, defensive improvement
   Examples: Missing logging, minor optimization opportunity
-  
+
 - **INFO** (0.0-0.29 confidence): Style, optional refactoring, best practice
   Examples: Variable naming, code organization, documentation
 """
@@ -1769,7 +1758,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
     # NEW: Sandbox Validation (after security agents, before orchestrator)
     if config.get("enable_sandbox_validation", True) and SANDBOX_VALIDATION_AVAILABLE:
         print(f"\n{'─' * 80}")
-        print(f"🔬 SANDBOX VALIDATION")
+        print("🔬 SANDBOX VALIDATION")
         print(f"{'─' * 80}")
         print("   Validating exploits in isolated containers...")
 
@@ -1855,9 +1844,9 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
                             finding["sandbox_validated"] = True
                             finding["validation_confidence"] = "high"
                             validated_findings.append(finding)
-                            print(f"      ✅ Confirmed exploitable")
+                            print("      ✅ Confirmed exploitable")
                         else:
-                            print(f"      ❌ Not exploitable - eliminated false positive")
+                            print("      ❌ Not exploitable - eliminated false positive")
                             metrics.record_false_positive_eliminated()
 
                     except Exception as e:
@@ -1873,7 +1862,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
         except Exception as e:
             logger.warning(f"Sandbox validation failed: {e}")
-            print(f"   ⚠️  Sandbox validation unavailable, continuing without validation")
+            print("   ⚠️  Sandbox validation unavailable, continuing without validation")
 
     # NEW: Consensus Building (from real_multi_agent_review.py)
     # Build consensus across agent findings to reduce false positives
@@ -1882,7 +1871,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
     if enable_consensus and len(agent_reports) >= 2:
         print(f"\n{'─' * 80}")
-        print(f"🤝 CONSENSUS BUILDING")
+        print("🤝 CONSENSUS BUILDING")
         print(f"{'─' * 80}")
         print("   Aggregating findings across agents to reduce false positives...")
 
@@ -1905,17 +1894,17 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             likely = len([f for f in consensus_results.values() if f["confidence"] == "medium"])
             uncertain = len([f for f in consensus_results.values() if f["confidence"] == "low"])
 
-            print(f"   ✅ Consensus analysis complete:")
+            print("   ✅ Consensus analysis complete:")
             print(f"      - {confirmed} high-confidence findings (multiple agents agree)")
             print(f"      - {likely} medium-confidence findings")
             print(f"      - {uncertain} low-confidence findings (single agent only)")
             print(f"   🎯 False positive reduction: {len(all_findings) - len(consensus_results)} findings eliminated")
         else:
-            print(f"   ℹ️  Insufficient overlap for consensus building")
+            print("   ℹ️  Insufficient overlap for consensus building")
 
     # Run orchestrator agent
     print(f"\n{'─' * 80}")
-    print(f"🎯 Agent 7/7: ORCHESTRATOR")
+    print("🎯 Agent 7/7: ORCHESTRATOR")
     print(f"{'─' * 80}")
     print("   🔄 Aggregating findings from all agents...")
 
@@ -1987,7 +1976,7 @@ Generate the complete audit report as specified in your instructions.
             else 0,
         }
 
-        print(f"   ✅ Synthesis complete")
+        print("   ✅ Synthesis complete")
         print(
             f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}"
         )
@@ -2072,17 +2061,17 @@ Orchestrator synthesis failed. Below are individual agent reports.
         json.dump(agent_metrics, f, indent=2)
 
     print(f"\n{'=' * 80}")
-    print(f"✅ MULTI-AGENT REVIEW COMPLETE")
+    print("✅ MULTI-AGENT REVIEW COMPLETE")
     print(f"{'=' * 80}")
     print(f"📊 Total Cost: ${total_cost:.4f}")
     print(f"⏱️  Total Duration: {total_duration:.1f}s")
     print(
-        f"🤖 Agents: 7 (Security, Exploit Analyst, Security Test Generator, Performance, Testing, Quality, Orchestrator)"
+        "🤖 Agents: 7 (Security, Exploit Analyst, Security Test Generator, Performance, Testing, Quality, Orchestrator)"
     )
 
     # Display exploitability summary
     if any(metrics.metrics["exploitability"].values()):
-        print(f"\n⚠️  Exploitability Breakdown:")
+        print("\n⚠️  Exploitability Breakdown:")
         print(f"   Trivial: {metrics.metrics['exploitability']['trivial']}")
         print(f"   Moderate: {metrics.metrics['exploitability']['moderate']}")
         print(f"   Complex: {metrics.metrics['exploitability']['complex']}")
@@ -2204,7 +2193,7 @@ def run_audit(repo_path, config, review_type="audit"):
         except Exception as e:
             logger.error(f"Threat modeling failed: {e}")
             print(f"⚠️  Threat modeling failed: {e}")
-            print(f"   Continuing without threat model")
+            print("   Continuing without threat model")
     else:
         print("⚠️  Threat modeling not available (install pytm: pip install pytm)")
 
@@ -2309,13 +2298,13 @@ def run_audit(repo_path, config, review_type="audit"):
     # Estimate cost
     estimated_cost, est_input, est_output = estimate_cost(files, max_tokens, provider)
     if provider == "ollama":
-        print(f"💰 Estimated cost: $0.00 (local Ollama)")
+        print("💰 Estimated cost: $0.00 (local Ollama)")
     else:
         print(f"💰 Estimated cost: ${estimated_cost:.2f}")
 
     if estimated_cost > cost_limit and provider != "ollama":
         print(f"⚠️  Estimated cost ${estimated_cost:.2f} exceeds limit ${cost_limit:.2f}")
-        print(f"💡 Reduce max-files, use path filters, or increase cost-limit")
+        print("💡 Reduce max-files, use path filters, or increase cost-limit")
         sys.exit(2)
 
     # Check multi-agent mode
@@ -2384,18 +2373,18 @@ def run_audit(repo_path, config, review_type="audit"):
         blocker_count = metrics.metrics["findings"]["critical"] + metrics.metrics["findings"]["high"]
         suggestion_count = metrics.metrics["findings"]["medium"] + metrics.metrics["findings"]["low"]
 
-        print(f"\n📊 Final Results:")
+        print("\n📊 Final Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
         print(f"   High: {metrics.metrics['findings']['high']}")
         print(f"   Medium: {metrics.metrics['findings']['medium']}")
         print(f"   Low: {metrics.metrics['findings']['low']}")
         print(f"\n💰 Total Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Total Duration: {metrics.metrics['duration_seconds']}s")
-        print(f"🤖 Mode: Multi-Agent Sequential (7 agents)")
+        print("🤖 Mode: Multi-Agent Sequential (7 agents)")
 
         # Display exploitability metrics
         if any(metrics.metrics["exploitability"].values()):
-            print(f"\n⚠️  Exploitability:")
+            print("\n⚠️  Exploitability:")
             if metrics.metrics["exploitability"]["trivial"] > 0:
                 print(f"   ⚠️  Trivial: {metrics.metrics['exploitability']['trivial']}")
             if metrics.metrics["exploitability"]["moderate"] > 0:
@@ -2412,7 +2401,7 @@ def run_audit(repo_path, config, review_type="audit"):
             print(f"   🧪 Tests Generated: {metrics.metrics['tests_generated']}")
 
         # Output for GitHub Actions
-        print(f"completed=true")
+        print("completed=true")
         print(f"blockers={blocker_count}")
         print(f"suggestions={suggestion_count}")
         print(f"report-path={report_file}")
@@ -2449,13 +2438,13 @@ def run_audit(repo_path, config, review_type="audit"):
                             should_fail = True
 
         if should_fail:
-            print(f"\n❌ Failing due to fail-on conditions")
+            print("\n❌ Failing due to fail-on conditions")
             sys.exit(1)
 
         return blocker_count, suggestion_count, metrics
 
     # Single-agent mode (original logic)
-    print(f"🤖 Mode: Single-Agent")
+    print("🤖 Mode: Single-Agent")
 
     # Build context for LLM
     codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in files])
@@ -2465,7 +2454,7 @@ def run_audit(repo_path, config, review_type="audit"):
         Path.home() / ".agent-os/profiles/default/commands/audit-codebase/multi-agent/audit-codebase.md"
     )
     if audit_command_path.exists():
-        with open(audit_command_path, "r") as f:
+        with open(audit_command_path) as f:
             audit_instructions = f.read()
     else:
         audit_instructions = """
@@ -2619,7 +2608,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         blocker_count = metrics.metrics["findings"]["critical"] + metrics.metrics["findings"]["high"]
         suggestion_count = metrics.metrics["findings"]["medium"] + metrics.metrics["findings"]["low"]
 
-        print(f"\n📊 Results:")
+        print("\n📊 Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
         print(f"   High: {metrics.metrics['findings']['high']}")
         print(f"   Medium: {metrics.metrics['findings']['medium']}")
@@ -2685,7 +2674,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
 
         # Exit with appropriate code
         if should_fail:
-            print(f"\n❌ Failing due to fail-on conditions")
+            print("\n❌ Failing due to fail-on conditions")
             sys.exit(1)
 
         return blocker_count, suggestion_count, metrics

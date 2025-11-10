@@ -4,11 +4,11 @@ Converts security tool outputs to unified Finding format
 """
 
 from .base import Finding, Normalizer
+from .checkov import CheckovNormalizer
+from .gitleaks import GitleaksNormalizer
 from .semgrep import SemgrepNormalizer
 from .trivy import TrivyNormalizer
 from .trufflehog import TruffleHogNormalizer
-from .gitleaks import GitleaksNormalizer
-from .checkov import CheckovNormalizer
 
 __all__ = [
     "Finding",

@@ -1,7 +1,5 @@
 """Integration tests for SARIF report generation"""
 
-import pytest
-import json
 from run_ai_audit import generate_sarif
 
 

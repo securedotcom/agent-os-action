@@ -1,6 +1,5 @@
 """Unit tests for AI provider detection and configuration"""
 
-import pytest
 from run_ai_audit import detect_ai_provider, get_model_name
 
 

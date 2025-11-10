@@ -27,18 +27,19 @@ Date Deprecated: 2025-11-03
 Merged into: run_ai_audit.py (commit: multi-agent consolidation)
 """
 
-import os
-import json
-import asyncio
-import re
 import ast
+import asyncio
+import json
+import os
+import re
 import subprocess
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, asdict
-from enum import Enum
+from dataclasses import dataclass
 from datetime import datetime
-import anthropic
+from enum import Enum
 from pathlib import Path
+from typing import Any, Optional
+
+import anthropic
 
 
 class Severity(Enum):
@@ -89,16 +90,16 @@ class ConsensusResult:
     votes: int
     total_agents: int
     confidence: float
-    descriptions: List[str]
-    recommendations: List[str]
-    agents_agree: List[str]
-    agents_disagree: List[str]
+    descriptions: list[str]
+    recommendations: list[str]
+    agents_agree: list[str]
+    agents_disagree: list[str]
     consensus_level: str
     is_production: bool
     final_classification: str
     category: str = "general"
     test_case: Optional[TestCase] = None
-    heuristic_flags: List[str] = None
+    heuristic_flags: list[str] = None
 
 
 class RealMultiAgentReview:
@@ -196,7 +197,7 @@ class RealMultiAgentReview:
         ]
         return not any(indicator in file_path for indicator in dev_indicators)
 
-    def pre_scan_heuristics(self, file_path: str, content: str) -> List[str]:
+    def pre_scan_heuristics(self, file_path: str, content: str) -> list[str]:
         """
         Feature #7: Heuristic Guardrails
         Pre-scan files with lightweight checks to identify suspicious patterns
@@ -255,7 +256,7 @@ class RealMultiAgentReview:
                 complexity += len(child.values) - 1
         return complexity
 
-    def get_git_context(self, file_path: str, repo_path: str) -> Dict[str, Any]:
+    def get_git_context(self, file_path: str, repo_path: str) -> dict[str, Any]:
         """
         Feature #4: Context Injection
         Get git context for better prioritization
@@ -308,7 +309,7 @@ class RealMultiAgentReview:
 
         return context
 
-    def pre_scan_heuristics(self, file_path: str, code_content: str) -> List[str]:
+    def pre_scan_heuristics(self, file_path: str, code_content: str) -> list[str]:
         """Run lightweight heuristic checks to identify potential issues"""
         flags = []
 
@@ -366,7 +367,7 @@ class RealMultiAgentReview:
                 complexity += len(child.values) - 1
         return complexity
 
-    def build_context_injection(self, file_path: str, repo_path: str) -> Dict[str, Any]:
+    def build_context_injection(self, file_path: str, repo_path: str) -> dict[str, Any]:
         """Gather contextual information about the file"""
         context = {}
 
@@ -405,9 +406,9 @@ class RealMultiAgentReview:
         self,
         file_path: str,
         code_content: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         category: str = "general",
-        heuristic_flags: List[str] = None,
+        heuristic_flags: list[str] = None,
     ) -> str:
         """Build a comprehensive review prompt with rubrics, self-consistency, and category focus"""
 
@@ -417,15 +418,15 @@ class RealMultiAgentReview:
         # Category-specific instructions
         category_focus = {
             "security": """**YOUR FOCUS: SECURITY ONLY**
-Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS, 
+Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS,
 CSRF, cryptography, secrets management, session handling, API security, dependency vulnerabilities.
 Ignore performance and code quality unless it creates a security risk.""",
             "performance": """**YOUR FOCUS: PERFORMANCE ONLY**
-Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O, 
+Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O,
 database query optimization, caching opportunities, unnecessary computations, resource exhaustion.
 Ignore security and code style unless it impacts performance.""",
             "quality": """**YOUR FOCUS: CODE QUALITY ONLY**
-Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles, 
+Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles,
 error handling, logging, documentation, dead code, code duplication, naming conventions.
 Ignore security and performance unless code quality creates those risks.""",
             "general": """**YOUR FOCUS: COMPREHENSIVE REVIEW**
@@ -454,7 +455,7 @@ These are lightweight pattern matches. Verify each one carefully before reportin
 
 **CRITICAL CONTEXT RULES**:
 1. If file is in docker/, docker-compose.yml, etc. → LOCAL DEV ONLY (not production)
-2. If this is a test file → Different security standards apply  
+2. If this is a test file → Different security standards apply
 3. If this is static SQL DDL (CREATE TABLE, etc.) → NOT SQL injection risk
 4. If this is data extraction/pipeline → Not creating new vulnerabilities
 5. Distinguish between development tooling and production code
@@ -467,16 +468,16 @@ These are lightweight pattern matches. Verify each one carefully before reportin
 **SEVERITY RUBRIC** (Use this to score consistently):
 - **CRITICAL** (0.9-1.0 confidence): Exploitable security flaw, production data loss, system-wide outage
   Examples: SQL injection, hardcoded secrets, authentication bypass, RCE
-  
+
 - **HIGH** (0.7-0.89 confidence): Major security gap, significant performance degradation, data corruption risk
   Examples: Missing auth checks, N+1 queries causing timeouts, memory leaks
-  
+
 - **MEDIUM** (0.5-0.69 confidence): Moderate issue with workaround, sub-optimal design
   Examples: Weak validation, inefficient algorithm, poor error handling
-  
+
 - **LOW** (0.3-0.49 confidence): Minor issue, edge case, defensive improvement
   Examples: Missing logging, minor optimization opportunity
-  
+
 - **SUGGESTION** (0.0-0.29 confidence): Style, optional refactoring, best practice
   Examples: Variable naming, code organization, documentation
 
@@ -514,10 +515,10 @@ Return ONLY the JSON array, no other text.
         self,
         file_path: str,
         code_content: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         category: str = "general",
-        heuristic_flags: List[str] = None,
-    ) -> List[Finding]:
+        heuristic_flags: list[str] = None,
+    ) -> list[Finding]:
         """Review code using Claude Sonnet 4"""
         if not self.claude_client:
             return []
@@ -550,8 +551,8 @@ Return ONLY the JSON array, no other text.
             return []
 
     async def review_with_claude_haiku(
-        self, file_path: str, code_content: str, context: Dict[str, Any]
-    ) -> List[Finding]:
+        self, file_path: str, code_content: str, context: dict[str, Any]
+    ) -> list[Finding]:
         """Review code using Claude 3.5 Haiku"""
         if not self.claude_client:
             return []
@@ -581,7 +582,7 @@ Return ONLY the JSON array, no other text.
             print(f"    ❌ Error: {e}")
             return []
 
-    async def review_with_gpt4(self, file_path: str, code_content: str, context: Dict[str, Any]) -> List[Finding]:
+    async def review_with_gpt4(self, file_path: str, code_content: str, context: dict[str, Any]) -> list[Finding]:
         """Review code using GPT-4"""
         if "GPT-4-Turbo" not in self.agents:
             return []
@@ -626,7 +627,7 @@ Return ONLY the JSON array, no other text.
 
     def _parse_json_response(
         self, response_text: str, agent_name: str, file_path: str, category: str = "general"
-    ) -> List[Finding]:
+    ) -> list[Finding]:
         """Parse JSON response from AI model"""
         try:
             # Try to extract JSON from response
@@ -674,7 +675,7 @@ Return ONLY the JSON array, no other text.
             print(f"    ⚠️  Error parsing response: {e}")
             return []
 
-    async def review_file(self, file_path: str, repo_path: str, use_category_passes: bool = True) -> List[Finding]:
+    async def review_file(self, file_path: str, repo_path: str, use_category_passes: bool = True) -> list[Finding]:
         """Review a single file with enhanced multi-pass strategy"""
         full_path = Path(repo_path) / file_path
 
@@ -684,20 +685,20 @@ Return ONLY the JSON array, no other text.
 
         # Read file content
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
+            with open(full_path, encoding="utf-8") as f:
                 code_content = f.read()
         except Exception as e:
             print(f"  ⚠️  Error reading file: {e}")
             return []
 
         # Phase 0: Heuristic pre-scan
-        print(f"  🔍 Running heuristic pre-scan...")
+        print("  🔍 Running heuristic pre-scan...")
         heuristic_flags = self.pre_scan_heuristics(file_path, code_content)
 
         if heuristic_flags:
             print(f"    ⚠️  Flagged: {', '.join(heuristic_flags)}")
         else:
-            print(f"    ✅ No heuristic flags - file looks clean")
+            print("    ✅ No heuristic flags - file looks clean")
             # Uncomment to skip clean files: return []
 
         # Build enhanced context
@@ -729,7 +730,7 @@ Return ONLY the JSON array, no other text.
                 all_findings.extend(findings)
         else:
             # Traditional multi-agent review
-            print(f"  🤖 Running traditional multi-agent review...")
+            print("  🤖 Running traditional multi-agent review...")
             tasks = []
 
             if "Claude-Sonnet-4" in self.agents:
@@ -745,7 +746,7 @@ Return ONLY the JSON array, no other text.
 
         return all_findings
 
-    def build_consensus(self, all_findings: List[Finding]) -> List[ConsensusResult]:
+    def build_consensus(self, all_findings: list[Finding]) -> list[ConsensusResult]:
         """Build consensus from findings"""
         if not all_findings:
             return []
@@ -887,7 +888,7 @@ Return ONLY the JSON object, no other text."""
             print(f"      ⚠️  Failed to generate test case: {e}")
             return None
 
-    async def enhance_findings_with_tests(self, consensus_results: List[ConsensusResult]) -> List[ConsensusResult]:
+    async def enhance_findings_with_tests(self, consensus_results: list[ConsensusResult]) -> list[ConsensusResult]:
         """Add test cases to high/critical findings"""
         print("\n🧪 Generating test cases for high/critical findings...")
 
@@ -915,7 +916,7 @@ Return ONLY the JSON object, no other text."""
 
         return consensus_results
 
-    def generate_report(self, consensus_results: List[ConsensusResult], repo_name: str) -> str:
+    def generate_report(self, consensus_results: list[ConsensusResult], repo_name: str) -> str:
         """Generate markdown report"""
 
         critical = [r for r in consensus_results if r.final_classification == "critical_fix"]
@@ -925,9 +926,9 @@ Return ONLY the JSON object, no other text."""
 
         report = f"""# 🤖 Real Multi-Agent Consensus Code Review
 
-**Repository**: {repo_name}  
-**Agents**: {", ".join(self.agents)} (REAL API CALLS)  
-**Review Date**: {datetime.utcnow().isoformat()}Z  
+**Repository**: {repo_name}
+**Agents**: {", ".join(self.agents)} (REAL API CALLS)
+**Review Date**: {datetime.utcnow().isoformat()}Z
 
 ---
 
@@ -952,9 +953,9 @@ Return ONLY the JSON object, no other text."""
             report += f"""
 ### {result.issue_type.replace("-", " ").title()}
 
-**File**: `{result.file}:{result.line}`  
-**Votes**: {result.votes}/{result.total_agents} ({result.consensus_level.upper()})  
-**Confidence**: {result.confidence:.0%}  
+**File**: `{result.file}:{result.line}`
+**Votes**: {result.votes}/{result.total_agents} ({result.consensus_level.upper()})
+**Confidence**: {result.confidence:.0%}
 
 **Findings from agents**:
 """
@@ -967,7 +968,7 @@ Return ONLY the JSON object, no other text."""
 
             # Add test case if available
             if result.test_case:
-                report += f"\n**🧪 Suggested Test Case**:\n"
+                report += "\n**🧪 Suggested Test Case**:\n"
                 report += f"*{result.test_case.description}*\n\n"
                 report += f"**Input**: `{result.test_case.input_example}`\n"
                 report += f"**Expected**: {result.test_case.expected_behavior}\n\n"
@@ -985,15 +986,15 @@ Return ONLY the JSON object, no other text."""
             report += f"""
 ### {result.issue_type.replace("-", " ").title()}
 
-**File**: `{result.file}:{result.line}`  
-**Votes**: {result.votes}/{result.total_agents}  
-**Agents**: {", ".join(result.agents_agree)}  
+**File**: `{result.file}:{result.line}`
+**Votes**: {result.votes}/{result.total_agents}
+**Agents**: {", ".join(result.agents_agree)}
 
 {result.descriptions[0]}
 """
             # Add test case if available
             if result.test_case:
-                report += f"\n**🧪 Suggested Test Case**:\n"
+                report += "\n**🧪 Suggested Test Case**:\n"
                 report += f"*{result.test_case.description}*\n\n"
                 report += f"```python\n{result.test_case.test_code}\n```\n"
 
@@ -1021,7 +1022,7 @@ Return ONLY the JSON object, no other text."""
 
 ---
 
-**💡 This report was generated using REAL API calls to multiple AI models.**  
+**💡 This report was generated using REAL API calls to multiple AI models.**
 **Each finding represents actual consensus between independent AI agents.**
 
 """

@@ -6,10 +6,8 @@ Uses Foundation-Sec-8B for ML-based noise detection and historical analysis
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
-from datetime import datetime, timedelta
-import statistics
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -28,12 +26,12 @@ class NoiseScorer:
 
     def __init__(self, history_file: str = ".agent-os/finding_history.jsonl"):
         self.history_file = Path(history_file)
-        self.history: List[Dict] = []
+        self.history: list[dict] = []
         self.foundation_sec = None
 
         # Load historical data
         if self.history_file.exists():
-            with open(self.history_file, "r") as f:
+            with open(self.history_file) as f:
                 self.history = [json.loads(line) for line in f]
 
         # Initialize Foundation-Sec if available
@@ -43,7 +41,7 @@ class NoiseScorer:
         except Exception as e:
             print(f"⚠️  Foundation-Sec not available, using heuristics only: {e}")
 
-    def score_findings(self, findings: List[Finding]) -> List[Finding]:
+    def score_findings(self, findings: list[Finding]) -> list[Finding]:
         """
         Score all findings for noise/false positives
 
@@ -60,10 +58,7 @@ class NoiseScorer:
             pattern_noise = self._calculate_pattern_noise(finding)
 
             # 3. Foundation-Sec ML prediction
-            if self.foundation_sec:
-                ml_noise = self._calculate_ml_noise(finding)
-            else:
-                ml_noise = 0.0
+            ml_noise = self._calculate_ml_noise(finding) if self.foundation_sec else 0.0
 
             # Combined noise score (weighted average)
             finding.noise_score = 0.4 * pattern_noise + 0.4 * ml_noise + 0.2 * (1.0 - finding.historical_fix_rate)
@@ -221,7 +216,7 @@ Respond with ONLY a JSON object:
 
         return 0.0
 
-    def update_history(self, findings: List[Finding]):
+    def update_history(self, findings: list[Finding]):
         """
         Update historical database with new findings
 
@@ -259,7 +254,7 @@ def main():
     args = parser.parse_args()
 
     # Load findings
-    with open(args.input, "r") as f:
+    with open(args.input) as f:
         findings_data = json.load(f)
 
     findings = [Finding.from_dict(f) for f in findings_data]

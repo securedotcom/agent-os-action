@@ -4,12 +4,12 @@ SBOM Generator using Syft
 Generates CycloneDX SBOM for codebases
 """
 
-import subprocess
-import json
 import hashlib
+import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 class SBOMGenerator:
@@ -18,7 +18,7 @@ class SBOMGenerator:
     def __init__(self):
         self.format = "cyclonedx-json"
 
-    def generate(self, path: str, output_file: Optional[str] = None) -> Dict:
+    def generate(self, path: str, output_file: Optional[str] = None) -> dict:
         """
         Generate SBOM for codebase
 
@@ -68,7 +68,7 @@ class SBOMGenerator:
             print(f"❌ Invalid JSON output: {e}")
             raise
 
-    def validate(self, sbom: Dict) -> bool:
+    def validate(self, sbom: dict) -> bool:
         """Validate SBOM completeness"""
         required_fields = ["bomFormat", "specVersion", "components"]
 
@@ -83,7 +83,7 @@ class SBOMGenerator:
 
         return True
 
-    def _enrich_sbom(self, sbom: Dict, path: str) -> Dict:
+    def _enrich_sbom(self, sbom: dict, path: str) -> dict:
         """Add Agent-OS metadata to SBOM"""
 
         # Add metadata section if not present
@@ -123,7 +123,7 @@ class SBOMGenerator:
         except Exception:
             return "unknown"
 
-    def _print_stats(self, sbom: Dict):
+    def _print_stats(self, sbom: dict):
         """Print SBOM statistics"""
         components = sbom.get("components", [])
 
@@ -133,7 +133,7 @@ class SBOMGenerator:
             comp_type = comp.get("type", "unknown")
             by_type[comp_type] = by_type.get(comp_type, 0) + 1
 
-        print(f"\n📦 SBOM Statistics:")
+        print("\n📦 SBOM Statistics:")
         print(f"   Total Components: {len(components)}")
         for comp_type, count in sorted(by_type.items()):
             print(f"   - {comp_type}: {count}")

@@ -1,9 +1,10 @@
 """Unit tests for Foundation-Sec-8B provider"""
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add scripts directory to path for imports
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -260,7 +261,7 @@ class TestFoundationSecProvider:
             "providers.foundation_sec.AutoModelForCausalLM", side_effect=ImportError("No module named 'transformers'")
         ):
             with pytest.raises(ImportError) as exc_info:
-                provider = FoundationSecProvider()
+                FoundationSecProvider()
 
             assert "Required dependencies not installed" in str(exc_info.value)
             assert "pip install transformers torch accelerate" in str(exc_info.value)

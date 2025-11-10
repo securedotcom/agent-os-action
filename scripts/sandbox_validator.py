@@ -12,13 +12,13 @@ Validates PoC exploits with:
 
 import json
 import logging
-import time
 import re
-from dataclasses import dataclass, asdict
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
 
 from docker_manager import DockerManager
 
@@ -64,12 +64,12 @@ class ExploitConfig:
     exploit_type: ExploitType
     language: str
     code: str
-    expected_indicators: List[str]  # Indicators that exploit worked
+    expected_indicators: list[str]  # Indicators that exploit worked
     target_file: Optional[str] = None
-    setup_commands: Optional[List[str]] = None
-    cleanup_commands: Optional[List[str]] = None
+    setup_commands: Optional[list[str]] = None
+    cleanup_commands: Optional[list[str]] = None
     timeout: int = 30
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -84,12 +84,12 @@ class ValidationMetrics:
     stdout: str
     stderr: str
     exit_code: int
-    indicators_found: List[str]
-    indicators_missing: List[str]
+    indicators_found: list[str]
+    indicators_missing: list[str]
     container_id: str
     timestamp: str
     error_message: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class SandboxValidator:
@@ -112,7 +112,7 @@ class SandboxValidator:
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
         self._validation_count = 0
-        self._metrics: List[ValidationMetrics] = []
+        self._metrics: list[ValidationMetrics] = []
 
     def validate_exploit(
         self,
@@ -295,9 +295,9 @@ class SandboxValidator:
 
     def validate_multiple(
         self,
-        exploits: List[ExploitConfig],
+        exploits: list[ExploitConfig],
         reuse_container: bool = False,
-    ) -> List[ValidationMetrics]:
+    ) -> list[ValidationMetrics]:
         """
         Validate multiple exploits
 
@@ -338,7 +338,7 @@ class SandboxValidator:
 
         return results
 
-    def _safety_check(self, exploit: ExploitConfig) -> Dict[str, Any]:
+    def _safety_check(self, exploit: ExploitConfig) -> dict[str, Any]:
         """
         Perform safety checks on exploit code
 
@@ -377,8 +377,8 @@ class SandboxValidator:
         self,
         stdout: str,
         stderr: str,
-        expected_indicators: List[str],
-    ) -> tuple[List[str], List[str]]:
+        expected_indicators: list[str],
+    ) -> tuple[list[str], list[str]]:
         """
         Analyze execution results for exploit indicators
 
@@ -404,9 +404,9 @@ class SandboxValidator:
 
     def _determine_result(
         self,
-        execution_result: Dict[str, Any],
-        indicators_found: List[str],
-        indicators_missing: List[str],
+        execution_result: dict[str, Any],
+        indicators_found: list[str],
+        indicators_missing: list[str],
     ) -> ValidationResult:
         """
         Determine validation result based on execution and indicators
@@ -461,7 +461,7 @@ class SandboxValidator:
         except Exception as e:
             logger.warning(f"Failed to save results: {e}")
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
+    def get_metrics_summary(self) -> dict[str, Any]:
         """
         Get summary of all validation metrics
 
@@ -520,7 +520,7 @@ class SandboxValidator:
             logger.error(f"Failed to export metrics: {e}")
 
 
-def create_example_exploits() -> List[ExploitConfig]:
+def create_example_exploits() -> list[ExploitConfig]:
     """Create example exploits for testing"""
     return [
         # SQL Injection example

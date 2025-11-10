@@ -4,13 +4,12 @@ Heuristic-only audit of spring-attack-surface (no API keys required)
 Uses pattern matching and static analysis
 """
 
-import os
-import re
 import ast
-from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Any
+import re
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 
 class HeuristicAuditor:
@@ -20,7 +19,7 @@ class HeuristicAuditor:
         self.repo_path = Path(repo_path)
         self.findings = []
 
-    def pre_scan_heuristics(self, file_path: str, content: str) -> List[Dict[str, Any]]:
+    def pre_scan_heuristics(self, file_path: str, content: str) -> list[dict[str, Any]]:
         """Scan for security patterns"""
         findings = []
 
@@ -141,7 +140,7 @@ class HeuristicAuditor:
                         if complexity > 15:
                             findings.append(
                                 {
-                                    "type": f"high-complexity",
+                                    "type": "high-complexity",
                                     "severity": "LOW",
                                     "line": node.lineno,
                                     "description": f'Function "{node.name}" has cyclomatic complexity of {complexity} (>15 threshold)',
@@ -172,10 +171,10 @@ class HeuristicAuditor:
                 complexity += len(child.values) - 1
         return complexity
 
-    def audit_file(self, file_path: Path) -> List[Dict[str, Any]]:
+    def audit_file(self, file_path: Path) -> list[dict[str, Any]]:
         """Audit a single file"""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             findings = self.pre_scan_heuristics(str(file_path), content)
@@ -189,7 +188,7 @@ class HeuristicAuditor:
             print(f"⚠️  Error reading {file_path}: {e}")
             return []
 
-    def audit_repository(self, file_patterns: List[str] = None) -> Dict[str, Any]:
+    def audit_repository(self, file_patterns: list[str] = None) -> dict[str, Any]:
         """Audit entire repository"""
         print(f"🔍 Scanning {self.repo_path.name}...")
 
@@ -236,7 +235,7 @@ class HeuristicAuditor:
         }
 
 
-def generate_report(results: Dict[str, Any], repo_name: str) -> str:
+def generate_report(results: dict[str, Any], repo_name: str) -> str:
     """Generate markdown report"""
 
     critical = [f for f in results["findings"] if f["severity"] == "CRITICAL"]
@@ -246,9 +245,9 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
 
     report = f"""# 🛡️ Heuristic Security Audit Report
 
-**Repository**: {repo_name}  
-**Audit Date**: {datetime.utcnow().isoformat()}Z  
-**Audit Type**: Pattern-based Heuristic Analysis  
+**Repository**: {repo_name}
+**Audit Date**: {datetime.utcnow().isoformat()}Z
+**Audit Type**: Pattern-based Heuristic Analysis
 
 ---
 
@@ -279,7 +278,7 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
         for finding in critical[:10]:  # Top 10
             report += f"""### {finding["type"].replace("-", " ").title()}
 
-**File**: `{finding["file"]}:{finding["line"]}`  
+**File**: `{finding["file"]}:{finding["line"]}`
 **Severity**: CRITICAL 🔴
 
 {finding["description"]}
@@ -298,7 +297,7 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
     if len(high) > 5:
         report += f"\n*...and {len(high) - 5} more high severity issues*\n"
 
-    report += f"\n---\n\n## 📋 Files with Most Issues\n\n"
+    report += "\n---\n\n## 📋 Files with Most Issues\n\n"
 
     file_counts = [(f, len(issues)) for f, issues in results["files_with_issues"].items()]
     file_counts.sort(key=lambda x: -x[1])
@@ -306,7 +305,7 @@ def generate_report(results: Dict[str, Any], repo_name: str) -> str:
     for file, count in file_counts[:10]:
         report += f"- `{file}`: {count} issue(s)\n"
 
-    report += f"""
+    report += """
 
 ---
 
@@ -336,7 +335,7 @@ python scripts/audit_spring_attack_surface.py
 
 ---
 
-**🔍 This report was generated using lightweight heuristic scanning.**  
+**🔍 This report was generated using lightweight heuristic scanning.**
 **For production security decisions, combine with AI audit and manual review.**
 
 """

@@ -7,8 +7,6 @@ No API key required - code-as-data approach
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +17,7 @@ class PytmThreatModelGenerator:
     def __init__(self):
         """Initialize pytm threat model generator"""
         try:
-            from pytm import TM, Server, Datastore, Dataflow, Boundary, Actor, Process
+            from pytm import TM, Actor, Boundary, Dataflow, Datastore, Process, Server
 
             self.TM = TM
             self.Server = Server
@@ -33,7 +31,7 @@ class PytmThreatModelGenerator:
             logger.error("pytm not installed. Run: pip install pytm")
             raise
 
-    def generate_from_repo_context(self, repo_context: Dict) -> Dict:
+    def generate_from_repo_context(self, repo_context: dict) -> dict:
         """Generate threat model from repository context
 
         Args:
@@ -60,7 +58,7 @@ class PytmThreatModelGenerator:
         logger.info(f"Generated {len(threat_model.get('threats', []))} threats")
         return threat_model
 
-    def _detect_architecture(self, repo_context: Dict) -> str:
+    def _detect_architecture(self, repo_context: dict) -> str:
         """Detect architecture type from repo context
 
         Returns: 'web_app', 'api', 'microservices', 'cli', 'library'
@@ -69,10 +67,10 @@ class PytmThreatModelGenerator:
         # key_files is a list of dicts, extract just the names
         key_files_list = repo_context.get("key_files", [])
         if key_files_list and isinstance(key_files_list[0], dict):
-            key_files = set(kf.get("name", "") for kf in key_files_list)
+            key_files = {kf.get("name", "") for kf in key_files_list}
         else:
             key_files = set(key_files_list)
-        languages = set(repo_context.get("languages", []))
+        set(repo_context.get("languages", []))
 
         # Check for microservices indicators (highest priority)
         if "docker-compose.yml" in key_files or "docker-compose.yaml" in key_files:
@@ -97,7 +95,7 @@ class PytmThreatModelGenerator:
         # Default to library
         return "library"
 
-    def _build_pytm_model(self, repo_context: Dict, arch_type: str):
+    def _build_pytm_model(self, repo_context: dict, arch_type: str):
         """Build pytm model based on architecture type"""
         tm = self.TM(f"Agent-OS Threat Model: {repo_context.get('name', 'Repository')}")
         tm.description = f"Automated threat model for {repo_context.get('name', 'repository')} ({arch_type})"
@@ -330,14 +328,14 @@ class PytmThreatModelGenerator:
 
         return tm
 
-    def _generate_threats(self, tm) -> List[Dict]:
+    def _generate_threats(self, tm) -> list[dict]:
         """Generate threats using pytm's built-in threat analysis"""
         # pytm doesn't expose elements directly in a simple way
         # Use generic STRIDE threats based on architecture
         threats = self._generate_generic_stride_threats(tm)
         return threats
 
-    def _generate_generic_stride_threats(self, tm) -> List[Dict]:
+    def _generate_generic_stride_threats(self, tm) -> list[dict]:
         """Generate generic STRIDE threats as fallback"""
         threats = []
         threat_id = 1
@@ -384,7 +382,7 @@ class PytmThreatModelGenerator:
         # Default to low
         return "low"
 
-    def _convert_to_agent_os_format(self, tm, threats: List[Dict], repo_context: Dict, arch_type: str) -> Dict:
+    def _convert_to_agent_os_format(self, tm, threats: list[dict], repo_context: dict, arch_type: str) -> dict:
         """Convert pytm output to Agent-OS threat model format"""
         return {
             "name": tm.name,
@@ -405,7 +403,7 @@ class PytmThreatModelGenerator:
             "security_objectives": self._generate_objectives(arch_type),
         }
 
-    def _extract_entry_points(self, tm, arch_type: str) -> List[str]:
+    def _extract_entry_points(self, tm, arch_type: str) -> list[str]:
         """Extract entry points from pytm model"""
         entry_points = []
 
@@ -423,7 +421,7 @@ class PytmThreatModelGenerator:
 
         return list(set(entry_points))
 
-    def _extract_dependencies(self, repo_context: Dict) -> List[str]:
+    def _extract_dependencies(self, repo_context: dict) -> list[str]:
         """Extract external dependencies from repo context"""
         dependencies = []
 
@@ -438,7 +436,7 @@ class PytmThreatModelGenerator:
 
         return list(set(dependencies))
 
-    def _extract_auth_methods(self, tm, arch_type: str) -> List[str]:
+    def _extract_auth_methods(self, tm, arch_type: str) -> list[str]:
         """Extract authentication methods"""
         auth_methods = []
 
@@ -456,12 +454,12 @@ class PytmThreatModelGenerator:
 
         return list(set(auth_methods))
 
-    def _extract_datastores(self, tm) -> List[str]:
+    def _extract_datastores(self, tm) -> list[str]:
         """Extract data stores from pytm model"""
         # Return generic datastores based on model name
         return ["Database (SQL Database)", "Cache", "File system"]
 
-    def _extract_assets(self, tm) -> List[Dict]:
+    def _extract_assets(self, tm) -> list[dict]:
         """Extract assets from pytm model"""
         # Return generic assets
         return [
@@ -481,7 +479,7 @@ class PytmThreatModelGenerator:
             },
         ]
 
-    def _extract_boundaries(self, tm) -> List[Dict]:
+    def _extract_boundaries(self, tm) -> list[dict]:
         """Extract trust boundaries from pytm model"""
         # Return generic boundaries
         return [
@@ -505,7 +503,7 @@ class PytmThreatModelGenerator:
             },
         ]
 
-    def _format_threats(self, threats: List[Dict]) -> List[Dict]:
+    def _format_threats(self, threats: list[dict]) -> list[dict]:
         """Format threats for Agent-OS"""
         formatted = []
 
@@ -527,7 +525,7 @@ class PytmThreatModelGenerator:
 
         return formatted
 
-    def _estimate_likelihood(self, threat: Dict) -> str:
+    def _estimate_likelihood(self, threat: dict) -> str:
         """Estimate threat likelihood"""
         severity = threat.get("severity", "medium")
 
@@ -538,7 +536,7 @@ class PytmThreatModelGenerator:
         else:
             return "low"
 
-    def _estimate_impact(self, threat: Dict) -> str:
+    def _estimate_impact(self, threat: dict) -> str:
         """Estimate threat impact"""
         category = threat.get("category", "").upper()
 
@@ -552,7 +550,7 @@ class PytmThreatModelGenerator:
 
         return "low"
 
-    def _calculate_risk_rating(self, threat: Dict) -> str:
+    def _calculate_risk_rating(self, threat: dict) -> str:
         """Calculate overall risk rating"""
         likelihood = self._estimate_likelihood(threat)
         impact = self._estimate_impact(threat)
@@ -567,7 +565,7 @@ class PytmThreatModelGenerator:
         else:
             return "low"
 
-    def _generate_objectives(self, arch_type: str) -> List[str]:
+    def _generate_objectives(self, arch_type: str) -> list[str]:
         """Generate security objectives based on architecture"""
         objectives = [
             "Protect confidentiality of sensitive data",
@@ -616,7 +614,7 @@ if __name__ == "__main__":
         generator = PytmThreatModelGenerator()
         threat_model = generator.generate_from_repo_context(test_context)
 
-        print(f"\n✅ Generated threat model:")
+        print("\n✅ Generated threat model:")
         print(f"   Architecture: {threat_model['architecture_type']}")
         print(f"   Threats: {len(threat_model['threats'])}")
         print(f"   Assets: {len(threat_model['assets'])}")

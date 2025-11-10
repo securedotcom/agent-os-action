@@ -4,11 +4,10 @@ Unit tests for run_ai_audit.py
 Uses pytest with mocked LLM API calls
 """
 
-import pytest
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
+import pytest
 import run_ai_audit as audit_module
 
 
@@ -227,7 +226,6 @@ class TestFailOnLogic:
 
     def test_fail_on_any_critical(self):
         """Test fail-on any:critical"""
-        findings = [{"severity": "critical", "category": "security"}, {"severity": "high", "category": "performance"}]
         metrics = {"findings": {"critical": 1, "high": 1}}
 
         fail_on = "any:critical"
@@ -237,17 +235,15 @@ class TestFailOnLogic:
         for condition in conditions:
             if ":" in condition:
                 category, severity = condition.split(":", 1)
-                if category == "any" and severity == "critical":
-                    if metrics["findings"]["critical"] > 0:
-                        should_fail = True
+                if category == "any" and severity == "critical" and metrics["findings"]["critical"] > 0:
+                    should_fail = True
 
-        assert should_fail == True
+        assert should_fail
 
     def test_fail_on_specific_category(self):
         """Test fail-on security:high"""
         findings = [{"severity": "high", "category": "security"}, {"severity": "high", "category": "performance"}]
 
-        fail_on = "security:high"
         matching = [f for f in findings if f["category"] == "security" and f["severity"] == "high"]
 
         assert len(matching) == 1

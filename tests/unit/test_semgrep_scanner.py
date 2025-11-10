@@ -3,18 +3,18 @@
 Unit tests for Semgrep Scanner
 """
 
-import pytest
 import json
 import subprocess
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 import sys
-import os
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
-from scripts.semgrep_scanner import SemgrepScanner, SemgrepFinding
+from scripts.semgrep_scanner import SemgrepFinding, SemgrepScanner
 
 
 class TestSemgrepFinding:

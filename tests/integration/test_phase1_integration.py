@@ -3,14 +3,11 @@ Integration tests for Phase 1 features
 Tests that modules work together in actual execution flow
 """
 
-import pytest
 import os
-import tempfile
-import shutil
-import json
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -144,7 +141,7 @@ def safe_function(data):
         results = run_audit(str(sample_vulnerable_repo), config, review_type="audit")
 
         # Verify threat model was generated
-        assert results["metrics"]["threat_model"]["generated"] == True
+        assert results["metrics"]["threat_model"]["generated"]
         assert results["metrics"]["threat_model"]["threats_identified"] > 0
 
         # Verify findings include security issues
@@ -161,7 +158,7 @@ def safe_function(data):
         metrics = ReviewMetrics()
 
         # Verify initial state
-        assert metrics.metrics["threat_model"]["generated"] == False
+        assert not metrics.metrics["threat_model"]["generated"]
         assert metrics.metrics["threat_model"]["threats_identified"] == 0
 
         # Mock threat model
@@ -180,7 +177,7 @@ def safe_function(data):
         metrics.record_threat_model(threat_model)
 
         # Verify metrics updated
-        assert metrics.metrics["threat_model"]["generated"] == True
+        assert metrics.metrics["threat_model"]["generated"]
         assert metrics.metrics["threat_model"]["threats_identified"] == 3
         assert metrics.metrics["threat_model"]["attack_surface_size"] == 3
         assert metrics.metrics["threat_model"]["trust_boundaries"] == 2
@@ -293,7 +290,7 @@ def safe_function(data):
         assert len(results["metrics"]["agents_executed"]) > 1
 
         # Verify threat model was used
-        assert results["metrics"]["threat_model"]["generated"] == True
+        assert results["metrics"]["threat_model"]["generated"]
 
         # Verify sandbox validation ran
         if results["metrics"].get("sandbox", {}).get("validations_run", 0) > 0:

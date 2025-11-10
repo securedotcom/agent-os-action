@@ -2,12 +2,12 @@
 Regression tests to ensure integrations don't break existing functionality
 """
 
-import pytest
+import json
 import os
 import sys
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -47,9 +47,9 @@ class TestRegression:
 
         config = load_config_from_env()
 
-        assert config.get("enable_threat_modeling", False) == False
-        assert config.get("enable_sandbox_validation", False) == False
-        assert config.get("foundation_sec_enabled", False) == False
+        assert not config.get("enable_threat_modeling", False)
+        assert not config.get("enable_sandbox_validation", False)
+        assert not config.get("foundation_sec_enabled", False)
         assert config["multi_agent_mode"] == "single"
 
     def test_file_selection_unchanged(self, tmp_path):
@@ -183,7 +183,7 @@ class TestBackwardsCompatibility:
         os.environ["GITHUB_SHA"] = "abc123"
         os.environ["GITHUB_WORKSPACE"] = "/workspace"
 
-        config = load_config_from_env()
+        load_config_from_env()
 
         # These should be accessible
         assert os.environ["GITHUB_REPOSITORY"] == "test/repo"
@@ -228,7 +228,7 @@ class TestBackwardsCompatibility:
         config_file.write_text(json.dumps(old_config))
 
         # Load and verify
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             loaded_config = json.load(f)
 
         assert loaded_config["ai_provider"] == "anthropic"
@@ -269,16 +269,16 @@ class TestExistingFeaturesIntact:
         from run_ai_audit import should_review_file
 
         # Python file should be reviewed
-        assert should_review_file("test.py") == True
+        assert should_review_file("test.py")
 
         # JavaScript file should be reviewed
-        assert should_review_file("test.js") == True
+        assert should_review_file("test.js")
 
         # Image file should not be reviewed
-        assert should_review_file("image.png") == False
+        assert not should_review_file("image.png")
 
         # Binary file should not be reviewed
-        assert should_review_file("program.exe") == False
+        assert not should_review_file("program.exe")
 
     def test_severity_mapping_unchanged(self):
         """Test severity mapping is unchanged"""
@@ -409,14 +409,14 @@ class TestDataStructureCompatibility:
         """Test config structure is backwards compatible"""
         from run_ai_audit import load_config_from_env
 
-        config = load_config_from_env()
+        load_config_from_env()
 
         # All original config options should still work
         original_options = ["ai_provider", "max_files", "max_tokens", "cost_limit", "max_file_size"]
 
-        for option in original_options:
+        for _option in original_options:
             # Options should be accessible (may have defaults)
-            assert option in config or True  # Config may use defaults
+            assert True  # Config may use defaults
 
     def test_sarif_result_structure_compatible(self):
         """Test SARIF result structure is compatible"""
