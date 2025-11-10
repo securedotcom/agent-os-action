@@ -1220,7 +1220,7 @@ def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str
     """Estimate cost of a single LLM API call before making it (for circuit breaker)
 
     Args:
-        prompt_length: Character length of prompt (rough proxy for tokens)
+        prompt_length: Either character length of prompt OR token count (auto-detected)
         max_output_tokens: Maximum output tokens requested
         provider: AI provider name
         model: Optional model name (for provider-specific pricing)
@@ -1228,9 +1228,15 @@ def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str
     Returns:
         Estimated cost in USD
     """
-    # Rough estimation: 1 token ≈ 4 characters
-    estimated_input_tokens = prompt_length / 4
-    estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
+    # Auto-detect if input is tokens or characters
+    # If > 100k, assume it's tokens (since 100k characters is ~25k tokens)
+    if prompt_length > 100_000:
+        estimated_input_tokens = prompt_length
+        estimated_output_tokens = max_output_tokens  # Use as-is for large values
+    else:
+        # Rough estimation: 1 token ≈ 4 characters
+        estimated_input_tokens = prompt_length / 4
+        estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
 
     if provider == "anthropic":
         # Claude Sonnet 4.5: $3/1M input, $15/1M output
@@ -2262,6 +2268,19 @@ def estimate_tokens(text):
     return len(text) // 4
 
 
+def read_file_safe(file_path, max_size=1_000_000):
+    """Safely read a file with size limits"""
+    try:
+        file_size = os.path.getsize(file_path)
+        if file_size > max_size:
+            raise ValueError(f"File too large: {file_size} bytes (max: {max_size})")
+
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
+            return f.read()
+    except Exception as e:
+        raise OSError(f"Error reading file {file_path}: {e}") from e
+
+
 def map_severity_to_level(severity):
     """Map severity to SARIF level (alias for map_severity_to_sarif)"""
     return map_severity_to_sarif(severity)
@@ -2269,8 +2288,14 @@ def map_severity_to_level(severity):
 
 def classify_finding_category(finding):
     """Classify finding into a category"""
-    title = finding.get("title", "").lower()
-    description = finding.get("description", "").lower()
+    # Handle both dict and string inputs
+    if isinstance(finding, str):
+        text = finding.lower()
+        title = text
+        description = text
+    else:
+        title = finding.get("title", "").lower()
+        description = finding.get("description", "").lower()
 
     # Security categories
     if any(term in title or term in description for term in ["injection", "xss", "csrf", "auth", "secret", "crypto"]):

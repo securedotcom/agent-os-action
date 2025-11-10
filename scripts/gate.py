@@ -76,11 +76,15 @@ class PolicyGate:
                     reasons.append(f"Critical IAC issue with public exposure in {finding.get('path', 'unknown')}")
 
         elif stage == "release":
-            # Release policy: Require SBOM and no critical findings
+            # Release policy: Require SBOM, signature, and no critical findings
             if metadata:
-                if not metadata.get("sbom_generated"):
+                if not metadata.get("sbom_present", metadata.get("sbom_generated", False)):
                     blocks.append({"type": "missing_sbom"})
                     reasons.append("SBOM not generated")
+
+                if not metadata.get("signature_verified", True):
+                    blocks.append({"type": "missing_signature"})
+                    reasons.append("Signature not verified")
 
             # Block any critical findings
             for finding in findings:
