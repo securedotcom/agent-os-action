@@ -59,7 +59,6 @@ Extracted from real_multi_agent_review.py for merging into run_ai_audit.py
 """
 
 
-
 class HeuristicScanner:
     """Pre-scan code for obvious issues before LLM analysis
 
@@ -749,9 +748,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
             # Sanitize model ID for logging
             safe_model_name = str(model_id).split("/")[-1] if model_id else "unknown"
             logger.debug(f"Testing model: {safe_model_name}")
-            client.messages.create(
-                model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}]
-            )
+            client.messages.create(model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}])
             logger.info(f"✅ Found working model: {safe_model_name}")
             return model_id
         except Exception as e:

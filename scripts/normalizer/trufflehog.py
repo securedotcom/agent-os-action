@@ -1,6 +1,5 @@
 """TruffleHog normalizer - VERIFIED SECRETS ONLY"""
 
-
 from .base import Finding, Normalizer
 
 

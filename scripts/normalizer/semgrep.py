@@ -1,6 +1,5 @@
 """Semgrep SARIF normalizer"""
 
-
 from .base import Finding, Normalizer
 
 

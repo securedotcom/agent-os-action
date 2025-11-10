@@ -135,7 +135,12 @@ class SageMakerFoundationSecProvider:
             AI analysis response
         """
         # Build prompt based on focus
-        if focus == "false_positive_analysis" or focus == "correlation_analysis" or focus == "exploitability_assessment" or focus == "secret_detection":
+        if (
+            focus == "false_positive_analysis"
+            or focus == "correlation_analysis"
+            or focus == "exploitability_assessment"
+            or focus == "secret_detection"
+        ):
             prompt = context  # Context already contains the full prompt
         else:
             # Default security analysis

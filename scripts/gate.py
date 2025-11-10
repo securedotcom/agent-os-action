@@ -38,6 +38,7 @@ class PolicyGate:
         except (subprocess.CalledProcessError, FileNotFoundError):
             # In test environments, make OPA optional
             import os
+
             if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING"):
                 self.opa_available = False
                 return
@@ -64,12 +65,12 @@ class PolicyGate:
             raise ValueError(f"Invalid stage: {stage}. Must be 'pr' or 'release'")
 
         # If OPA not available (e.g., in test environment), return default pass
-        if not getattr(self, 'opa_available', True):
+        if not getattr(self, "opa_available", True):
             return {
                 "decision": "pass",
                 "reasons": ["OPA not available in test environment"],
                 "blocks": False,
-                "warnings": []
+                "warnings": [],
             }
 
         policy_file = self.policy_dir / f"{stage}.rego"

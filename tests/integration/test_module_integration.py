@@ -331,7 +331,6 @@ class TestMultiAgentIntegration:
         """Test multi-agent mode uses threat model"""
         from run_ai_audit import run_audit
 
-
         tmpdir = tempfile.mkdtemp()
         Path(tmpdir, "app.py").write_text("def main(): pass")
 
@@ -358,7 +357,6 @@ class TestMultiAgentIntegration:
     def test_multi_agent_with_sandbox_validation(self):
         """Test multi-agent mode with sandbox validation"""
         from run_ai_audit import run_audit
-
 
         tmpdir = tempfile.mkdtemp()
         Path(tmpdir, "vuln.py").write_text("os.system(user_input)")
