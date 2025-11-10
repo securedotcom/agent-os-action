@@ -10,7 +10,7 @@ class TestReviewMetrics:
     def test_initialization(self):
         """Test ReviewMetrics initialization"""
         metrics = ReviewMetrics()
-        assert metrics.metrics["version"] == "1.0.15"
+        assert metrics.metrics["version"] == "1.0.16"
         assert metrics.metrics["files_reviewed"] == 0
         assert metrics.metrics["lines_analyzed"] == 0
         assert metrics.metrics["tokens_input"] == 0

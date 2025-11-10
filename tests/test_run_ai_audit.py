@@ -18,7 +18,7 @@ class TestReviewMetrics:
         """Test metrics are initialized correctly"""
         metrics = audit_module.ReviewMetrics()
 
-        assert metrics.metrics["version"] == "1.0.15"
+        assert metrics.metrics["version"] == "1.0.16"
         assert metrics.metrics["files_reviewed"] == 0
         assert metrics.metrics["cost_usd"] == 0.0
         assert "findings" in metrics.metrics

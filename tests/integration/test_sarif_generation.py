@@ -30,7 +30,7 @@ class TestSARIFGeneration:
         run = sarif["runs"][0]
         assert "tool" in run
         assert run["tool"]["driver"]["name"] == "Agent OS Code Reviewer"
-        assert run["tool"]["driver"]["version"] == "1.0.15"
+        assert run["tool"]["driver"]["version"] == "1.0.16"
 
     def test_generate_sarif_findings(self, temp_repo):
         """Test SARIF findings mapping"""
