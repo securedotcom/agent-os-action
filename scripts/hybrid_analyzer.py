@@ -36,10 +36,10 @@ import logging
 import os
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 
 # Ensure scripts directory is in path for imports
 SCRIPT_DIR = Path(__file__).parent
@@ -67,7 +67,7 @@ class HybridFinding:
     cvss_score: Optional[float] = None
     exploitability: Optional[str] = None  # 'trivial', 'moderate', 'complex', 'theoretical'
     recommendation: Optional[str] = None
-    references: List[str] = None
+    references: list[str] = None
     confidence: float = 1.0
     llm_enriched: bool = False
     sandbox_validated: bool = False
@@ -84,13 +84,13 @@ class HybridScanResult:
     target_path: str
     scan_timestamp: str
     total_findings: int
-    findings_by_severity: Dict[str, int]
-    findings_by_source: Dict[str, int]
-    findings: List[HybridFinding]
+    findings_by_severity: dict[str, int]
+    findings_by_source: dict[str, int]
+    findings: list[HybridFinding]
     scan_duration_seconds: float
     cost_usd: float
-    phase_timings: Dict[str, float]
-    tools_used: List[str]
+    phase_timings: dict[str, float]
+    tools_used: list[str]
     llm_enrichment_enabled: bool
 
 
@@ -110,7 +110,7 @@ class HybridSecurityAnalyzer:
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
         foundation_sec_model: Optional[Any] = None,
-        config: Optional[Dict] = None,
+        config: Optional[dict] = None,
     ):
         """
         Initialize hybrid analyzer
@@ -199,7 +199,7 @@ class HybridSecurityAnalyzer:
             )
 
     def analyze(
-        self, target_path: str, output_dir: Optional[str] = None, severity_filter: Optional[List[str]] = None
+        self, target_path: str, output_dir: Optional[str] = None, severity_filter: Optional[list[str]] = None
     ) -> HybridScanResult:
         """
         Run complete hybrid security analysis
@@ -278,7 +278,7 @@ class HybridSecurityAnalyzer:
                 # Enrich findings with AI analysis
                 enriched_findings = self._enrich_with_ai(all_findings)
                 all_findings = enriched_findings
-                logger.info(f"   ✅ AI enrichment complete")
+                logger.info("   ✅ AI enrichment complete")
             except Exception as e:
                 logger.error(f"   ❌ AI enrichment failed: {e}")
                 logger.info("   💡 Continuing with unenriched findings...")
@@ -365,7 +365,7 @@ class HybridSecurityAnalyzer:
 
         return result
 
-    def _run_semgrep(self, target_path: str) -> List[HybridFinding]:
+    def _run_semgrep(self, target_path: str) -> list[HybridFinding]:
         """Run Semgrep SAST and convert to HybridFinding format"""
         findings = []
 
@@ -399,7 +399,7 @@ class HybridSecurityAnalyzer:
 
         return findings
 
-    def _run_trivy(self, target_path: str) -> List[HybridFinding]:
+    def _run_trivy(self, target_path: str) -> list[HybridFinding]:
         """Run Trivy CVE scan and convert to HybridFinding format"""
         findings = []
 
@@ -437,7 +437,7 @@ class HybridSecurityAnalyzer:
 
         return findings
 
-    def _enrich_with_ai(self, findings: List[HybridFinding]) -> List[HybridFinding]:
+    def _enrich_with_ai(self, findings: list[HybridFinding]) -> list[HybridFinding]:
         """
         Enrich findings with Foundation-Sec-8B analysis
 
@@ -472,7 +472,7 @@ class HybridSecurityAnalyzer:
                     max_new_tokens=1000,
                     temperature=0.3,  # Low temp for consistent security analysis
                 )
-                input_tokens, output_tokens = 0, 0  # SageMaker doesn't return token counts
+                _input_tokens, _output_tokens = 0, 0  # SageMaker doesn't return token counts
 
                 # Parse AI response
                 analysis = self._parse_ai_response(response)
@@ -513,7 +513,7 @@ class HybridSecurityAnalyzer:
         if enriched_count > 0:
             logger.info(f"   ✅ AI enriched {enriched_count}/{len(findings)} findings")
         else:
-            logger.info(f"   ℹ️  No findings were AI-enriched")
+            logger.info("   ℹ️  No findings were AI-enriched")
 
         return enriched
 
@@ -538,7 +538,7 @@ class HybridSecurityAnalyzer:
         if finding.cvss_score:
             prompt += f"- CVSS Score: {finding.cvss_score}\n"
 
-        prompt += f"""
+        prompt += """
 **Your Task:**
 Analyze this security finding and provide:
 
@@ -553,7 +553,7 @@ Analyze this security finding and provide:
 5. **References**: Include relevant CWE/OWASP/security reference URLs
 
 **Response Format (JSON only, no markdown):**
-{{
+{
   "cwe_id": "CWE-XXX",
   "cwe_name": "Brief CWE name",
   "exploitability": "trivial|moderate|complex|theoretical",
@@ -562,13 +562,13 @@ Analyze this security finding and provide:
   "severity_reason": "Why this severity",
   "recommendation": "Specific fix (code snippet if applicable)",
   "references": ["https://cwe.mitre.org/...", "https://owasp.org/..."]
-}}
+}
 
 Respond with JSON only:"""
 
         return prompt
 
-    def _parse_ai_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_ai_response(self, response: str) -> Optional[dict[str, Any]]:
         """Parse Foundation-Sec AI response"""
         try:
             # Try to extract JSON from response
@@ -599,7 +599,7 @@ Respond with JSON only:"""
             logger.warning(f"Error parsing AI response: {e}")
             return None
 
-    def _run_agent_os_review(self, findings: List[HybridFinding], target_path: str) -> List[HybridFinding]:
+    def _run_agent_os_review(self, findings: list[HybridFinding], target_path: str) -> list[HybridFinding]:
         """
         Run Agent-OS multi-agent consensus review on findings
 
@@ -721,7 +721,7 @@ Respond with JSON only:"""
 
         return enhanced_findings
 
-    def _run_sandbox_validation(self, findings: List[HybridFinding], target_path: str) -> List[HybridFinding]:
+    def _run_sandbox_validation(self, findings: list[HybridFinding], target_path: str) -> list[HybridFinding]:
         """
         Validate exploitable findings in Docker sandbox
 
@@ -779,7 +779,7 @@ Respond with JSON only:"""
         if validation_count > 0:
             logger.info(f"   📊 Validated {validation_count} high-risk findings")
         else:
-            logger.info(f"   ℹ️  No findings required sandbox validation")
+            logger.info("   ℹ️  No findings required sandbox validation")
 
         return validated_findings
 
@@ -797,7 +797,7 @@ Respond with JSON only:"""
         }
         return severity_map.get(severity.lower(), "medium")
 
-    def _count_by_severity(self, findings: List[HybridFinding]) -> Dict[str, int]:
+    def _count_by_severity(self, findings: list[HybridFinding]) -> dict[str, int]:
         """Count findings by severity level"""
         counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         for finding in findings:
@@ -806,7 +806,7 @@ Respond with JSON only:"""
                 counts[severity] += 1
         return counts
 
-    def _count_by_source(self, findings: List[HybridFinding]) -> Dict[str, int]:
+    def _count_by_source(self, findings: list[HybridFinding]) -> dict[str, int]:
         """Count findings by source tool"""
         counts = {}
         for finding in findings:
@@ -814,7 +814,7 @@ Respond with JSON only:"""
             counts[tool] = counts.get(tool, 0) + 1
         return counts
 
-    def _get_enabled_tools(self) -> List[str]:
+    def _get_enabled_tools(self) -> list[str]:
         """Get list of enabled scanning tools"""
         tools = []
         if self.enable_semgrep:
@@ -856,7 +856,7 @@ Respond with JSON only:"""
             f.write(markdown_report)
         logger.info(f"💾 Markdown report: {md_file}")
 
-    def _convert_to_sarif(self, result: HybridScanResult) -> Dict:
+    def _convert_to_sarif(self, result: HybridScanResult) -> dict:
         """Convert results to SARIF format for GitHub Code Scanning"""
         sarif = {
             "version": "2.1.0",

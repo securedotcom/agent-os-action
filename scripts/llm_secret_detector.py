@@ -6,10 +6,9 @@ Cross-validates with Gitleaks/TruffleHog - only verified secrets can block PRs
 """
 
 import json
-import sys
 import re
+import sys
 from pathlib import Path
-from typing import List, Dict, Set, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -49,7 +48,7 @@ class LLMSecretDetector:
             r"[A-Za-z0-9+/]{40,}={0,2}",  # Base64-like
         ]
 
-    def detect_secrets(self, file_path: str, content: str, git_context: Dict) -> List[Finding]:
+    def detect_secrets(self, file_path: str, content: str, git_context: dict) -> list[Finding]:
         """
         Detect secrets in file content using Foundation-Sec
 
@@ -90,8 +89,8 @@ class LLMSecretDetector:
         return findings
 
     def cross_validate(
-        self, llm_findings: List[Finding], gitleaks_findings: List[Finding], trufflehog_findings: List[Finding]
-    ) -> List[Finding]:
+        self, llm_findings: list[Finding], gitleaks_findings: list[Finding], trufflehog_findings: list[Finding]
+    ) -> list[Finding]:
         """
         Cross-validate LLM findings with Gitleaks/TruffleHog
 
@@ -101,7 +100,7 @@ class LLMSecretDetector:
 
         This reduces false positives while maintaining high recall
         """
-        print(f"\n🔐 Cross-validating secrets...")
+        print("\n🔐 Cross-validating secrets...")
         print(f"   LLM findings: {len(llm_findings)}")
         print(f"   Gitleaks findings: {len(gitleaks_findings)}")
         print(f"   TruffleHog findings: {len(trufflehog_findings)}")
@@ -138,7 +137,7 @@ class LLMSecretDetector:
             verified_findings.append(llm_finding)
 
         verified_count = sum(1 for f in verified_findings if f.secret_verified == "true")
-        print(f"\n✅ Cross-validation complete:")
+        print("\n✅ Cross-validation complete:")
         print(f"   Verified secrets: {verified_count}")
         print(f"   Unverified (warnings): {len(verified_findings) - verified_count}")
 
@@ -149,7 +148,7 @@ class LLMSecretDetector:
         content_lower = content.lower()
         return any(re.search(pattern, content_lower, re.IGNORECASE) for pattern in self.suspicious_patterns)
 
-    def _chunk_content(self, content: str, max_lines: int = 100) -> List[Tuple[str, int]]:
+    def _chunk_content(self, content: str, max_lines: int = 100) -> list[tuple[str, int]]:
         """
         Split content into chunks for analysis
 
@@ -165,7 +164,7 @@ class LLMSecretDetector:
 
         return chunks
 
-    def _detect_secrets_in_chunk(self, chunk: Tuple[str, int], file_path: str, chunk_idx: int) -> List[Finding]:
+    def _detect_secrets_in_chunk(self, chunk: tuple[str, int], file_path: str, chunk_idx: int) -> list[Finding]:
         """Use Foundation-Sec to detect secrets in a chunk"""
         chunk_content, start_line = chunk
 
@@ -208,7 +207,7 @@ For each secret found, provide:
 - Evidence (the actual secret or pattern)
 - Confidence (0.0-1.0)
 
-**Important:** 
+**Important:**
 - Include secrets in comments and strings
 - Look for obfuscation patterns
 - Check for credential-like patterns even if not obvious
@@ -227,7 +226,7 @@ Respond with ONLY a JSON array:
 If no secrets found, respond with: []
 """
 
-    def _parse_secret_detection(self, response: str, code: str, start_line: int) -> List[Finding]:
+    def _parse_secret_detection(self, response: str, code: str, start_line: int) -> list[Finding]:
         """Parse Foundation-Sec secret detection response"""
         findings = []
 
@@ -297,7 +296,7 @@ def main():
     args = parser.parse_args()
 
     # Read file
-    with open(args.file, "r") as f:
+    with open(args.file) as f:
         content = f.read()
 
     # Get git context
@@ -321,11 +320,11 @@ def main():
         trufflehog_findings = []
 
         if args.gitleaks:
-            with open(args.gitleaks, "r") as f:
+            with open(args.gitleaks) as f:
                 gitleaks_findings = [Finding.from_dict(f) for f in json.load(f)]
 
         if args.trufflehog:
-            with open(args.trufflehog, "r") as f:
+            with open(args.trufflehog) as f:
                 trufflehog_findings = [Finding.from_dict(f) for f in json.load(f)]
 
         final_findings = detector.cross_validate(llm_findings, gitleaks_findings, trufflehog_findings)

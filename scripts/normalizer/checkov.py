@@ -1,13 +1,13 @@
 """Checkov IaC normalizer"""
 
-from .base import Normalizer, Finding
-from typing import List
+
+from .base import Finding, Normalizer
 
 
 class CheckovNormalizer(Normalizer):
     """Normalize Checkov output to Finding format"""
 
-    def normalize(self, raw_output: dict) -> List[Finding]:
+    def normalize(self, raw_output: dict) -> list[Finding]:
         """
         Convert Checkov JSON to Finding objects
 

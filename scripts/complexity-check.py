@@ -4,13 +4,12 @@ Complexity and Performance Smell Detection
 Flags functions with high complexity or large size as "Perf-Smell" in SARIF
 """
 
-import os
-import sys
-import json
 import ast
+import json
+import os
 import re
+import sys
 from pathlib import Path
-from typing import List, Dict, Tuple
 
 # Thresholds for complexity detection
 MAX_FUNCTION_LINES = 50
@@ -148,10 +147,10 @@ class ComplexityAnalyzer(ast.NodeVisitor):
         return max_depth
 
 
-def analyze_python_file(filepath: str) -> List[Dict]:
+def analyze_python_file(filepath: str) -> list[dict]:
     """Analyze a Python file for complexity issues"""
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source, filename=filepath)
@@ -164,12 +163,12 @@ def analyze_python_file(filepath: str) -> List[Dict]:
         return []
 
 
-def analyze_javascript_file(filepath: str) -> List[Dict]:
+def analyze_javascript_file(filepath: str) -> list[dict]:
     """Analyze a JavaScript/TypeScript file for complexity issues"""
     findings = []
 
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
 
         # Simple heuristic: count function lines
@@ -213,7 +212,7 @@ def analyze_javascript_file(filepath: str) -> List[Dict]:
         return []
 
 
-def analyze_repository(repo_path: str) -> List[Dict]:
+def analyze_repository(repo_path: str) -> list[dict]:
     """Analyze all files in repository for complexity issues"""
     all_findings = []
 
@@ -240,7 +239,7 @@ def analyze_repository(repo_path: str) -> List[Dict]:
     return all_findings
 
 
-def generate_sarif(findings: List[Dict], repo_path: str) -> str:
+def generate_sarif(findings: list[dict], repo_path: str) -> str:
     """Generate SARIF 2.1.0 report from complexity findings"""
     results = []
 

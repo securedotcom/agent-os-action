@@ -9,19 +9,18 @@ and provides utilities for running exploits safely.
 
 import json
 import logging
-from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Optional
 
 try:
+    from docker_manager import DockerManager
     from sandbox_validator import (
-        SandboxValidator,
         ExploitConfig,
         ExploitType,
-        ValidationResult,
+        SandboxValidator,
         ValidationMetrics,
+        ValidationResult,
     )
-    from docker_manager import DockerManager
 
     SANDBOX_AVAILABLE = True
 except ImportError:
@@ -31,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def extend_review_metrics(metrics_dict: Dict[str, Any]) -> Dict[str, Any]:
+def extend_review_metrics(metrics_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Extend ReviewMetrics with sandbox validation metrics
 
@@ -61,9 +60,9 @@ def extend_review_metrics(metrics_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def update_sandbox_metrics(
-    metrics_dict: Dict[str, Any],
-    validation_results: List[ValidationMetrics],
-) -> Dict[str, Any]:
+    metrics_dict: dict[str, Any],
+    validation_results: list[ValidationMetrics],
+) -> dict[str, Any]:
     """
     Update metrics dictionary with sandbox validation results
 
@@ -129,7 +128,7 @@ def update_sandbox_metrics(
 
 
 def create_exploit_from_finding(
-    finding: Dict[str, Any],
+    finding: dict[str, Any],
     project_root: str,
 ) -> Optional[ExploitConfig]:
     """
@@ -220,7 +219,7 @@ def create_exploit_from_finding(
 def _generate_exploit_code(
     exploit_type: ExploitType,
     language: str,
-    finding: Dict[str, Any],
+    finding: dict[str, Any],
 ) -> Optional[str]:
     """
     Generate exploit code based on type and language
@@ -325,7 +324,7 @@ print("EXPLOIT_TEST_COMPLETED")
 """
 
 
-def _get_expected_indicators(exploit_type: ExploitType) -> List[str]:
+def _get_expected_indicators(exploit_type: ExploitType) -> list[str]:
     """
     Get expected indicators for an exploit type
 
@@ -349,10 +348,10 @@ def _get_expected_indicators(exploit_type: ExploitType) -> List[str]:
 
 
 def validate_findings_in_sandbox(
-    findings: List[Dict[str, Any]],
+    findings: list[dict[str, Any]],
     project_root: str,
     max_validations: int = 10,
-) -> List[ValidationMetrics]:
+) -> list[ValidationMetrics]:
     """
     Validate security findings in sandbox
 
@@ -405,7 +404,7 @@ def validate_findings_in_sandbox(
             logger.info(f"Completed {len(results)} sandbox validations")
             return results
 
-    except Exception as e:
+    except Exception:
         logger.exception("Sandbox validation failed")
         return []
 

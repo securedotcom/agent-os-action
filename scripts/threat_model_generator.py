@@ -8,14 +8,13 @@ Hybrid Approach:
 - Anthropic Claude: AI enhancement (optional, requires API key)
 """
 
-import os
-import sys
 import json
 import logging
-from pathlib import Path
+import os
+import sys
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-import glob as glob_module
+from pathlib import Path
+from typing import Any, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -49,7 +48,7 @@ class ThreatModelGenerator:
             logger.error("anthropic package not installed. Run: pip install anthropic")
             raise
 
-    def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
+    def analyze_repository(self, repo_path: str) -> dict[str, Any]:
         """Scan repository structure and identify key files
 
         Args:
@@ -161,7 +160,7 @@ class ThreatModelGenerator:
                 # Find key files
                 if file in key_file_patterns or file.lower() in [p.lower() for p in key_file_patterns]:
                     try:
-                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        with open(file_path, encoding="utf-8", errors="ignore") as f:
                             content = f.read(10000)  # Read first 10KB
                             context["key_files"].append({"path": str(rel_path), "name": file, "content": content})
 
@@ -175,16 +174,16 @@ class ThreatModelGenerator:
         self._detect_frameworks(context)
 
         # Convert sets to lists for JSON serialization
-        context["languages"] = sorted(list(context["languages"]))
-        context["frameworks"] = sorted(list(context["frameworks"]))
-        context["technologies"] = sorted(list(context["technologies"]))
+        context["languages"] = sorted(context["languages"])
+        context["frameworks"] = sorted(context["frameworks"])
+        context["technologies"] = sorted(context["technologies"])
 
         logger.info(f"Found {len(context['languages'])} languages, {len(context['frameworks'])} frameworks")
         logger.info(f"Analyzed {len(context['key_files'])} key files")
 
         return context
 
-    def _detect_frameworks(self, context: Dict[str, Any]) -> None:
+    def _detect_frameworks(self, context: dict[str, Any]) -> None:
         """Detect frameworks and technologies from context
 
         Args:
@@ -267,7 +266,7 @@ class ThreatModelGenerator:
             if "kubernetes" in content or "k8s" in content:
                 context["technologies"].add("Kubernetes")
 
-    def generate_threat_model(self, repo_context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_threat_model(self, repo_context: dict[str, Any]) -> dict[str, Any]:
         """Generate threat model using Claude API
 
         Args:
@@ -318,7 +317,7 @@ class ThreatModelGenerator:
             logger.error(f"Failed to generate threat model: {e}")
             raise
 
-    def _build_threat_model_prompt(self, repo_context: Dict[str, Any]) -> str:
+    def _build_threat_model_prompt(self, repo_context: dict[str, Any]) -> str:
         """Build prompt for threat model generation
 
         Args:
@@ -390,7 +389,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
 """
         return prompt
 
-    def _create_fallback_threat_model(self, repo_context: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_fallback_threat_model(self, repo_context: dict[str, Any]) -> dict[str, Any]:
         """Create a basic fallback threat model when API fails
 
         Args:
@@ -426,7 +425,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             "security_objectives": ["Protect user data", "Prevent unauthorized access"],
         }
 
-    def save_threat_model(self, threat_model: Dict[str, Any], output_path: str) -> None:
+    def save_threat_model(self, threat_model: dict[str, Any], output_path: str) -> None:
         """Save threat model to JSON file
 
         Args:
@@ -441,7 +440,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
 
         logger.info(f"Threat model saved to: {output_path}")
 
-    def load_existing_threat_model(self, path: str) -> Optional[Dict[str, Any]]:
+    def load_existing_threat_model(self, path: str) -> Optional[dict[str, Any]]:
         """Load existing threat model if it exists
 
         Args:
@@ -456,7 +455,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             return None
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 threat_model = json.load(f)
             logger.info(f"Loaded existing threat model from {path}")
             return threat_model
@@ -464,7 +463,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             logger.error(f"Failed to load threat model: {e}")
             return None
 
-    def update_threat_model(self, existing: Dict[str, Any], new_context: Dict[str, Any]) -> Dict[str, Any]:
+    def update_threat_model(self, existing: dict[str, Any], new_context: dict[str, Any]) -> dict[str, Any]:
         """Update existing threat model with new context
 
         Args:
@@ -527,7 +526,7 @@ class HybridThreatModelGenerator:
             logger.error("No threat modeling engines available!")
             raise RuntimeError("Install pytm (pip install pytm) or provide Anthropic API key")
 
-    def analyze_repository(self, repo_path: str) -> Dict[str, Any]:
+    def analyze_repository(self, repo_path: str) -> dict[str, Any]:
         """Scan repository structure and identify key files
 
         This method is shared between pytm and Anthropic approaches.
@@ -643,7 +642,7 @@ class HybridThreatModelGenerator:
                 # Find key files
                 if file in key_file_patterns or file.lower() in [p.lower() for p in key_file_patterns]:
                     try:
-                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        with open(file_path, encoding="utf-8", errors="ignore") as f:
                             content = f.read(10000)  # Read first 10KB
                             context["key_files"].append({"path": str(rel_path), "name": file, "content": content})
 
@@ -657,16 +656,16 @@ class HybridThreatModelGenerator:
         self._detect_frameworks(context)
 
         # Convert sets to lists for JSON serialization
-        context["languages"] = sorted(list(context["languages"]))
-        context["frameworks"] = sorted(list(context["frameworks"]))
-        context["technologies"] = sorted(list(context["technologies"]))
+        context["languages"] = sorted(context["languages"])
+        context["frameworks"] = sorted(context["frameworks"])
+        context["technologies"] = sorted(context["technologies"])
 
         logger.info(f"Found {len(context['languages'])} languages, {len(context['frameworks'])} frameworks")
         logger.info(f"Analyzed {len(context['key_files'])} key files")
 
         return context
 
-    def _detect_frameworks(self, context: Dict[str, Any]) -> None:
+    def _detect_frameworks(self, context: dict[str, Any]) -> None:
         """Detect frameworks and technologies from context"""
         for key_file in context["key_files"]:
             content = key_file["content"].lower()
@@ -745,7 +744,7 @@ class HybridThreatModelGenerator:
             if "kubernetes" in content or "k8s" in content:
                 context["technologies"].add("Kubernetes")
 
-    def generate_threat_model(self, repo_context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_threat_model(self, repo_context: dict[str, Any]) -> dict[str, Any]:
         """Generate threat model with hybrid approach
 
         Strategy:
@@ -804,7 +803,7 @@ class HybridThreatModelGenerator:
         # Should never reach here due to __init__ check
         raise RuntimeError("No threat modeling engines available")
 
-    def _generate_with_anthropic(self, repo_context: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_with_anthropic(self, repo_context: dict[str, Any]) -> dict[str, Any]:
         """Generate threat model using Anthropic only (legacy method)"""
         # Build prompt
         prompt = self._build_threat_model_prompt(repo_context)
@@ -836,7 +835,7 @@ class HybridThreatModelGenerator:
 
         return threat_model
 
-    def _enhance_with_anthropic(self, baseline_model: Dict, repo_context: Dict) -> Dict:
+    def _enhance_with_anthropic(self, baseline_model: dict, repo_context: dict) -> dict:
         """Use Anthropic to add context-aware threats to pytm baseline
 
         Args:
@@ -926,7 +925,7 @@ IMPORTANT: Return ONLY the JSON array. No markdown, no explanations.
 
         return enhanced
 
-    def _build_threat_model_prompt(self, repo_context: Dict[str, Any]) -> str:
+    def _build_threat_model_prompt(self, repo_context: dict[str, Any]) -> str:
         """Build prompt for threat model generation (Anthropic-only mode)"""
         # Format key files
         key_files_text = "\n\n".join(
@@ -988,7 +987,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
 """
         return prompt
 
-    def save_threat_model(self, threat_model: Dict[str, Any], output_path: str) -> None:
+    def save_threat_model(self, threat_model: dict[str, Any], output_path: str) -> None:
         """Save threat model to JSON file"""
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -998,7 +997,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
 
         logger.info(f"Threat model saved to: {output_path}")
 
-    def load_existing_threat_model(self, path: str) -> Optional[Dict[str, Any]]:
+    def load_existing_threat_model(self, path: str) -> Optional[dict[str, Any]]:
         """Load existing threat model if it exists"""
         path = Path(path)
         if not path.exists():
@@ -1006,7 +1005,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON o
             return None
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 threat_model = json.load(f)
             logger.info(f"Loaded existing threat model from {path}")
             return threat_model
@@ -1063,9 +1062,9 @@ def main():
         # Save threat model
         generator.save_threat_model(threat_model, output_path)
 
-        print(f"\nThreat model generated successfully!")
+        print("\nThreat model generated successfully!")
         print(f"Output: {output_path}")
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  Entry points: {len(threat_model.get('attack_surface', {}).get('entry_points', []))}")
         print(f"  Trust boundaries: {len(threat_model.get('trust_boundaries', []))}")
         print(f"  Assets: {len(threat_model.get('assets', []))}")

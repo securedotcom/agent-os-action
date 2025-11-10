@@ -4,13 +4,13 @@ Release Signing and SLSA Provenance Generation
 Uses open source tools: Cosign (Apache 2.0) + SLSA Framework (Apache 2.0)
 """
 
-import subprocess
-import json
 import hashlib
+import json
+import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-import os
+from typing import Optional
 
 
 class ReleaseSigner:
@@ -40,11 +40,11 @@ class ReleaseSigner:
 
         try:
             subprocess.run(cmd, cwd=output_dir, env=env, check=True)
-            print(f"✅ Key pair generated:")
+            print("✅ Key pair generated:")
             print(f"   - Private: {output_dir}/cosign.key (keep secret!)")
             print(f"   - Public: {output_dir}/cosign.pub (distribute)")
-            print(f"\n⚠️  Store cosign.key in GitHub Secrets as COSIGN_PRIVATE_KEY")
-            print(f"⚠️  Store password in GitHub Secrets as COSIGN_PASSWORD")
+            print("\n⚠️  Store cosign.key in GitHub Secrets as COSIGN_PRIVATE_KEY")
+            print("⚠️  Store password in GitHub Secrets as COSIGN_PASSWORD")
 
         except subprocess.CalledProcessError as e:
             print(f"❌ Key generation failed: {e}")
@@ -88,8 +88,8 @@ class ReleaseSigner:
     def _sign_keyless(self, file_path: str) -> str:
         """Sign using keyless signing (Fulcio + Rekor)"""
         # Keyless signing requires OIDC auth, which is automatic in GitHub Actions
-        print(f"⚠️  Keyless signing requires GitHub Actions or OIDC authentication")
-        print(f"   For local testing, use key-based signing instead")
+        print("⚠️  Keyless signing requires GitHub Actions or OIDC authentication")
+        print("   For local testing, use key-based signing instead")
         raise NotImplementedError("Keyless signing requires CI/CD environment")
 
     def verify_signature(self, file_path: str, public_key_path: str) -> bool:
@@ -115,11 +115,11 @@ class ReleaseSigner:
 
         try:
             subprocess.run(cmd, check=True, capture_output=True)
-            print(f"✅ Signature valid")
+            print("✅ Signature valid")
             return True
 
         except subprocess.CalledProcessError:
-            print(f"❌ Signature invalid or verification failed")
+            print("❌ Signature invalid or verification failed")
             return False
 
 
@@ -136,8 +136,8 @@ class SLSAProvenanceGenerator:
         self.level = level
 
     def generate_provenance(
-        self, artifact_path: str, repo: str, commit_sha: str, build_config: Optional[Dict] = None
-    ) -> Dict:
+        self, artifact_path: str, repo: str, commit_sha: str, build_config: Optional[dict] = None
+    ) -> dict:
         """
         Generate SLSA provenance for an artifact
 
@@ -182,7 +182,7 @@ class SLSAProvenanceGenerator:
 
         return provenance
 
-    def save_provenance(self, provenance: Dict, output_path: str):
+    def save_provenance(self, provenance: dict, output_path: str):
         """Save provenance to file"""
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -192,7 +192,7 @@ class SLSAProvenanceGenerator:
         print(f"✅ SLSA {self.level} provenance saved: {output_path}")
 
     def generate_and_save(
-        self, artifact_path: str, repo: str, commit_sha: str, output_path: str, build_config: Optional[Dict] = None
+        self, artifact_path: str, repo: str, commit_sha: str, output_path: str, build_config: Optional[dict] = None
     ) -> str:
         """Generate and save provenance in one call"""
         provenance = self.generate_provenance(artifact_path, repo, commit_sha, build_config)

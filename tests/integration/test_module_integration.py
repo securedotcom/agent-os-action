@@ -2,13 +2,12 @@
 Test that Phase 1 modules integrate correctly with main system
 """
 
-import pytest
 import os
 import sys
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -66,7 +65,7 @@ class TestThreatModelIntegration:
         results = run_audit(str(repo_dir), config, "audit")
 
         # Verify threat model was generated
-        assert results["metrics"]["threat_model"]["generated"] == True
+        assert results["metrics"]["threat_model"]["generated"]
 
     @pytest.mark.skip("Requires Agent 1 integration")
     def test_threat_model_context_passed_to_prompt(self):
@@ -75,7 +74,7 @@ class TestThreatModelIntegration:
         from threat_model_generator import ThreatModelGenerator
 
         api_key = os.getenv("ANTHROPIC_API_KEY", "test-key")
-        generator = ThreatModelGenerator(api_key)
+        ThreatModelGenerator(api_key)
 
         # Mock threat model
         threat_model = {
@@ -195,7 +194,6 @@ class TestSandboxIntegration:
         from run_ai_audit import run_audit
 
         # Mock repository with vulnerability
-        import tempfile
 
         tmpdir = tempfile.mkdtemp()
         Path(tmpdir, "vuln.py").write_text(
@@ -245,7 +243,7 @@ def execute_command(cmd):
         result = validator.validate_exploit(exploit_code, finding)
 
         # Should fail to exploit (false positive)
-        assert result["exploitable"] == False
+        assert not result["exploitable"]
 
     @pytest.mark.skip("Requires Docker - implement after Agent 2 integration")
     def test_sandbox_validation_confirms_true_positives(self):
@@ -272,7 +270,7 @@ print(result.stdout.decode())
         result = validator.validate_exploit(exploit_code, finding)
 
         # Should successfully exploit
-        assert result["exploitable"] == True
+        assert result["exploitable"]
         assert "EXPLOITED" in result.get("output", "")
 
 
@@ -333,7 +331,6 @@ class TestMultiAgentIntegration:
         """Test multi-agent mode uses threat model"""
         from run_ai_audit import run_audit
 
-        import tempfile
 
         tmpdir = tempfile.mkdtemp()
         Path(tmpdir, "app.py").write_text("def main(): pass")
@@ -349,7 +346,7 @@ class TestMultiAgentIntegration:
         results = run_audit(tmpdir, config, "audit")
 
         # Verify both features used
-        assert results["metrics"]["threat_model"]["generated"] == True
+        assert results["metrics"]["threat_model"]["generated"]
         assert len(results["metrics"]["agents_executed"]) >= 2
 
         # Cleanup
@@ -362,7 +359,6 @@ class TestMultiAgentIntegration:
         """Test multi-agent mode with sandbox validation"""
         from run_ai_audit import run_audit
 
-        import tempfile
 
         tmpdir = tempfile.mkdtemp()
         Path(tmpdir, "vuln.py").write_text("os.system(user_input)")
@@ -431,7 +427,7 @@ class TestMetricsIntegration:
 
         metrics.record_threat_model(threat_model)
 
-        assert metrics.metrics["threat_model"]["generated"] == True
+        assert metrics.metrics["threat_model"]["generated"]
         assert metrics.metrics["threat_model"]["threats_identified"] == 2
         assert metrics.metrics["threat_model"]["attack_surface_size"] == 3
         assert metrics.metrics["threat_model"]["trust_boundaries"] == 1
@@ -477,7 +473,7 @@ class TestMetricsIntegration:
         assert output["lines_analyzed"] == 50
         assert output["tokens_input"] == 1000
         assert output["tokens_output"] == 500
-        assert output["threat_model"]["generated"] == True
+        assert output["threat_model"]["generated"]
         assert len(output["agents_executed"]) == 1
         assert "duration_seconds" in output
         assert output["duration_seconds"] > 0
@@ -497,9 +493,9 @@ class TestConfigIntegration:
 
         config = load_config_from_env()
 
-        assert config["enable_threat_modeling"] == True
-        assert config["enable_sandbox_validation"] == True
-        assert config["foundation_sec_enabled"] == True
+        assert config["enable_threat_modeling"]
+        assert config["enable_sandbox_validation"]
+        assert config["foundation_sec_enabled"]
         assert config["multi_agent_mode"] == "sequential"
 
     def test_config_defaults_for_phase1_features(self):

@@ -5,10 +5,10 @@ Unit tests for sandbox validation system
 Tests docker_manager, sandbox_validator, and sandbox_integration
 """
 
-import unittest
-from unittest.mock import Mock, MagicMock, patch
 import sys
+import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
@@ -191,7 +191,7 @@ class TestSandboxValidator(unittest.TestCase):
     @patch("sandbox_validator.DockerManager")
     def test_safety_check_dangerous_patterns(self, mock_docker_manager):
         """Test safety checks for dangerous code"""
-        from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType
+        from sandbox_validator import ExploitConfig, ExploitType, SandboxValidator
 
         validator = SandboxValidator()
 
@@ -211,7 +211,7 @@ class TestSandboxValidator(unittest.TestCase):
     @patch("sandbox_validator.DockerManager")
     def test_safety_check_safe_code(self, mock_docker_manager):
         """Test safety checks pass for safe code"""
-        from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType
+        from sandbox_validator import ExploitConfig, ExploitType, SandboxValidator
 
         validator = SandboxValidator()
 

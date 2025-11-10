@@ -4,14 +4,12 @@ Agent OS Audit CLI Tool
 Automated codebase auditing for multiple repositories
 """
 
-import os
-import sys
-import json
-import subprocess
 import argparse
-from pathlib import Path
+import json
+import os
+import subprocess
 from datetime import datetime
-from typing import List, Dict
+from pathlib import Path
 
 
 class AgentOSAudit:
@@ -23,10 +21,10 @@ class AgentOSAudit:
         self.audit_dir = Path("/tmp/securedotcom-audits")
         self.audit_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_config(self) -> Dict:
+    def load_config(self) -> dict:
         """Load audit configuration"""
         if os.path.exists(self.config_file):
-            with open(self.config_file, "r") as f:
+            with open(self.config_file) as f:
                 return json.load(f)
         return {
             "repositories": [],
@@ -99,11 +97,11 @@ class AgentOSAudit:
         """Run the actual audit analysis"""
         # This is where you'd integrate with your Agent OS audit logic
         # For now, this is a placeholder
-        print(f"   📊 Analyzing codebase...")
-        print(f"   🔒 Security analysis...")
-        print(f"   ⚡ Performance analysis...")
-        print(f"   🧪 Test coverage analysis...")
-        print(f"   📝 Code quality analysis...")
+        print("   📊 Analyzing codebase...")
+        print("   🔒 Security analysis...")
+        print("   ⚡ Performance analysis...")
+        print("   🧪 Test coverage analysis...")
+        print("   📝 Code quality analysis...")
 
         # Create sample reports (replace with actual Agent OS logic)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -125,7 +123,7 @@ class AgentOSAudit:
 
     def _create_pull_request(self, repo_path: Path, audit_type: str):
         """Create pull request with audit findings"""
-        print(f"   📤 Creating pull request...")
+        print("   📤 Creating pull request...")
 
         try:
             # Configure git user

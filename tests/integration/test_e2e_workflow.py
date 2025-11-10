@@ -3,14 +3,12 @@ End-to-end workflow tests
 Test complete user scenarios from start to finish
 """
 
-import pytest
+import json
 import os
 import sys
-import json
-import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -75,7 +73,7 @@ function loadUser(id) {
         os.environ["ANTHROPIC_API_KEY"] = "test-key"
 
         # Import after setting env vars
-        from run_ai_audit import parse_args, build_config, run_audit
+        from run_ai_audit import build_config, parse_args
 
         # Parse args as GitHub Actions would
         sys.argv = ["run_ai_audit.py", str(sample_repo), "audit"]
@@ -85,8 +83,8 @@ function loadUser(id) {
         config = build_config(args)
 
         # Verify config includes Phase 1 features
-        assert config.get("enable_threat_modeling") == True
-        assert config.get("enable_sandbox_validation") == True
+        assert config.get("enable_threat_modeling")
+        assert config.get("enable_sandbox_validation")
 
         # Run audit (mocked)
         # In real scenario, this would call the API
@@ -98,7 +96,6 @@ function loadUser(id) {
     @pytest.mark.skip("Requires live API - implement after full integration")
     def test_cli_workflow_basic_audit(self, sample_repo):
         """Test CLI usage workflow for basic audit"""
-        from run_ai_audit import main
 
         # Mock CLI args
         sys.argv = ["run_ai_audit.py", str(sample_repo), "audit", "--max-files", "10", "--max-tokens", "2000"]
@@ -107,17 +104,16 @@ function loadUser(id) {
         # main()
 
         # Verify output files created
-        output_dir = sample_repo / ".agent-os"
+        sample_repo / ".agent-os"
         # assert output_dir.exists()
         # assert (output_dir / 'audit-report.json').exists()
 
     @pytest.mark.skip("Requires live API and cost tracking")
     def test_cost_optimization_workflow(self, sample_repo):
         """Test workflow with Foundation-Sec-8B for cost savings"""
-        from run_ai_audit import run_audit, ReviewMetrics
 
         # First run with Claude
-        config_claude = {
+        {
             "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
             "ai_provider": "anthropic",
             "enable_threat_modeling": True,
@@ -131,14 +127,6 @@ function loadUser(id) {
         # cost_claude = results_claude['metrics']['cost_usd']
 
         # Second run with Foundation-Sec
-        config_foundation = {
-            "ai_provider": "foundation-sec",
-            "foundation_sec_enabled": True,
-            "enable_threat_modeling": True,
-            "enable_sandbox_validation": False,
-            "max_files": 5,
-            "max_tokens": 1000,
-        }
 
         # results_foundation = run_audit(str(sample_repo), config_foundation, 'audit')
         # cost_foundation = results_foundation['metrics']['cost_usd']
@@ -167,8 +155,8 @@ function loadUser(id) {
 
         assert config["ai_provider"] == "anthropic"
         assert config["anthropic_api_key"] == "test-key-123"
-        assert config["enable_threat_modeling"] == True
-        assert config["enable_sandbox_validation"] == True
+        assert config["enable_threat_modeling"]
+        assert config["enable_sandbox_validation"]
         assert config["multi_agent_mode"] == "sequential"
         assert config["max_files"] == "20"
         assert config["max_tokens"] == "4000"
@@ -235,7 +223,7 @@ function loadUser(id) {
         assert len(results["metrics"]["agent_execution_times"]) >= 2
 
         # Verify findings from different agents
-        agent_sources = set([f.get("agent", "") for f in results["findings"]])
+        agent_sources = {f.get("agent", "") for f in results["findings"]}
         assert len(agent_sources) >= 2
 
     @pytest.mark.skip("Requires multi-agent implementation")
@@ -414,7 +402,7 @@ class TestWorkflowOutputs:
         output = metrics.finalize()
 
         # Verify Phase 1 metrics present
-        assert output["threat_model"]["generated"] == True
+        assert output["threat_model"]["generated"]
         assert output["threat_model"]["threats_identified"] == 1
         assert output["threat_model"]["attack_surface_size"] == 2
         assert output["threat_model"]["trust_boundaries"] == 1

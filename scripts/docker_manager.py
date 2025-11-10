@@ -17,12 +17,13 @@ import secrets
 import socket
 import time
 from pathlib import Path
-from typing import Dict, Optional, cast
+from typing import Optional, cast
 
 try:
-    import docker
     from docker.errors import DockerException, ImageNotFound, NotFound
     from docker.models.containers import Container
+
+    import docker
 
     DOCKER_AVAILABLE = True
 except ImportError:
@@ -59,7 +60,7 @@ class DockerManager:
             ) from e
 
         self.image = image or self.DEFAULT_IMAGE
-        self._containers: Dict[str, Container] = {}
+        self._containers: dict[str, Container] = {}
 
     def _generate_token(self) -> str:
         """Generate a secure random token"""
@@ -110,7 +111,7 @@ class DockerManager:
         memory_limit: str = "512m",
         network_disabled: bool = True,
         timeout: int = 300,
-        environment: Optional[Dict[str, str]] = None,
+        environment: Optional[dict[str, str]] = None,
     ) -> str:
         """
         Create a new isolated Docker container
@@ -195,7 +196,7 @@ class DockerManager:
         language: str = "python",
         timeout: int = 30,
         working_dir: str = "/workspace",
-    ) -> Dict[str, any]:
+    ) -> dict[str, any]:
         """
         Execute code in a container
 
@@ -304,7 +305,7 @@ class DockerManager:
             logger.info(f"Copied {local_path} to container {container_id[:12]}:{container_path}")
             return True
 
-        except (OSError, DockerException) as e:
+        except (OSError, DockerException):
             logger.exception(f"Failed to copy files to container {container_id}")
             return False
 
@@ -352,7 +353,7 @@ class DockerManager:
             container.stop(timeout=timeout)
             logger.info(f"Stopped container {container_id[:12]}")
             return True
-        except DockerException as e:
+        except DockerException:
             logger.exception(f"Failed to stop container {container_id}")
             return False
 
@@ -378,7 +379,7 @@ class DockerManager:
             del self._containers[container_id]
             logger.info(f"Removed container {container_id[:12]}")
             return True
-        except DockerException as e:
+        except DockerException:
             logger.exception(f"Failed to remove container {container_id}")
             return False
 
@@ -394,7 +395,7 @@ class DockerManager:
 
         logger.info(f"Cleaned up {len(container_ids)} containers")
 
-    def list_containers(self) -> list[Dict[str, any]]:
+    def list_containers(self) -> list[dict[str, any]]:
         """
         List all agent-os sandbox containers
 
@@ -413,7 +414,7 @@ class DockerManager:
                 }
                 for c in containers
             ]
-        except DockerException as e:
+        except DockerException:
             logger.exception("Failed to list containers")
             return []
 

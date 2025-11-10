@@ -3,9 +3,9 @@
 Audit spring-attack-surface repository using enhanced multi-agent review
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from pathlib import Path
 
 # Add parent directory to path
@@ -83,7 +83,7 @@ async def main():
 
     print(f"📂 Repository: {repo_name}")
     print(f"📄 Files to audit: {len(files_to_review)}")
-    print(f"🎯 Using: Category-specific passes + Heuristics + Context injection + Test generation")
+    print("🎯 Using: Category-specific passes + Heuristics + Context injection + Test generation")
     print()
 
     # Review all files
@@ -131,7 +131,7 @@ async def main():
     with open(comparison_path, "w") as f:
         f.write(report)
 
-    print(f"✅ Report saved:")
+    print("✅ Report saved:")
     print(f"   - {main_report_path}")
     print(f"   - {comparison_path}")
     print()

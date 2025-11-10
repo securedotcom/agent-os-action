@@ -2,13 +2,12 @@
 Performance and cost validation tests
 """
 
-import pytest
 import os
 import sys
 import time
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+
+import pytest
 
 # Add scripts directory to path
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
@@ -172,7 +171,7 @@ print(result.stdout.decode())
 
         # Time the validation
         start_time = time.time()
-        result = validator.validate_exploit(exploit_code, finding)
+        validator.validate_exploit(exploit_code, finding)
         duration = time.time() - start_time
 
         # Should complete in < 10 seconds
@@ -235,7 +234,7 @@ print(result.stdout.decode())
 
         # Time threat model generation
         start_time = time.time()
-        threat_model = generator.generate_threat_model(repo_context)
+        generator.generate_threat_model(repo_context)
         generation_duration = time.time() - start_time
 
         # Should complete in reasonable time (< 30 seconds)
@@ -252,7 +251,7 @@ print(result.stdout.decode())
 
         # Record many events
         start_time = time.time()
-        for i in range(1000):
+        for _i in range(1000):
             metrics.record_file(50)
             metrics.record_llm_call(1000, 500, "anthropic")
         duration = time.time() - start_time
@@ -268,8 +267,9 @@ class TestScalability:
 
     def test_memory_usage_for_large_repo(self, tmp_path):
         """Test memory usage remains reasonable for large repositories"""
-        import psutil
         import os
+
+        import psutil
 
         # Get current process
         process = psutil.Process(os.getpid())
@@ -293,7 +293,7 @@ class TestScalability:
             "exclude_paths": "",
         }
 
-        files = select_files_for_review(str(repo_dir), config)
+        select_files_for_review(str(repo_dir), config)
 
         # Measure final memory
         final_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -313,7 +313,7 @@ class TestScalability:
 
         # Time token estimation
         start_time = time.time()
-        token_count = estimate_tokens(large_text)
+        estimate_tokens(large_text)
         duration = time.time() - start_time
 
         # Should be fast (< 1 second)
@@ -400,7 +400,7 @@ class TestCostOptimization:
         metrics = ReviewMetrics()
 
         # Simulate many calls with Foundation-Sec
-        for i in range(100):
+        for _i in range(100):
             metrics.record_llm_call(1000, 500, "foundation-sec")
 
         output = metrics.finalize()
@@ -417,7 +417,7 @@ class TestCostOptimization:
         large_text = "This is a test. " * 1000
         token_count = estimate_tokens(large_text)
 
-        max_allowed = int(config["max_tokens"])
+        int(config["max_tokens"])
 
         # In practice, text should be truncated before sending
         # This test verifies token counting works
@@ -429,8 +429,9 @@ class TestResourceUtilization:
 
     def test_file_reading_is_efficient(self, tmp_path):
         """Test that file reading doesn't use excessive memory"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024
@@ -442,7 +443,7 @@ class TestResourceUtilization:
         # Read file
         from run_ai_audit import read_file_safe
 
-        content = read_file_safe(str(large_file))
+        read_file_safe(str(large_file))
 
         final_memory = process.memory_info().rss / 1024 / 1024
         memory_increase = final_memory - initial_memory
@@ -453,12 +454,13 @@ class TestResourceUtilization:
     def test_json_serialization_is_fast(self):
         """Test JSON serialization of results is fast"""
         import json
+
         from run_ai_audit import ReviewMetrics
 
         metrics = ReviewMetrics()
 
         # Create many findings
-        for i in range(100):
+        for _i in range(100):
             metrics.record_file(50)
 
         output = metrics.finalize()

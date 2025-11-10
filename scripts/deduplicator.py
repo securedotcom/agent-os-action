@@ -5,12 +5,11 @@ Identifies and merges duplicate findings across multiple repositories
 Uses content-based hashing and fuzzy matching
 """
 
-import json
 import hashlib
-from typing import Dict, List, Set, Tuple
-from pathlib import Path
-from dataclasses import dataclass
+import json
 from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -18,8 +17,8 @@ class DuplicateGroup:
     """Group of duplicate findings"""
 
     canonical_id: str
-    finding_ids: List[str]
-    repos: List[str]
+    finding_ids: list[str]
+    repos: list[str]
     count: int
     severity: str
     rule_id: str
@@ -36,9 +35,9 @@ class FindingDeduplicator:
             fuzzy_threshold: Similarity threshold for fuzzy matching (0.0-1.0)
         """
         self.fuzzy_threshold = fuzzy_threshold
-        self.duplicate_groups: List[DuplicateGroup] = []
+        self.duplicate_groups: list[DuplicateGroup] = []
 
-    def deduplicate_findings(self, findings_by_repo: Dict[str, List[Dict]]) -> Tuple[List[Dict], List[DuplicateGroup]]:
+    def deduplicate_findings(self, findings_by_repo: dict[str, list[dict]]) -> tuple[list[dict], list[DuplicateGroup]]:
         """
         Deduplicate findings across multiple repositories
 
@@ -83,7 +82,7 @@ class FindingDeduplicator:
                 deduplicated.append(canonical)
 
                 # Track duplicate group
-                repos = list(set(f.get("repo", "unknown") for f in group))
+                repos = list({f.get("repo", "unknown") for f in group})
                 duplicate_groups.append(
                     DuplicateGroup(
                         canonical_id=canonical.get("id"),
@@ -107,7 +106,7 @@ class FindingDeduplicator:
 
         return deduplicated, duplicate_groups
 
-    def _compute_content_hash(self, finding: Dict) -> str:
+    def _compute_content_hash(self, finding: dict) -> str:
         """
         Compute content-based hash for a finding
         Uses: rule_id + severity + category + normalized path
@@ -133,7 +132,7 @@ class FindingDeduplicator:
 
         return hashlib.sha256(hash_input.encode()).hexdigest()[:16]
 
-    def _merge_findings(self, findings: List[Dict]) -> Dict:
+    def _merge_findings(self, findings: list[dict]) -> dict:
         """
         Merge duplicate findings into canonical finding
 
@@ -154,7 +153,7 @@ class FindingDeduplicator:
         canonical["duplicate_ids"] = [f.get("id") for f in sorted_findings[1:]]
 
         # Merge repos
-        repos = list(set(f.get("repo", "unknown") for f in findings))
+        repos = list({f.get("repo", "unknown") for f in findings})
         canonical["affected_repos"] = repos
         canonical["repo_count"] = len(repos)
 
@@ -165,7 +164,7 @@ class FindingDeduplicator:
 
         return canonical
 
-    def _fuzzy_deduplicate(self, findings: List[Dict]) -> Tuple[List[Dict], List[DuplicateGroup]]:
+    def _fuzzy_deduplicate(self, findings: list[dict]) -> tuple[list[dict], list[DuplicateGroup]]:
         """
         Fuzzy matching for near-duplicates
         Groups findings with similar characteristics but not exact matches
@@ -215,12 +214,12 @@ class FindingDeduplicator:
 
         return deduplicated, duplicate_groups
 
-    def _print_summary(self, original_count: int, deduplicated_count: int, duplicate_groups: List[DuplicateGroup]):
+    def _print_summary(self, original_count: int, deduplicated_count: int, duplicate_groups: list[DuplicateGroup]):
         """Print deduplication summary"""
         reduction = original_count - deduplicated_count
         reduction_pct = (reduction / original_count * 100) if original_count > 0 else 0
 
-        print(f"\n📊 Deduplication Summary:")
+        print("\n📊 Deduplication Summary:")
         print(f"   Original findings: {original_count}")
         print(f"   After dedup: {deduplicated_count}")
         print(f"   Removed: {reduction} ({reduction_pct:.1f}% reduction)")
@@ -229,7 +228,7 @@ class FindingDeduplicator:
         # Show top duplicate groups
         if duplicate_groups:
             sorted_groups = sorted(duplicate_groups, key=lambda g: g.count, reverse=True)
-            print(f"\n🔄 Top 5 Most Common Duplicates:")
+            print("\n🔄 Top 5 Most Common Duplicates:")
             for i, group in enumerate(sorted_groups[:5], 1):
                 print(f"   {i}. {group.rule_id} ({group.severity})")
                 print(f"      - Found in {len(group.repos)} repos: {', '.join(group.repos[:3])}")

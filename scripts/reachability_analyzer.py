@@ -5,12 +5,11 @@ Determines if vulnerable code is actually reachable in the application
 Uses open source tools: Trivy (Apache 2.0) + language-specific analyzers
 """
 
-import subprocess
 import json
-from pathlib import Path
-from typing import Dict, List, Set, Optional
 import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass
@@ -22,8 +21,8 @@ class ReachabilityResult:
     cve: str
     is_reachable: bool
     confidence: str  # 'high', 'medium', 'low'
-    evidence: List[str]
-    call_chain: Optional[List[str]] = None
+    evidence: list[str]
+    call_chain: Optional[list[str]] = None
 
 
 class ReachabilityAnalyzer:
@@ -49,7 +48,7 @@ class ReachabilityAnalyzer:
         else:
             return "unknown"
 
-    def analyze_findings(self, findings: List[Dict]) -> List[ReachabilityResult]:
+    def analyze_findings(self, findings: list[dict]) -> list[ReachabilityResult]:
         """
         Analyze reachability for CVE findings
 
@@ -72,14 +71,14 @@ class ReachabilityAnalyzer:
 
         # Print summary
         reachable_count = sum(1 for r in results if r.is_reachable)
-        print(f"\n📊 Reachability Analysis:")
+        print("\n📊 Reachability Analysis:")
         print(f"   Total CVEs: {len(results)}")
         print(f"   Reachable: {reachable_count} ({reachable_count / len(results) * 100:.1f}%)")
         print(f"   Not Reachable: {len(results) - reachable_count}")
 
         return results
 
-    def _analyze_finding(self, finding: Dict) -> ReachabilityResult:
+    def _analyze_finding(self, finding: dict) -> ReachabilityResult:
         """Analyze single finding for reachability"""
         package = finding.get("title", "").split()[0]  # Extract package name
         cve = finding.get("rule_id", "")
@@ -135,12 +134,12 @@ class ReachabilityAnalyzer:
         patterns = {
             "python": [rf"^import\s+{re.escape(package)}", rf"^from\s+{re.escape(package)}\s+import"],
             "javascript": [
-                rf'require\([\'"]' + re.escape(package) + rf'[\'"]\)',
-                rf'from\s+[\'"]' + re.escape(package) + rf'[\'"]',
-                rf'import\s+.*\s+from\s+[\'"]' + re.escape(package) + rf'[\'"]',
+                r'require\([\'"]' + re.escape(package) + r'[\'"]\)',
+                r'from\s+[\'"]' + re.escape(package) + r'[\'"]',
+                r'import\s+.*\s+from\s+[\'"]' + re.escape(package) + r'[\'"]',
             ],
-            "java": [rf"import\s+" + re.escape(package)],
-            "go": [rf'import\s+[\'"]' + re.escape(package) + rf'[\'"]'],
+            "java": [r"import\s+" + re.escape(package)],
+            "go": [r'import\s+[\'"]' + re.escape(package) + r'[\'"]'],
         }
 
         search_patterns = patterns.get(self.language, [])
@@ -158,7 +157,7 @@ class ReachabilityAnalyzer:
 
         return False
 
-    def _get_vulnerable_functions(self, finding: Dict) -> List[str]:
+    def _get_vulnerable_functions(self, finding: dict) -> list[str]:
         """Extract vulnerable function names from finding"""
         # Parse from CWE data or description
         description = finding.get("description", "").lower()
@@ -179,7 +178,7 @@ class ReachabilityAnalyzer:
 
         return funcs
 
-    def _find_function_calls(self, functions: List[str]) -> List[str]:
+    def _find_function_calls(self, functions: list[str]) -> list[str]:
         """Find calls to specific functions in codebase"""
         calls_found = []
 
@@ -198,7 +197,7 @@ class ReachabilityAnalyzer:
 
         return calls_found
 
-    def _get_source_files(self) -> List[Path]:
+    def _get_source_files(self) -> list[Path]:
         """Get all source files for the detected language"""
         extensions = {
             "python": [".py"],
@@ -217,7 +216,7 @@ class ReachabilityAnalyzer:
         # Limit to first 500 files for performance
         return source_files[:500]
 
-    def enrich_findings(self, findings: List[Dict]) -> List[Dict]:
+    def enrich_findings(self, findings: list[dict]) -> list[dict]:
         """
         Enrich findings with reachability data
 

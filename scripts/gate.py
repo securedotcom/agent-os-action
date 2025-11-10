@@ -4,12 +4,12 @@ Agent-OS Policy Gate
 Evaluates Rego policies to determine pass/fail for PR or release
 """
 
-import subprocess
-import json
-import sys
 import argparse
+import json
+import subprocess
+import sys
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 
 class PolicyGate:
@@ -42,7 +42,7 @@ class PolicyGate:
             print("          chmod +x opa && sudo mv opa /usr/local/bin/")
             sys.exit(2)
 
-    def evaluate(self, stage: str, findings: List[Dict], metadata: Dict[str, bool] = None) -> Dict[str, Any]:
+    def evaluate(self, stage: str, findings: list[dict], metadata: dict[str, bool] = None) -> dict[str, Any]:
         """
         Evaluate policy for given stage
 
@@ -106,7 +106,7 @@ class PolicyGate:
             # Clean up temp file
             Path(input_file).unlink(missing_ok=True)
 
-    def print_decision(self, decision: Dict):
+    def print_decision(self, decision: dict):
         """Print decision in human-readable format"""
         status = decision["decision"]
         reasons = decision.get("reasons", [])

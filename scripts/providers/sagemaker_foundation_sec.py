@@ -3,10 +3,10 @@ SageMaker-based Foundation-Sec-8B Provider
 Uses AWS SageMaker endpoint for fast, scalable inference
 """
 
-import os
 import json
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -135,13 +135,7 @@ class SageMakerFoundationSecProvider:
             AI analysis response
         """
         # Build prompt based on focus
-        if focus == "false_positive_analysis":
-            prompt = context  # Context already contains the full prompt
-        elif focus == "correlation_analysis":
-            prompt = context  # Context already contains the full prompt
-        elif focus == "exploitability_assessment":
-            prompt = context  # Context already contains the full prompt
-        elif focus == "secret_detection":
+        if focus == "false_positive_analysis" or focus == "correlation_analysis" or focus == "exploitability_assessment" or focus == "secret_detection":
             prompt = context  # Context already contains the full prompt
         else:
             # Default security analysis
@@ -163,7 +157,7 @@ Provide a detailed security analysis including:
 
         return self.generate(prompt, max_new_tokens=512)
 
-    def test_connection(self) -> Dict[str, Any]:
+    def test_connection(self) -> dict[str, Any]:
         """Test SageMaker endpoint connectivity"""
         try:
             test_prompt = "Security vulnerability: SQL injection in login form."

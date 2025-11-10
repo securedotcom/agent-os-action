@@ -6,14 +6,13 @@ All open source: Python asyncio + subprocess
 """
 
 import asyncio
-import subprocess
 import json
-from pathlib import Path
-from typing import List, Dict, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime
-import tempfile
 import shutil
+import tempfile
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass
@@ -23,7 +22,7 @@ class ScanConfig:
     repo_url: str
     repo_name: str
     branch: str = "main"
-    scan_types: List[str] = None  # ['secrets', 'sast', 'iac', 'vuln']
+    scan_types: list[str] = None  # ['secrets', 'sast', 'iac', 'vuln']
 
     def __post_init__(self):
         if self.scan_types is None:
@@ -63,9 +62,9 @@ class MultiRepoCoordinator:
 
         # Queue and backpressure
         self.semaphore = asyncio.Semaphore(max_concurrent)
-        self.results: List[ScanResult] = []
+        self.results: list[ScanResult] = []
 
-    async def scan_repos(self, configs: List[ScanConfig]) -> List[ScanResult]:
+    async def scan_repos(self, configs: list[ScanConfig]) -> list[ScanResult]:
         """
         Scan multiple repositories concurrently
 
@@ -194,7 +193,7 @@ class MultiRepoCoordinator:
         except Exception:
             return False
 
-    async def _run_scan(self, repo_path: str, scan_type: str) -> List[Dict]:
+    async def _run_scan(self, repo_path: str, scan_type: str) -> list[dict]:
         """Run a specific type of scan"""
         try:
             if scan_type == "secrets":
@@ -211,7 +210,7 @@ class MultiRepoCoordinator:
             print(f"   Warning: {scan_type} scan failed: {e}")
             return []
 
-    async def _scan_secrets(self, repo_path: str) -> List[Dict]:
+    async def _scan_secrets(self, repo_path: str) -> list[dict]:
         """Run TruffleHog secret scan"""
         try:
             cmd = ["trufflehog", "filesystem", repo_path, "--json", "--no-verification"]  # Fast mode, verify later
@@ -234,12 +233,12 @@ class MultiRepoCoordinator:
             return findings
 
         except asyncio.TimeoutError:
-            print(f"   Warning: Secret scan timed out")
+            print("   Warning: Secret scan timed out")
             return []
         except Exception:
             return []
 
-    async def _scan_sast(self, repo_path: str) -> List[Dict]:
+    async def _scan_sast(self, repo_path: str) -> list[dict]:
         """Run Semgrep SAST scan"""
         try:
             cmd = ["semgrep", "scan", "--config", "p/ci", "--json", "--quiet", repo_path]
@@ -254,12 +253,12 @@ class MultiRepoCoordinator:
             return result.get("results", [])
 
         except asyncio.TimeoutError:
-            print(f"   Warning: SAST scan timed out")
+            print("   Warning: SAST scan timed out")
             return []
         except Exception:
             return []
 
-    async def _scan_iac(self, repo_path: str) -> List[Dict]:
+    async def _scan_iac(self, repo_path: str) -> list[dict]:
         """Run Checkov IaC scan"""
         try:
             cmd = ["checkov", "--directory", repo_path, "--output", "json", "--quiet"]
@@ -274,12 +273,12 @@ class MultiRepoCoordinator:
             return result.get("results", {}).get("failed_checks", [])
 
         except asyncio.TimeoutError:
-            print(f"   Warning: IaC scan timed out")
+            print("   Warning: IaC scan timed out")
             return []
         except Exception:
             return []
 
-    async def _scan_vulnerabilities(self, repo_path: str) -> List[Dict]:
+    async def _scan_vulnerabilities(self, repo_path: str) -> list[dict]:
         """Run Trivy vulnerability scan"""
         try:
             cmd = ["trivy", "fs", "--format", "json", "--quiet", repo_path]
@@ -300,7 +299,7 @@ class MultiRepoCoordinator:
             return findings
 
         except asyncio.TimeoutError:
-            print(f"   Warning: Vulnerability scan timed out")
+            print("   Warning: Vulnerability scan timed out")
             return []
         except Exception:
             return []
@@ -316,9 +315,9 @@ class MultiRepoCoordinator:
         total_findings = sum(r.findings_count for r in self.results)
         avg_duration = sum(r.duration_seconds for r in self.results) / len(self.results)
 
-        print(f"\n" + "=" * 60)
-        print(f"📊 Multi-Repo Scan Summary")
-        print(f"=" * 60)
+        print("\n" + "=" * 60)
+        print("📊 Multi-Repo Scan Summary")
+        print("=" * 60)
         print(f"Total Repositories: {len(self.results)}")
         print(f"  ✅ Successful: {successful}")
         print(f"  ❌ Failed: {failed}")
@@ -326,7 +325,7 @@ class MultiRepoCoordinator:
         print(f"Total Findings: {total_findings}")
         print(f"Average Duration: {avg_duration:.1f}s")
         print(f"\nResults saved to: {self.output_dir}")
-        print(f"=" * 60)
+        print("=" * 60)
 
     def save_summary(self, output_file: str = "scan_summary.json"):
         """Save summary to JSON file"""

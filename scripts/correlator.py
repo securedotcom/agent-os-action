@@ -4,13 +4,12 @@ Correlation Engine - Phase 2.1
 Groups related findings across attack surfaces using Foundation-Sec-8B
 """
 
+import hashlib
 import json
 import sys
-import hashlib
-from pathlib import Path
-from typing import List, Dict, Set, Tuple
-from dataclasses import dataclass, asdict
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -24,7 +23,7 @@ class CorrelationGroup:
     """Group of related findings"""
 
     id: str
-    findings: List[str]  # Finding IDs
+    findings: list[str]  # Finding IDs
     relationship_type: str  # exploit_chain, same_attack_surface, related_vulnerability
     risk_multiplier: float  # How much this correlation increases risk
     description: str
@@ -51,7 +50,7 @@ class Correlator:
         except Exception as e:
             print(f"⚠️  Foundation-Sec not available, using heuristics only: {e}")
 
-    def correlate_findings(self, findings: List[Finding]) -> Tuple[List[Finding], List[CorrelationGroup]]:
+    def correlate_findings(self, findings: list[Finding]) -> tuple[list[Finding], list[CorrelationGroup]]:
         """
         Correlate findings and assign correlation_group_id
 
@@ -60,7 +59,7 @@ class Correlator:
         """
         print(f"\n🔗 Correlating {len(findings)} findings...")
 
-        groups: List[CorrelationGroup] = []
+        groups: list[CorrelationGroup] = []
 
         # 1. Find exploit chains
         exploit_chains = self._find_exploit_chains(findings)
@@ -91,7 +90,7 @@ class Correlator:
 
         return findings, groups
 
-    def _find_exploit_chains(self, findings: List[Finding]) -> List[CorrelationGroup]:
+    def _find_exploit_chains(self, findings: list[Finding]) -> list[CorrelationGroup]:
         """
         Find exploit chains: multiple vulnerabilities that can be chained together
 
@@ -149,7 +148,7 @@ class Correlator:
 
         return chains
 
-    def _find_same_attack_surface(self, findings: List[Finding]) -> List[CorrelationGroup]:
+    def _find_same_attack_surface(self, findings: list[Finding]) -> list[CorrelationGroup]:
         """
         Find findings on the same attack surface
 
@@ -183,7 +182,7 @@ class Correlator:
 
         return surfaces
 
-    def _find_related_vulnerabilities(self, findings: List[Finding]) -> List[CorrelationGroup]:
+    def _find_related_vulnerabilities(self, findings: list[Finding]) -> list[CorrelationGroup]:
         """
         Find related vulnerabilities (similar root causes)
 
@@ -214,7 +213,7 @@ class Correlator:
 
         return related
 
-    def _ai_correlate(self, findings: List[Finding]) -> List[CorrelationGroup]:
+    def _ai_correlate(self, findings: list[Finding]) -> list[CorrelationGroup]:
         """
         Use Foundation-Sec-8B to find intelligent correlations
 
@@ -265,7 +264,7 @@ Respond with ONLY a JSON array:
 
         return correlations
 
-    def _prepare_findings_summary(self, findings: List[Finding]) -> str:
+    def _prepare_findings_summary(self, findings: list[Finding]) -> str:
         """Prepare concise summary of findings for AI analysis"""
         summary_lines = []
         for i, f in enumerate(findings[:20], 1):  # Limit to 20 for token efficiency
@@ -278,7 +277,7 @@ Respond with ONLY a JSON array:
 
         return "\n".join(summary_lines)
 
-    def _parse_ai_correlations(self, response: str, findings: List[Finding]) -> List[CorrelationGroup]:
+    def _parse_ai_correlations(self, response: str, findings: list[Finding]) -> list[CorrelationGroup]:
         """Parse Foundation-Sec correlation response"""
         groups = []
 
@@ -308,7 +307,7 @@ Respond with ONLY a JSON array:
 
         return groups
 
-    def _assign_correlation_ids(self, findings: List[Finding], groups: List[CorrelationGroup]) -> List[Finding]:
+    def _assign_correlation_ids(self, findings: list[Finding], groups: list[CorrelationGroup]) -> list[Finding]:
         """Assign correlation_group_id to findings"""
         # Build finding_id -> group_id mapping
         finding_to_group = {}
@@ -326,7 +325,7 @@ Respond with ONLY a JSON array:
 
         return findings
 
-    def _update_risk_scores(self, findings: List[Finding], groups: List[CorrelationGroup]) -> List[Finding]:
+    def _update_risk_scores(self, findings: list[Finding], groups: list[CorrelationGroup]) -> list[Finding]:
         """Update risk scores based on correlations"""
         # Build finding_id -> max_risk_multiplier mapping
         risk_multipliers = {}
@@ -361,7 +360,7 @@ def main():
     args = parser.parse_args()
 
     # Load findings
-    with open(args.input, "r") as f:
+    with open(args.input) as f:
         findings_data = json.load(f)
 
     findings = [Finding.from_dict(f) for f in findings_data]

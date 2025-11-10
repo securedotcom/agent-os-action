@@ -1,10 +1,10 @@
 """Base classes for finding normalization"""
 
 import hashlib
-from datetime import datetime, timezone
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Any
 from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 
 @dataclass
@@ -42,8 +42,8 @@ class Finding:
     stride: Optional[str] = None
 
     # Evidence
-    evidence: Dict[str, Any] = field(default_factory=dict)
-    references: List[str] = field(default_factory=list)
+    evidence: dict[str, Any] = field(default_factory=dict)
+    references: list[str] = field(default_factory=list)
 
     # Enrichment
     reachability: str = "unknown"  # yes, no, unknown
@@ -64,7 +64,7 @@ class Finding:
     correlation_group_id: Optional[str] = None  # Links related findings
 
     # Business Context (NEW - Phase 1)
-    business_context: Dict[str, Any] = field(
+    business_context: dict[str, Any] = field(
         default_factory=lambda: {
             "service_tier": "internal",  # critical/high/medium/low
             "exposure": "internal",  # public/internal/private
@@ -147,7 +147,7 @@ class Normalizer(ABC):
         self.origin = self.__class__.__name__.replace("Normalizer", "").lower()
 
     @abstractmethod
-    def normalize(self, raw_output: dict) -> List[Finding]:
+    def normalize(self, raw_output: dict) -> list[Finding]:
         """
         Convert tool-specific output to Finding objects
 

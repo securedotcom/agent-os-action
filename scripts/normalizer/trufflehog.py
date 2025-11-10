@@ -1,13 +1,13 @@
 """TruffleHog normalizer - VERIFIED SECRETS ONLY"""
 
-from .base import Normalizer, Finding
-from typing import List
+
+from .base import Finding, Normalizer
 
 
 class TruffleHogNormalizer(Normalizer):
     """Normalize TruffleHog output to Finding format"""
 
-    def normalize(self, raw_output: dict) -> List[Finding]:
+    def normalize(self, raw_output: dict) -> list[Finding]:
         """
         Convert TruffleHog JSON to Finding objects
 

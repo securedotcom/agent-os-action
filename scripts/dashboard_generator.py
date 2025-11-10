@@ -8,7 +8,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any
 
 
 class DashboardGenerator:
@@ -37,7 +37,7 @@ class DashboardGenerator:
 
         return output_file
 
-    def _load_metrics(self) -> Dict[str, Any]:
+    def _load_metrics(self) -> dict[str, Any]:
         """Load metrics.json"""
         if not self.metrics_file.exists():
             return {
@@ -52,7 +52,7 @@ class DashboardGenerator:
         with open(self.metrics_file) as f:
             return json.load(f)
 
-    def _load_findings(self) -> List[Dict[str, Any]]:
+    def _load_findings(self) -> list[dict[str, Any]]:
         """Load findings from results.json"""
         if not self.findings_file.exists():
             return []
@@ -61,7 +61,7 @@ class DashboardGenerator:
             data = json.load(f)
             return data.get("findings", [])
 
-    def _generate_html(self, metrics: Dict, findings: List[Dict]) -> str:
+    def _generate_html(self, metrics: dict, findings: list[dict]) -> str:
         """Generate complete HTML dashboard"""
 
         total_findings = sum(metrics.get("findings", {}).values())
@@ -84,19 +84,19 @@ class DashboardGenerator:
             padding: 0;
             box-sizing: border-box;
         }}
-        
+
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             color: #333;
         }}
-        
+
         .container {{
             max-width: 1400px;
             margin: 0 auto;
         }}
-        
+
         .header {{
             background: white;
             padding: 30px;
@@ -104,25 +104,25 @@ class DashboardGenerator:
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }}
-        
+
         .header h1 {{
             font-size: 32px;
             color: #667eea;
             margin-bottom: 10px;
         }}
-        
+
         .header .subtitle {{
             color: #666;
             font-size: 16px;
         }}
-        
+
         .metrics-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }}
-        
+
         .metric-card {{
             background: white;
             padding: 25px;
@@ -130,11 +130,11 @@ class DashboardGenerator:
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: transform 0.2s;
         }}
-        
+
         .metric-card:hover {{
             transform: translateY(-5px);
         }}
-        
+
         .metric-card .label {{
             color: #666;
             font-size: 14px;
@@ -142,39 +142,39 @@ class DashboardGenerator:
             letter-spacing: 1px;
             margin-bottom: 10px;
         }}
-        
+
         .metric-card .value {{
             font-size: 36px;
             font-weight: bold;
             color: #333;
         }}
-        
+
         .metric-card .subvalue {{
             color: #999;
             font-size: 14px;
             margin-top: 5px;
         }}
-        
+
         .metric-card.critical {{
             border-left: 4px solid #dc3545;
         }}
-        
+
         .metric-card.high {{
             border-left: 4px solid #fd7e14;
         }}
-        
+
         .metric-card.medium {{
             border-left: 4px solid #ffc107;
         }}
-        
+
         .metric-card.success {{
             border-left: 4px solid #28a745;
         }}
-        
+
         .metric-card.info {{
             border-left: 4px solid #667eea;
         }}
-        
+
         .chart-section {{
             background: white;
             padding: 30px;
@@ -182,13 +182,13 @@ class DashboardGenerator:
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }}
-        
+
         .chart-section h2 {{
             font-size: 24px;
             margin-bottom: 20px;
             color: #333;
         }}
-        
+
         .findings-table {{
             background: white;
             padding: 30px;
@@ -196,12 +196,12 @@ class DashboardGenerator:
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             overflow-x: auto;
         }}
-        
+
         table {{
             width: 100%;
             border-collapse: collapse;
         }}
-        
+
         th {{
             background: #f8f9fa;
             padding: 15px;
@@ -210,12 +210,12 @@ class DashboardGenerator:
             color: #333;
             border-bottom: 2px solid #dee2e6;
         }}
-        
+
         td {{
             padding: 15px;
             border-bottom: 1px solid #dee2e6;
         }}
-        
+
         .severity {{
             display: inline-block;
             padding: 5px 10px;
@@ -224,27 +224,27 @@ class DashboardGenerator:
             font-weight: bold;
             text-transform: uppercase;
         }}
-        
+
         .severity.critical {{
             background: #dc3545;
             color: white;
         }}
-        
+
         .severity.high {{
             background: #fd7e14;
             color: white;
         }}
-        
+
         .severity.medium {{
             background: #ffc107;
             color: #333;
         }}
-        
+
         .severity.low {{
             background: #17a2b8;
             color: white;
         }}
-        
+
         .bar-chart {{
             display: flex;
             align-items: flex-end;
@@ -252,7 +252,7 @@ class DashboardGenerator:
             gap: 20px;
             margin: 20px 0;
         }}
-        
+
         .bar {{
             flex: 1;
             background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
@@ -265,31 +265,31 @@ class DashboardGenerator:
             color: white;
             font-weight: bold;
         }}
-        
+
         .bar .bar-value {{
             position: absolute;
             top: -25px;
             font-size: 18px;
             color: #333;
         }}
-        
+
         .bar .bar-label {{
             padding: 10px;
             font-size: 12px;
             text-align: center;
         }}
-        
+
         .progress-ring {{
             transform: rotate(-90deg);
         }}
-        
+
         .progress-circle {{
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
         }}
-        
+
         .footer {{
             text-align: center;
             color: white;
@@ -304,45 +304,45 @@ class DashboardGenerator:
             <h1>🛡️ Agent-OS Security Dashboard</h1>
             <p class="subtitle">Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
         </div>
-        
+
         <div class="metrics-grid">
             <div class="metric-card critical">
                 <div class="label">Critical Findings</div>
                 <div class="value">{metrics.get("findings", {}).get("critical", 0)}</div>
                 <div class="subvalue">Requires immediate action</div>
             </div>
-            
+
             <div class="metric-card high">
                 <div class="label">High Priority</div>
                 <div class="value">{metrics.get("findings", {}).get("high", 0)}</div>
                 <div class="subvalue">Fix before release</div>
             </div>
-            
+
             <div class="metric-card medium">
                 <div class="label">Medium Priority</div>
                 <div class="value">{metrics.get("findings", {}).get("medium", 0)}</div>
                 <div class="subvalue">Address soon</div>
             </div>
-            
+
             <div class="metric-card success">
                 <div class="label">Noise Suppressed</div>
                 <div class="value">{noise_suppressed}</div>
                 <div class="subvalue">{noise_rate:.1f}% false positive reduction</div>
             </div>
-            
+
             <div class="metric-card info">
                 <div class="label">Files Analyzed</div>
                 <div class="value">{metrics.get("files_reviewed", 0)}</div>
                 <div class="subvalue">In {metrics.get("duration_seconds", 0):.1f} seconds</div>
             </div>
-            
+
             <div class="metric-card info">
                 <div class="label">Total Cost</div>
                 <div class="value">${metrics.get("cost_usd", 0):.2f}</div>
                 <div class="subvalue">AI analysis cost</div>
             </div>
         </div>
-        
+
         <div class="chart-section">
             <h2>📊 Findings Distribution</h2>
             <div class="bar-chart">
@@ -368,9 +368,9 @@ class DashboardGenerator:
                 </div>
             </div>
         </div>
-        
+
         {self._generate_findings_table(findings)}
-        
+
         <div class="footer">
             <p>Generated by Agent-OS Code Reviewer</p>
             <p>🔒 AI-Powered Security Analysis with 60%+ False Positive Reduction</p>
@@ -379,7 +379,7 @@ class DashboardGenerator:
 </body>
 </html>"""
 
-    def _scale_height(self, value: int, metrics: Dict) -> float:
+    def _scale_height(self, value: int, metrics: dict) -> float:
         """Scale bar height to percentage (10-100%)"""
         all_values = list(metrics.get("findings", {}).values())
         all_values.append(metrics.get("noise_suppressed", 0))
@@ -392,7 +392,7 @@ class DashboardGenerator:
         percentage = (value / max_value) * 90 + 10
         return min(percentage, 100)
 
-    def _generate_findings_table(self, findings: List[Dict]) -> str:
+    def _generate_findings_table(self, findings: list[dict]) -> str:
         """Generate findings table HTML"""
         if not findings:
             return """
