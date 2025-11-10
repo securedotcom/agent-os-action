@@ -1,5 +1,5 @@
-name: 'Code Reviewer'
-description: 'Comprehensive code review system with security, performance, testing, and quality analysis'
+name: 'Agent-OS Security Action'
+description: 'Production security control plane: orchestrates TruffleHog, Gitleaks, Semgrep, Trivy, Checkov + AI triage (Foundation-Sec/Claude) + noise reduction + Rego policy gates + SBOM generation'
 author: 'Agent OS Team'
 
 inputs:

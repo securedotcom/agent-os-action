@@ -11,13 +11,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from hybrid_analyzer import HybridSecurityAnalyzer, HybridFinding
 
+
 def test_prompt_generation():
     """Test that enrichment prompts are generated correctly (no model needed)"""
-    
+
     print("🧪 Testing Prompt Generation (No Model Required)")
     print("=" * 80)
     print()
-    
+
     # Create test finding
     mock_finding = HybridFinding(
         finding_id="test-sql-injection-001",
@@ -29,32 +30,32 @@ def test_prompt_generation():
         file_path="app/database.py",
         line_number=42,
         cve_id="CVE-2024-1234",
-        cvss_score=9.8
+        cvss_score=9.8,
     )
-    
+
     print("📝 Test Finding:")
     print(f"   ID: {mock_finding.finding_id}")
     print(f"   Title: {mock_finding.title}")
     print(f"   Severity: {mock_finding.severity}")
     print()
-    
+
     try:
         # Initialize analyzer WITHOUT Foundation-Sec (just for prompt generation)
         analyzer = HybridSecurityAnalyzer(
             enable_semgrep=True,  # Need at least one enabled
             enable_trivy=False,
-            enable_foundation_sec=False  # Don't load model
+            enable_foundation_sec=False,  # Don't load model
         )
-        
+
         # Generate prompt
         prompt = analyzer._build_enrichment_prompt(mock_finding)
-        
+
         print("✅ Generated Prompt:")
         print("=" * 80)
         print(prompt)
         print("=" * 80)
         print()
-        
+
         # Validate prompt structure
         checks = [
             ("Finding Details", "Finding Details:" in prompt),
@@ -68,7 +69,7 @@ def test_prompt_generation():
             ("JSON Format", "JSON" in prompt),
             ("Response Structure", '"cwe_id"' in prompt),
         ]
-        
+
         print("📋 Validation Checks:")
         all_passed = True
         for check_name, passed in checks:
@@ -76,7 +77,7 @@ def test_prompt_generation():
             print(f"   {status} {check_name}")
             if not passed:
                 all_passed = False
-        
+
         print()
         if all_passed:
             print("🎉 All checks PASSED!")
@@ -87,29 +88,26 @@ def test_prompt_generation():
         else:
             print("❌ Some checks failed")
             return False
-        
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_response_parsing():
     """Test JSON response parsing (no model needed)"""
-    
+
     print("\n")
     print("🧪 Testing Response Parsing (No Model Required)")
     print("=" * 80)
     print()
-    
+
     try:
-        analyzer = HybridSecurityAnalyzer(
-            enable_semgrep=True,
-            enable_trivy=False,
-            enable_foundation_sec=False
-        )
-        
+        analyzer = HybridSecurityAnalyzer(enable_semgrep=True, enable_trivy=False, enable_foundation_sec=False)
+
         # Mock AI response with JSON
         mock_response = """{
   "cwe_id": "CWE-89",
@@ -124,14 +122,14 @@ def test_response_parsing():
     "https://owasp.org/www-community/attacks/SQL_Injection"
   ]
 }"""
-        
+
         print("📝 Mock AI Response:")
         print(mock_response[:200] + "...")
         print()
-        
+
         # Parse response
         analysis = analyzer._parse_ai_response(mock_response)
-        
+
         if analysis:
             print("✅ Successfully parsed JSON response")
             print()
@@ -146,13 +144,13 @@ def test_response_parsing():
         else:
             print("❌ Failed to parse response")
             return False
-        
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("\n")
     print("🚀 Foundation-Sec Integration Test (Without Model)")
     print("=" * 80)
@@ -160,10 +158,10 @@ if __name__ == '__main__':
     print("ℹ️  These tests verify the integration code works")
     print("ℹ️  Actual AI enrichment requires downloading the model")
     print()
-    
+
     test1 = test_prompt_generation()
     test2 = test_response_parsing()
-    
+
     print("\n")
     print("=" * 80)
     print("📊 Summary")
@@ -171,7 +169,7 @@ if __name__ == '__main__':
     print(f"   {'✅' if test1 else '❌'} Prompt Generation")
     print(f"   {'✅' if test2 else '❌'} Response Parsing")
     print()
-    
+
     if test1 and test2:
         print("🎉 Phase 1.2 Integration: COMPLETE & WORKING")
         print()
@@ -183,6 +181,3 @@ if __name__ == '__main__':
     else:
         print("⚠️  Some tests failed")
         sys.exit(1)
-
-
-

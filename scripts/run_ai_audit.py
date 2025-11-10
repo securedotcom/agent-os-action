@@ -25,23 +25,29 @@ from tenacity import (
 )
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Import threat model generator
+# Import threat model generator (hybrid: pytm + optional Anthropic)
 try:
-    from threat_model_generator import ThreatModelGenerator
+    from threat_model_generator import HybridThreatModelGenerator
+
     THREAT_MODELING_AVAILABLE = True
 except ImportError:
-    THREAT_MODELING_AVAILABLE = False
-    logger.warning("Threat model generator not available")
+    # Fallback to pytm-only if hybrid not available
+    try:
+        from pytm_threat_model import PytmThreatModelGenerator as HybridThreatModelGenerator
+
+        THREAT_MODELING_AVAILABLE = True
+        logger.info("Using pytm-only threat modeling (hybrid generator not available)")
+    except ImportError:
+        THREAT_MODELING_AVAILABLE = False
+        logger.warning("No threat modeling available (install pytm: pip install pytm)")
 
 # Import sandbox validator
 try:
     from sandbox_validator import SandboxValidator, ExploitConfig, ExploitType, ValidationResult
+
     SANDBOX_VALIDATION_AVAILABLE = True
 except ImportError:
     SANDBOX_VALIDATION_AVAILABLE = False
@@ -82,43 +88,43 @@ class HeuristicScanner:
 
         # Security patterns
         if re.search(r'(password|secret|api[_-]?key|token|credential)\s*=\s*["\'][^"\']{8,}["\']', content, re.I):
-            flags.append('hardcoded-secrets')
+            flags.append("hardcoded-secrets")
 
-        if re.search(r'eval\(|exec\(|__import__\(|compile\(', content):
-            flags.append('dangerous-exec')
+        if re.search(r"eval\(|exec\(|__import__\(|compile\(", content):
+            flags.append("dangerous-exec")
 
-        if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*[\+\%].*', content, re.I):
-            flags.append('sql-concatenation')
+        if re.search(r"(SELECT|INSERT|UPDATE|DELETE).*[\+\%].*", content, re.I):
+            flags.append("sql-concatenation")
 
-        if re.search(r'\.innerHTML\s*=|dangerouslySetInnerHTML|document\.write\(', content):
-            flags.append('xss-risk')
+        if re.search(r"\.innerHTML\s*=|dangerouslySetInnerHTML|document\.write\(", content):
+            flags.append("xss-risk")
 
         # Performance patterns
-        if re.search(r'for\s+\w+\s+in.*:\s*for\s+\w+\s+in', content, re.DOTALL):
-            flags.append('nested-loops')
+        if re.search(r"for\s+\w+\s+in.*:\s*for\s+\w+\s+in", content, re.DOTALL):
+            flags.append("nested-loops")
 
-        if content.count('SELECT ') > 5:
-            flags.append('n-plus-one-query-risk')
+        if content.count("SELECT ") > 5:
+            flags.append("n-plus-one-query-risk")
 
         # Python-specific complexity
-        if file_path.endswith('.py'):
+        if file_path.endswith(".py"):
             try:
                 tree = ast.parse(content)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.FunctionDef):
                         complexity = self._calculate_complexity(node)
                         if complexity > 15:
-                            flags.append(f'high-complexity-{node.name}')
+                            flags.append(f"high-complexity-{node.name}")
             except:
                 pass  # Skip if AST parsing fails
 
         # JavaScript/TypeScript patterns
-        if file_path.endswith(('.js', '.ts', '.jsx', '.tsx')):
-            if re.search(r'JSON\.parse\([^)]*\)', content) and 'try' not in content:
-                flags.append('unsafe-json-parse')
+        if file_path.endswith((".js", ".ts", ".jsx", ".tsx")):
+            if re.search(r"JSON\.parse\([^)]*\)", content) and "try" not in content:
+                flags.append("unsafe-json-parse")
 
-            if re.search(r'localStorage\.|sessionStorage\.', content):
-                flags.append('client-storage-usage')
+            if re.search(r"localStorage\.|sessionStorage\.", content):
+                flags.append("client-storage-usage")
 
         return flags
 
@@ -163,8 +169,8 @@ class HeuristicScanner:
         """
         results = {}
         for file_info in files:
-            path = file_info['path']
-            content = file_info['content']
+            path = file_info["path"]
+            content = file_info["content"]
             flags = self.scan_file(path, content)
             if flags:
                 results[path] = flags
@@ -203,80 +209,73 @@ class ConsensusBuilder:
         for agent_name, findings in agent_findings.items():
             for finding in findings:
                 # Create a key for grouping similar issues
-                file_path = finding.get('file_path', 'unknown')
-                line = finding.get('line_number', 0)
-                issue_type = finding.get('rule_id', 'unknown')
+                file_path = finding.get("file_path", "unknown")
+                line = finding.get("line_number", 0)
+                issue_type = finding.get("rule_id", "unknown")
 
                 # Group issues within ~10 lines as the same issue
                 line_bucket = (line // 10) * 10
                 key = f"{file_path}:{issue_type}:L{line_bucket}"
 
                 if key not in grouped:
-                    grouped[key] = {
-                        'agents': [],
-                        'findings': [],
-                        'votes': 0
-                    }
+                    grouped[key] = {"agents": [], "findings": [], "votes": 0}
 
-                grouped[key]['agents'].append(agent_name)
-                grouped[key]['findings'].append(finding)
-                grouped[key]['votes'] += 1
+                grouped[key]["agents"].append(agent_name)
+                grouped[key]["findings"].append(finding)
+                grouped[key]["votes"] += 1
 
         # Build consensus results
         consensus_findings = []
 
         for key, group in grouped.items():
-            votes = group['votes']
-            findings = group['findings']
-            agents_agree = group['agents']
+            votes = group["votes"]
+            findings = group["findings"]
+            agents_agree = group["agents"]
 
             # Calculate consensus level
             consensus_pct = votes / self.total_agents
 
             if consensus_pct == 1.0:
-                consensus_level = 'unanimous'
+                consensus_level = "unanimous"
                 confidence = 0.95
             elif consensus_pct >= 0.67:
-                consensus_level = 'strong'
+                consensus_level = "strong"
                 confidence = 0.85
             elif consensus_pct >= 0.5:
-                consensus_level = 'majority'
+                consensus_level = "majority"
                 confidence = 0.70
             else:
-                consensus_level = 'weak'
+                consensus_level = "weak"
                 confidence = 0.50
 
             # Take the most severe classification
-            severity_order = ['critical', 'high', 'medium', 'low', 'info']
-            severities = [f.get('severity', 'medium') for f in findings]
+            severity_order = ["critical", "high", "medium", "low", "info"]
+            severities = [f.get("severity", "medium") for f in findings]
             most_severe = min(severities, key=lambda s: severity_order.index(s) if s in severity_order else 999)
 
             # Merge descriptions and recommendations
-            descriptions = [f.get('message', '') for f in findings]
+            descriptions = [f.get("message", "") for f in findings]
 
             # Create consensus finding
             consensus_finding = findings[0].copy()  # Start with first finding
-            consensus_finding['consensus'] = {
-                'votes': votes,
-                'total_agents': self.total_agents,
-                'consensus_level': consensus_level,
-                'confidence': confidence,
-                'agents_agree': agents_agree,
-                'all_descriptions': descriptions
+            consensus_finding["consensus"] = {
+                "votes": votes,
+                "total_agents": self.total_agents,
+                "consensus_level": consensus_level,
+                "confidence": confidence,
+                "agents_agree": agents_agree,
+                "all_descriptions": descriptions,
             }
-            consensus_finding['severity'] = most_severe
+            consensus_finding["severity"] = most_severe
 
             # Enhance message with consensus info
             if votes > 1:
-                consensus_finding['message'] = f"[{votes}/{self.total_agents} agents agree] {descriptions[0]}"
+                consensus_finding["message"] = f"[{votes}/{self.total_agents} agents agree] {descriptions[0]}"
 
             consensus_findings.append(consensus_finding)
 
         # Sort by votes (descending) and confidence (descending)
-        consensus_findings.sort(
-            key=lambda x: (x['consensus']['votes'], x['consensus']['confidence']),
-            reverse=True
-        )
+        consensus_findings.sort(key=lambda x: (x["consensus"]["votes"], x["consensus"]["confidence"]), reverse=True)
 
         return consensus_findings
 
@@ -290,21 +289,19 @@ class ConsensusBuilder:
         Returns:
             Filtered list of findings meeting threshold
         """
-        return [
-            f for f in consensus_findings
-            if f.get('consensus', {}).get('confidence', 0) >= min_confidence
-        ]
+        return [f for f in consensus_findings if f.get("consensus", {}).get("confidence", 0) >= min_confidence]
 
 
 class ReviewMetrics:
     """Track observability metrics for the review"""
+
     def __init__(self):
         self.start_time = time.time()
         self.metrics = {
             "version": "1.0.16",
-            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-            "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
-            "commit": os.environ.get('GITHUB_SHA', 'unknown'),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "repository": os.environ.get("GITHUB_REPOSITORY", "unknown"),
+            "commit": os.environ.get("GITHUB_SHA", "unknown"),
             "files_reviewed": 0,
             "lines_analyzed": 0,
             "tokens_input": 0,
@@ -313,26 +310,10 @@ class ReviewMetrics:
             "duration_seconds": 0,
             "model": "",
             "provider": "",
-            "findings": {
-                "critical": 0,
-                "high": 0,
-                "medium": 0,
-                "low": 0,
-                "info": 0
-            },
-            "categories": {
-                "security": 0,
-                "performance": 0,
-                "testing": 0,
-                "quality": 0
-            },
+            "findings": {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
+            "categories": {"security": 0, "performance": 0, "testing": 0, "quality": 0},
             # NEW: Exploit analysis metrics
-            "exploitability": {
-                "trivial": 0,
-                "moderate": 0,
-                "complex": 0,
-                "theoretical": 0
-            },
+            "exploitability": {"trivial": 0, "moderate": 0, "complex": 0, "theoretical": 0},
             "exploit_chains_found": 0,
             "tests_generated": 0,
             # NEW: Agent execution tracking
@@ -344,7 +325,7 @@ class ReviewMetrics:
                 "threats_identified": 0,
                 "attack_surface_size": 0,
                 "trust_boundaries": 0,
-                "assets_cataloged": 0
+                "assets_cataloged": 0,
             },
             # NEW: Sandbox validation metrics
             "sandbox": {
@@ -352,8 +333,8 @@ class ReviewMetrics:
                 "exploitable": 0,
                 "not_exploitable": 0,
                 "false_positives_eliminated": 0,
-                "validation_errors": 0
-            }
+                "validation_errors": 0,
+            },
         }
 
     def record_file(self, lines):
@@ -365,15 +346,15 @@ class ReviewMetrics:
         self.metrics["tokens_output"] += output_tokens
 
         # Calculate cost based on provider
-        if provider == 'anthropic':
+        if provider == "anthropic":
             # Claude Sonnet 4: $3/1M input, $15/1M output
             input_cost = (input_tokens / 1_000_000) * 3.0
             output_cost = (output_tokens / 1_000_000) * 15.0
-        elif provider == 'openai':
+        elif provider == "openai":
             # GPT-4: $10/1M input, $30/1M output
             input_cost = (input_tokens / 1_000_000) * 10.0
             output_cost = (output_tokens / 1_000_000) * 30.0
-        elif provider == 'foundation-sec':
+        elif provider == "foundation-sec":
             # Foundation-Sec: Zero cost (local inference)
             input_cost = 0.0
             output_cost = 0.0
@@ -460,13 +441,14 @@ class ReviewMetrics:
         return self.metrics
 
     def save(self, path):
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(self.metrics, f, indent=2)
         print(f"📊 Metrics saved to: {path}")
 
 
 class CostLimitExceeded(Exception):
     """Raised when cost limit would be exceeded by an operation"""
+
     pass
 
 
@@ -499,8 +481,10 @@ class CostCircuitBreaker:
         self.current_cost = 0.0
         self.warned_thresholds = set()
 
-        logger.info(f"💰 Cost Circuit Breaker initialized: ${cost_limit_usd:.2f} limit "
-                   f"(${self.effective_limit:.2f} effective with {safety_buffer_percent}% buffer)")
+        logger.info(
+            f"💰 Cost Circuit Breaker initialized: ${cost_limit_usd:.2f} limit "
+            f"(${self.effective_limit:.2f} effective with {safety_buffer_percent}% buffer)"
+        )
 
     def check_before_call(self, estimated_cost: float, provider: str, operation: str = "LLM call"):
         """Check if estimated cost would exceed limit
@@ -520,8 +504,9 @@ class CostCircuitBreaker:
         for threshold in [50, 75, 90]:
             if utilization >= threshold and threshold not in self.warned_thresholds:
                 self.warned_thresholds.add(threshold)
-                logger.warning(f"⚠️  Cost at {utilization:.1f}% of limit "
-                             f"(${self.current_cost:.3f} / ${self.effective_limit:.2f})")
+                logger.warning(
+                    f"⚠️  Cost at {utilization:.1f}% of limit (${self.current_cost:.3f} / ${self.effective_limit:.2f})"
+                )
 
         # Check if we would exceed the limit
         if projected_cost > self.effective_limit:
@@ -536,9 +521,11 @@ class CostCircuitBreaker:
             raise CostLimitExceeded(message)
 
         # Log the check (sanitize provider name - use str() to break taint chain)
-        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
-        logger.debug(f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({safe_provider}), "
-                    f"projected: ${projected_cost:.3f} / ${self.effective_limit:.2f}")
+        safe_provider = str(provider).split("/")[-1] if provider else "unknown"
+        logger.debug(
+            f"✓ Cost check passed: ${estimated_cost:.3f} {operation} ({safe_provider}), "
+            f"projected: ${projected_cost:.3f} / ${self.effective_limit:.2f}"
+        )
 
     def record_actual_cost(self, actual_cost: float):
         """Record actual cost after operation completes
@@ -580,120 +567,118 @@ class CostCircuitBreaker:
             "current_cost_usd": self.current_cost,
             "remaining_budget_usd": self.get_remaining_budget(),
             "utilization_percent": self.get_utilization_percent(),
-            "limit_exceeded": self.current_cost > self.effective_limit
+            "limit_exceeded": self.current_cost > self.effective_limit,
         }
 
 
 # Available agents for multi-agent mode
 AVAILABLE_AGENTS = [
-    'security-reviewer',
-    'exploit-analyst',
-    'security-test-generator',
-    'performance-reviewer',
-    'test-coverage-reviewer',
-    'code-quality-reviewer',
-    'review-orchestrator'
+    "security-reviewer",
+    "exploit-analyst",
+    "security-test-generator",
+    "performance-reviewer",
+    "test-coverage-reviewer",
+    "code-quality-reviewer",
+    "review-orchestrator",
 ]
 
 # Agent execution order for security workflow
-SECURITY_WORKFLOW_AGENTS = [
-    'security-reviewer',
-    'exploit-analyst',
-    'security-test-generator'
-]
+SECURITY_WORKFLOW_AGENTS = ["security-reviewer", "exploit-analyst", "security-test-generator"]
 
 # Agents that can run in parallel (quality analysis)
-PARALLEL_QUALITY_AGENTS = [
-    'performance-reviewer',
-    'test-coverage-reviewer',
-    'code-quality-reviewer'
-]
+PARALLEL_QUALITY_AGENTS = ["performance-reviewer", "test-coverage-reviewer", "code-quality-reviewer"]
 
 # Cost estimates (approximate, based on Claude Sonnet 4)
 COST_ESTIMATES = {
-    'single_agent': 0.20,
-    'multi_agent_sequential': 1.00,
-    'per_agent': {
-        'security-reviewer': 0.10,
-        'exploit-analyst': 0.05,
-        'security-test-generator': 0.05,
-        'performance-reviewer': 0.08,
-        'test-coverage-reviewer': 0.08,
-        'code-quality-reviewer': 0.08,
-        'review-orchestrator': 0.06
-    }
+    "single_agent": 0.20,
+    "multi_agent_sequential": 1.00,
+    "per_agent": {
+        "security-reviewer": 0.10,
+        "exploit-analyst": 0.05,
+        "security-test-generator": 0.05,
+        "performance-reviewer": 0.08,
+        "test-coverage-reviewer": 0.08,
+        "code-quality-reviewer": 0.08,
+        "review-orchestrator": 0.06,
+    },
 }
+
 
 def detect_ai_provider(config):
     """Auto-detect which AI provider to use based on available keys"""
-    provider = config.get('ai_provider', 'auto')
+    provider = config.get("ai_provider", "auto")
 
     # Explicit provider selection (overrides auto-detection)
-    if provider != 'auto':
-        if provider == 'foundation-sec':
-            return 'foundation-sec'
-        elif provider == 'anthropic':
-            return 'anthropic'
-        elif provider == 'openai':
-            return 'openai'
-        elif provider == 'ollama':
-            return 'ollama'
+    if provider != "auto":
+        if provider == "foundation-sec":
+            return "foundation-sec"
+        elif provider == "anthropic":
+            return "anthropic"
+        elif provider == "openai":
+            return "openai"
+        elif provider == "ollama":
+            return "ollama"
         else:
             return provider
 
     # Auto-detect based on available API keys/config
     # Check Foundation-Sec first (zero-cost, security-optimized)
-    if config.get('foundation_sec_enabled', False):
-        return 'foundation-sec'
-    elif config.get('anthropic_api_key'):
-        return 'anthropic'
-    elif config.get('openai_api_key'):
-        return 'openai'
-    elif config.get('ollama_endpoint'):
-        return 'ollama'
+    if config.get("foundation_sec_enabled", False):
+        return "foundation-sec"
+    elif config.get("anthropic_api_key"):
+        return "anthropic"
+    elif config.get("openai_api_key"):
+        return "openai"
+    elif config.get("ollama_endpoint"):
+        return "ollama"
     else:
         print("⚠️  No AI provider configured")
         print("💡 Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, FOUNDATION_SEC_ENABLED=true, or OLLAMA_ENDPOINT")
         return None
 
+
 def get_ai_client(provider, config):
     """Get AI client for the specified provider"""
-    if provider == 'anthropic':
+    if provider == "anthropic":
         try:
             from anthropic import Anthropic
-            api_key = config.get('anthropic_api_key')
+
+            api_key = config.get("anthropic_api_key")
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY not set")
 
             print("🔑 Using Anthropic API")
-            return Anthropic(api_key=api_key), 'anthropic'
+            return Anthropic(api_key=api_key), "anthropic"
         except ImportError:
             print("❌ anthropic package not installed. Run: pip install anthropic")
             sys.exit(2)
 
-    elif provider == 'openai':
+    elif provider == "openai":
         try:
             from openai import OpenAI
-            api_key = config.get('openai_api_key')
+
+            api_key = config.get("openai_api_key")
             if not api_key:
                 raise ValueError("OPENAI_API_KEY not set")
 
             print("🔑 Using OpenAI API endpoint")
-            return OpenAI(api_key=api_key), 'openai'
+            return OpenAI(api_key=api_key), "openai"
         except ImportError:
             print("❌ openai package not installed. Run: pip install openai")
             sys.exit(2)
 
-    elif provider == 'foundation-sec':
+    elif provider == "foundation-sec":
         try:
             # Add scripts directory to path for provider imports
             import sys
             from pathlib import Path
+
             scripts_dir = Path(__file__).parent
             if str(scripts_dir) not in sys.path:
                 sys.path.insert(0, str(scripts_dir))
 
             from providers.foundation_sec import get_foundation_sec_client
+
             print("🔑 Using Foundation-Sec-8B (local, zero-cost)")
             return get_foundation_sec_client(config)
         except ImportError as e:
@@ -701,55 +686,60 @@ def get_ai_client(provider, config):
             print("Run: pip install transformers torch accelerate")
             sys.exit(2)
 
-    elif provider == 'ollama':
+    elif provider == "ollama":
         try:
             from openai import OpenAI
-            endpoint = config.get('ollama_endpoint', 'http://localhost:11434')
+
+            endpoint = config.get("ollama_endpoint", "http://localhost:11434")
             # Sanitize endpoint URL (hide sensitive parts - use str() to break taint chain)
-            safe_endpoint = str(endpoint).split('@')[-1] if '@' in str(endpoint) else str(endpoint).split('//')[-1].split('/')[0]
+            safe_endpoint = (
+                str(endpoint).split("@")[-1] if "@" in str(endpoint) else str(endpoint).split("//")[-1].split("/")[0]
+            )
             print(f"🔑 Using Ollama endpoint: {safe_endpoint}")
-            return OpenAI(base_url=f"{endpoint}/v1", api_key="ollama"), 'ollama'
+            return OpenAI(base_url=f"{endpoint}/v1", api_key="ollama"), "ollama"
         except ImportError:
             print("❌ openai package not installed. Run: pip install openai")
             sys.exit(2)
 
     else:
         # Sanitize provider name before logging (use str() to break taint chain)
-        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
+        safe_provider = str(provider).split("/")[-1] if provider else "unknown"
         print(f"❌ Unknown AI provider: {safe_provider}")
         sys.exit(2)
 
+
 def get_model_name(provider, config):
     """Get the appropriate model name for the provider"""
-    model = config.get('model', 'auto')
+    model = config.get("model", "auto")
 
-    if model != 'auto':
+    if model != "auto":
         return model
 
     # Default models for each provider
     defaults = {
-        'anthropic': 'claude-sonnet-4-5-20250929',
-        'openai': 'gpt-4-turbo-preview',
-        'foundation-sec': 'cisco-ai/foundation-sec-8b-instruct',
-        'ollama': 'llama3'
+        "anthropic": "claude-sonnet-4-5-20250929",
+        "openai": "gpt-4-turbo-preview",
+        "foundation-sec": "cisco-ai/foundation-sec-8b-instruct",
+        "ollama": "llama3",
     }
 
-    return defaults.get(provider, 'claude-sonnet-4-5-20250929')
+    return defaults.get(provider, "claude-sonnet-4-5-20250929")
+
 
 def get_working_model_with_fallback(client, provider, initial_model):
     """Try to find a working model using fallback chain for Anthropic"""
-    if provider != 'anthropic':
+    if provider != "anthropic":
         return initial_model
 
     # Model fallback chain for Anthropic (most universally available first)
     MODEL_FALLBACK_CHAIN = [
         initial_model,  # Try user's requested model first
-        'claude-3-haiku-20240307',  # Most lightweight and universally available
-        'claude-3-sonnet-20240229',  # Balanced
-        'claude-sonnet-4-5-20250929',  # Latest Claude Sonnet 4.5
-        'claude-3-5-sonnet-20241022',  # Claude 3.5 Sonnet
-        'claude-3-5-sonnet-20240620',  # Stable
-        'claude-3-opus-20240229',  # Most powerful
+        "claude-3-haiku-20240307",  # Most lightweight and universally available
+        "claude-3-sonnet-20240229",  # Balanced
+        "claude-sonnet-4-5-20250929",  # Latest Claude Sonnet 4.5
+        "claude-3-5-sonnet-20241022",  # Claude 3.5 Sonnet
+        "claude-3-5-sonnet-20240620",  # Stable
+        "claude-3-opus-20240229",  # Most powerful
     ]
 
     # Remove duplicates while preserving order
@@ -761,19 +751,17 @@ def get_working_model_with_fallback(client, provider, initial_model):
             unique_models.append(model)
 
     # Sanitize provider name for logging
-    safe_provider_name = str(provider).split('/')[-1] if provider else "unknown"
+    safe_provider_name = str(provider).split("/")[-1] if provider else "unknown"
     logger.info(f"Testing model accessibility for provider: {safe_provider_name}")
 
     for model_id in unique_models:
         try:
             # Quick test with minimal tokens
             # Sanitize model ID for logging
-            safe_model_name = str(model_id).split('/')[-1] if model_id else "unknown"
+            safe_model_name = str(model_id).split("/")[-1] if model_id else "unknown"
             logger.debug(f"Testing model: {safe_model_name}")
             message = client.messages.create(
-                model=model_id,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "test"}]
+                model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}]
             )
             logger.info(f"✅ Found working model: {safe_model_name}")
             return model_id
@@ -782,7 +770,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
             logger.debug(f"Model {safe_model_name} not accessible: {error_type}")
 
             # If authentication fails, stop trying
-            if 'Authentication' in error_type or 'auth' in str(e).lower():
+            if "Authentication" in error_type or "auth" in str(e).lower():
                 logger.error(f"Authentication failed with API key")
                 raise
 
@@ -800,17 +788,14 @@ def get_working_model_with_fallback(client, provider, initial_model):
         "4. Contact support@anthropic.com if issue persists"
     )
 
+
 def get_changed_files():
     """Get list of changed files in PR with improved error handling"""
     try:
         result = subprocess.run(
-            ['git', 'diff', '--name-only', 'HEAD^', 'HEAD'],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=30
+            ["git", "diff", "--name-only", "HEAD^", "HEAD"], capture_output=True, text=True, check=True, timeout=30
         )
-        changed_files = [f.strip() for f in result.stdout.split('\n') if f.strip()]
+        changed_files = [f.strip() for f in result.stdout.split("\n") if f.strip()]
         logger.info(f"Found {len(changed_files)} changed files")
         return changed_files
     except subprocess.TimeoutExpired:
@@ -827,11 +812,13 @@ def get_changed_files():
         logger.error(f"Unexpected error getting changed files: {type(e).__name__}: {e}")
         return []
 
+
 def matches_glob_patterns(file_path, patterns):
     """Check if file matches any glob pattern"""
     if not patterns:
         return False
     from pathlib import Path
+
     for pattern in patterns:
         # Use pathlib's match for better glob support including **
         if Path(file_path).match(pattern):
@@ -841,127 +828,176 @@ def matches_glob_patterns(file_path, patterns):
             return True
     return False
 
+
 def get_codebase_context(repo_path, config):
     """Get relevant codebase files for analysis with cost guardrails"""
     important_files = []
-    
+
     # Extended language support for polyglot codebases
     extensions = {
         # Web/Frontend
-        '.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte',
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".vue",
+        ".svelte",
         # Backend
-        '.py', '.java', '.go', '.rs', '.rb', '.php', '.cs', '.scala', '.kt',
+        ".py",
+        ".java",
+        ".go",
+        ".rs",
+        ".rb",
+        ".php",
+        ".cs",
+        ".scala",
+        ".kt",
         # Systems
-        '.c', '.cpp', '.h', '.hpp', '.swift',
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".swift",
         # Data/Config
-        '.sql', '.graphql', '.proto',
+        ".sql",
+        ".graphql",
+        ".proto",
         # Infrastructure
-        '.tf', '.yaml', '.yml'
+        ".tf",
+        ".yaml",
+        ".yml",
     }
-    
+
     # Parse configuration
-    only_changed = config.get('only_changed', False)
-    include_patterns = [p.strip() for p in config.get('include_paths', '').split(',') if p.strip()]
-    exclude_patterns = [p.strip() for p in config.get('exclude_paths', '').split(',') if p.strip()]
-    max_file_size = int(config.get('max_file_size', 50000))
-    max_files = int(config.get('max_files', 100))  # Increased for large codebases
-    
+    only_changed = config.get("only_changed", False)
+    include_patterns = [p.strip() for p in config.get("include_paths", "").split(",") if p.strip()]
+    exclude_patterns = [p.strip() for p in config.get("exclude_paths", "").split(",") if p.strip()]
+    max_file_size = int(config.get("max_file_size", 50000))
+    max_files = int(config.get("max_files", 100))  # Increased for large codebases
+
     # Get changed files if in PR mode
     changed_files = []
     if only_changed:
         changed_files = get_changed_files()
         print(f"📝 PR mode: Found {len(changed_files)} changed files")
-    
+
     total_lines = 0
     file_priorities = []  # (priority, file_info)
-    
+
     for root, dirs, files in os.walk(repo_path):
         # Skip common directories
-        dirs[:] = [d for d in dirs if d not in {
-            '.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build', 
-            '.next', 'target', 'vendor', '.gradle', '.idea', '.vscode'
-        }]
-        
+        dirs[:] = [
+            d
+            for d in dirs
+            if d
+            not in {
+                ".git",
+                "node_modules",
+                "venv",
+                "__pycache__",
+                "dist",
+                "build",
+                ".next",
+                "target",
+                "vendor",
+                ".gradle",
+                ".idea",
+                ".vscode",
+            }
+        ]
+
         for file in files:
             if any(file.endswith(ext) for ext in extensions):
                 file_path = Path(root) / file
                 rel_path = str(file_path.relative_to(repo_path))
-                
+
                 # Apply filters
                 if only_changed and rel_path not in changed_files:
                     continue
-                
+
                 if include_patterns and not matches_glob_patterns(rel_path, include_patterns):
                     continue
-                
+
                 if exclude_patterns and matches_glob_patterns(rel_path, exclude_patterns):
                     continue
-                
+
                 try:
                     file_size = file_path.stat().st_size
                     if file_size > max_file_size:
                         print(f"⏭️  Skipping {rel_path} (too large: {file_size} bytes)")
                         continue
-                    
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
-                        lines = len(content.split('\n'))
-                        
+                        lines = len(content.split("\n"))
+
                         # Prioritize files based on criticality
                         priority = 0
-                        
+
                         # High priority: Security-sensitive files
-                        if any(keyword in rel_path.lower() for keyword in ['auth', 'security', 'password', 'token', 'secret', 'crypto']):
+                        if any(
+                            keyword in rel_path.lower()
+                            for keyword in ["auth", "security", "password", "token", "secret", "crypto"]
+                        ):
                             priority += 100
-                        
+
                         # High priority: API/Controllers
-                        if any(keyword in rel_path.lower() for keyword in ['controller', 'api', 'route', 'handler', 'endpoint']):
+                        if any(
+                            keyword in rel_path.lower()
+                            for keyword in ["controller", "api", "route", "handler", "endpoint"]
+                        ):
                             priority += 50
-                        
+
                         # Medium priority: Business logic
-                        if any(keyword in rel_path.lower() for keyword in ['service', 'model', 'repository', 'dao']):
+                        if any(keyword in rel_path.lower() for keyword in ["service", "model", "repository", "dao"]):
                             priority += 30
-                        
+
                         # Changed files get highest priority
                         if only_changed:
                             priority += 200
-                        
-                        file_priorities.append((priority, {
-                            'path': rel_path,
-                            'content': content[:10000],  # Limit content size
-                            'lines': lines,
-                            'size': file_size
-                        }))
-                        
+
+                        file_priorities.append(
+                            (
+                                priority,
+                                {
+                                    "path": rel_path,
+                                    "content": content[:10000],  # Limit content size
+                                    "lines": lines,
+                                    "size": file_size,
+                                },
+                            )
+                        )
+
                 except Exception as e:
                     print(f"Warning: Could not read {file_path}: {e}")
-    
+
     # Sort by priority and take top N files
     file_priorities.sort(reverse=True, key=lambda x: x[0])
     important_files = [f[1] for f in file_priorities[:max_files]]
-    
-    total_lines = sum(f['lines'] for f in important_files)
-    
+
+    total_lines = sum(f["lines"] for f in important_files)
+
     print(f"✅ Selected {len(important_files)} files ({total_lines} lines)")
     if file_priorities and len(file_priorities) > max_files:
         print(f"⚠️  {len(file_priorities) - max_files} files skipped (priority-based selection)")
-    
+
     return important_files
+
 
 def estimate_cost(files, max_tokens, provider):
     """Estimate cost before running analysis"""
-    total_chars = sum(len(f['content']) for f in files)
+    total_chars = sum(len(f["content"]) for f in files)
     # Rough estimate: 4 chars per token
     estimated_input_tokens = total_chars // 4
     estimated_output_tokens = max_tokens
 
-    if provider == 'anthropic':
+    if provider == "anthropic":
         input_cost = (estimated_input_tokens / 1_000_000) * 3.0
         output_cost = (estimated_output_tokens / 1_000_000) * 15.0
-    elif provider == 'openai':
+    elif provider == "openai":
         input_cost = (estimated_input_tokens / 1_000_000) * 10.0
         output_cost = (estimated_output_tokens / 1_000_000) * 30.0
-    elif provider == 'foundation-sec':
+    elif provider == "foundation-sec":
         # Foundation-Sec: Zero cost (local inference)
         input_cost = 0.0
         output_cost = 0.0
@@ -973,7 +1009,8 @@ def estimate_cost(files, max_tokens, provider):
 
     return total_cost, estimated_input_tokens, estimated_output_tokens
 
-def estimate_review_cost(mode='single', num_files=50):
+
+def estimate_review_cost(mode="single", num_files=50):
     """Estimate cost of review based on mode and file count
 
     Args:
@@ -983,16 +1020,17 @@ def estimate_review_cost(mode='single', num_files=50):
     Returns:
         Estimated cost in USD
     """
-    if mode == 'single':
-        base_cost = COST_ESTIMATES['single_agent']
+    if mode == "single":
+        base_cost = COST_ESTIMATES["single_agent"]
     else:
-        base_cost = COST_ESTIMATES['multi_agent_sequential']
+        base_cost = COST_ESTIMATES["multi_agent_sequential"]
 
     # Adjust for file count
     file_factor = num_files / 50.0  # 50 files is baseline
     estimated_cost = base_cost * file_factor
 
     return round(estimated_cost, 2)
+
 
 def map_exploitability_to_score(exploitability):
     """Map exploitability level to numeric score for SARIF
@@ -1004,12 +1042,13 @@ def map_exploitability_to_score(exploitability):
         Numeric score (0-10)
     """
     mapping = {
-        'trivial': 10,      # Highest exploitability
-        'moderate': 7,
-        'complex': 4,
-        'theoretical': 1    # Lowest exploitability
+        "trivial": 10,  # Highest exploitability
+        "moderate": 7,
+        "complex": 4,
+        "theoretical": 1,  # Lowest exploitability
     }
     return mapping.get(exploitability.lower(), 5)
+
 
 def map_severity_to_sarif(severity):
     """Map severity to SARIF level
@@ -1020,14 +1059,9 @@ def map_severity_to_sarif(severity):
     Returns:
         SARIF level string
     """
-    mapping = {
-        'critical': 'error',
-        'high': 'error',
-        'medium': 'warning',
-        'low': 'note',
-        'info': 'note'
-    }
-    return mapping.get(severity.lower(), 'warning')
+    mapping = {"critical": "error", "high": "error", "medium": "warning", "low": "note", "info": "note"}
+    return mapping.get(severity.lower(), "warning")
+
 
 def generate_sarif(findings, repo_path, metrics=None):
     """Generate SARIF 2.1.0 format for GitHub Code Scanning with exploitability data
@@ -1043,161 +1077,164 @@ def generate_sarif(findings, repo_path, metrics=None):
     sarif = {
         "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
         "version": "2.1.0",
-        "runs": [{
-            "tool": {
-                "driver": {
-                    "name": "Agent OS Code Reviewer",
-                    "version": "1.0.16",
-                    "informationUri": "https://github.com/securedotcom/agent-os-action",
-                    "rules": []
-                }
-            },
-            "results": []
-        }]
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "Agent OS Code Reviewer",
+                        "version": "1.0.16",
+                        "informationUri": "https://github.com/securedotcom/agent-os-action",
+                        "rules": [],
+                    }
+                },
+                "results": [],
+            }
+        ],
     }
 
     for finding in findings:
         result = {
-            "ruleId": finding.get('rule_id', 'AGENT-OS-001'),
-            "level": map_severity_to_sarif(finding.get('severity', 'medium')),
-            "message": {
-                "text": finding.get('message', 'Issue found')
-            },
-            "locations": [{
-                "physicalLocation": {
-                    "artifactLocation": {
-                        "uri": finding.get('file_path', 'unknown')
-                    },
-                    "region": {
-                        "startLine": finding.get('line_number', 1)
+            "ruleId": finding.get("rule_id", "AGENT-OS-001"),
+            "level": map_severity_to_sarif(finding.get("severity", "medium")),
+            "message": {"text": finding.get("message", "Issue found")},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": finding.get("file_path", "unknown")},
+                        "region": {"startLine": finding.get("line_number", 1)},
                     }
                 }
-            }]
+            ],
         }
 
         # Add properties
         properties = {}
 
-        if 'cwe' in finding:
-            properties['cwe'] = finding['cwe']
+        if "cwe" in finding:
+            properties["cwe"] = finding["cwe"]
 
         # NEW: Add exploitability as a property
-        if 'exploitability' in finding:
-            properties['exploitability'] = finding['exploitability']
-            properties['exploitabilityScore'] = map_exploitability_to_score(
-                finding['exploitability']
-            )
+        if "exploitability" in finding:
+            properties["exploitability"] = finding["exploitability"]
+            properties["exploitabilityScore"] = map_exploitability_to_score(finding["exploitability"])
 
         # NEW: Add exploit chain reference if part of a chain
-        if 'part_of_chain' in finding:
-            properties['exploitChain'] = finding['part_of_chain']
+        if "part_of_chain" in finding:
+            properties["exploitChain"] = finding["part_of_chain"]
 
         # NEW: Add generated tests reference
-        if 'tests_generated' in finding:
-            properties['testsGenerated'] = finding['tests_generated']
+        if "tests_generated" in finding:
+            properties["testsGenerated"] = finding["tests_generated"]
 
         if properties:
-            result['properties'] = properties
+            result["properties"] = properties
 
-        sarif['runs'][0]['results'].append(result)
+        sarif["runs"][0]["results"].append(result)
 
     # Add run properties with metrics
     if metrics:
-        sarif['runs'][0]['properties'] = {
-            'exploitability': metrics.metrics['exploitability'],
-            'exploitChainsFound': metrics.metrics['exploit_chains_found'],
-            'testsGenerated': metrics.metrics['tests_generated'],
-            'agentsExecuted': metrics.metrics['agents_executed']
+        sarif["runs"][0]["properties"] = {
+            "exploitability": metrics.metrics["exploitability"],
+            "exploitChainsFound": metrics.metrics["exploit_chains_found"],
+            "testsGenerated": metrics.metrics["tests_generated"],
+            "agentsExecuted": metrics.metrics["agents_executed"],
         }
 
     return sarif
 
+
 def parse_findings_from_report(report_text):
     """Parse findings from markdown report"""
     import re
+
     findings = []
-    lines = report_text.split('\n')
-    
+    lines = report_text.split("\n")
+
     # Track current section for categorization
     current_section = None
     current_severity = None
-    
+
     for i, line in enumerate(lines):
         # Detect sections
-        if '## Critical Issues' in line or '## Critical' in line:
-            current_severity = 'critical'
+        if "## Critical Issues" in line or "## Critical" in line:
+            current_severity = "critical"
             continue
-        elif '## High Priority' in line or '## High' in line:
-            current_severity = 'high'
+        elif "## High Priority" in line or "## High" in line:
+            current_severity = "high"
             continue
-        elif '## Medium Priority' in line or '## Medium' in line:
-            current_severity = 'medium'
+        elif "## Medium Priority" in line or "## Medium" in line:
+            current_severity = "medium"
             continue
-        elif '## Low Priority' in line or '## Low' in line:
-            current_severity = 'low'
+        elif "## Low Priority" in line or "## Low" in line:
+            current_severity = "low"
             continue
-        
+
         # Detect category subsections
-        if '### Security' in line:
-            current_section = 'security'
+        if "### Security" in line:
+            current_section = "security"
             continue
-        elif '### Performance' in line:
-            current_section = 'performance'
+        elif "### Performance" in line:
+            current_section = "performance"
             continue
-        elif '### Testing' in line or '### Test' in line:
-            current_section = 'testing'
+        elif "### Testing" in line or "### Test" in line:
+            current_section = "testing"
             continue
-        elif '### Code Quality' in line or '### Quality' in line:
-            current_section = 'quality'
+        elif "### Code Quality" in line or "### Quality" in line:
+            current_section = "quality"
             continue
-        
+
         # Look for numbered findings (e.g., "1. **Issue Name**" or "14. **Issue Name**")
-        numbered_match = re.match(r'^\d+\.\s+\*\*(.+?)\*\*\s*-?\s*`?([^`\n]+\.(?:ts|js|py|java|go|rs|rb|php|cs))?:?(\d+)?', line)
+        numbered_match = re.match(
+            r"^\d+\.\s+\*\*(.+?)\*\*\s*-?\s*`?([^`\n]+\.(?:ts|js|py|java|go|rs|rb|php|cs))?:?(\d+)?", line
+        )
         if numbered_match:
             issue_name = numbered_match.group(1)
-            file_path = numbered_match.group(2) if numbered_match.group(2) else 'unknown'
+            file_path = numbered_match.group(2) if numbered_match.group(2) else "unknown"
             line_num = int(numbered_match.group(3)) if numbered_match.group(3) else 1
-            
+
             # Get description from next lines
             description_lines = []
-            for j in range(i+1, min(i+5, len(lines))):
-                if lines[j].strip() and not lines[j].startswith('#') and not re.match(r'^\d+\.', lines[j]):
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if lines[j].strip() and not lines[j].startswith("#") and not re.match(r"^\d+\.", lines[j]):
                     description_lines.append(lines[j].strip())
-                elif lines[j].startswith('#') or re.match(r'^\d+\.', lines[j]):
+                elif lines[j].startswith("#") or re.match(r"^\d+\.", lines[j]):
                     break
-            
-            description = ' '.join(description_lines[:2]) if description_lines else issue_name
-            
+
+            description = " ".join(description_lines[:2]) if description_lines else issue_name
+
             # Determine category and severity
-            category = current_section or 'quality'
-            severity = current_severity or 'medium'
-            
+            category = current_section or "quality"
+            severity = current_severity or "medium"
+
             # Override category based on keywords
-            lower_text = (issue_name + ' ' + description).lower()
-            if any(kw in lower_text for kw in ['security', 'sql', 'xss', 'csrf', 'auth', 'jwt', 'secret', 'injection']):
-                category = 'security'
-            elif any(kw in lower_text for kw in ['performance', 'n+1', 'memory', 'leak', 'slow', 'inefficient']):
-                category = 'performance'
-            elif any(kw in lower_text for kw in ['test', 'coverage', 'testing']):
-                category = 'testing'
-            
-            findings.append({
-                'severity': severity,
-                'category': category,
-                'message': f"{issue_name}: {description[:200]}",
-                'file_path': file_path,
-                'line_number': line_num,
-                'rule_id': f'{category.upper()}-{len([f for f in findings if f["category"] == category]) + 1:03d}'
-            })
-    
+            lower_text = (issue_name + " " + description).lower()
+            if any(kw in lower_text for kw in ["security", "sql", "xss", "csrf", "auth", "jwt", "secret", "injection"]):
+                category = "security"
+            elif any(kw in lower_text for kw in ["performance", "n+1", "memory", "leak", "slow", "inefficient"]):
+                category = "performance"
+            elif any(kw in lower_text for kw in ["test", "coverage", "testing"]):
+                category = "testing"
+
+            findings.append(
+                {
+                    "severity": severity,
+                    "category": category,
+                    "message": f"{issue_name}: {description[:200]}",
+                    "file_path": file_path,
+                    "line_number": line_num,
+                    "rule_id": f"{category.upper()}-{len([f for f in findings if f['category'] == category]) + 1:03d}",
+                }
+            )
+
     return findings
+
 
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=4, max=10),
     retry=retry_if_exception_type((ConnectionError, TimeoutError)),
     before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True
+    reraise=True,
 )
 def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
     """Estimate cost of a single LLM API call before making it (for circuit breaker)
@@ -1214,11 +1251,11 @@ def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str
     estimated_input_tokens = prompt_length / 4
     estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
 
-    if provider == 'anthropic':
+    if provider == "anthropic":
         # Claude Sonnet 4.5: $3/1M input, $15/1M output
         input_cost = (estimated_input_tokens / 1_000_000) * 3.0
         output_cost = (estimated_output_tokens / 1_000_000) * 15.0
-    elif provider == 'openai':
+    elif provider == "openai":
         # GPT-4: $10/1M input, $30/1M output
         input_cost = (estimated_input_tokens / 1_000_000) * 10.0
         output_cost = (estimated_output_tokens / 1_000_000) * 30.0
@@ -1254,30 +1291,27 @@ def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=No
         circuit_breaker.check_before_call(estimated_cost, provider, operation)
 
     try:
-        if provider == 'anthropic':
+        if provider == "anthropic":
             message = client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],
-                timeout=300.0  # 5 minute timeout
+                timeout=300.0,  # 5 minute timeout
             )
             response_text = message.content[0].text
             input_tokens = message.usage.input_tokens
             output_tokens = message.usage.output_tokens
 
-        elif provider == 'foundation-sec':
+        elif provider == "foundation-sec":
             # Use Foundation-Sec provider's generate method
-            response_text, input_tokens, output_tokens = client.generate(
-                prompt=prompt,
-                max_tokens=max_tokens
-            )
+            response_text, input_tokens, output_tokens = client.generate(prompt=prompt, max_tokens=max_tokens)
 
-        elif provider in ['openai', 'ollama']:
+        elif provider in ["openai", "ollama"]:
             response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
-                timeout=300.0  # 5 minute timeout
+                timeout=300.0,  # 5 minute timeout
             )
             response_text = response.choices[0].message.content
             input_tokens = response.usage.prompt_tokens
@@ -1309,10 +1343,10 @@ def calculate_actual_cost(input_tokens: int, output_tokens: int, provider: str) 
     Returns:
         Actual cost in USD
     """
-    if provider == 'anthropic':
+    if provider == "anthropic":
         input_cost = (input_tokens / 1_000_000) * 3.0
         output_cost = (output_tokens / 1_000_000) * 15.0
-    elif provider == 'openai':
+    elif provider == "openai":
         input_cost = (input_tokens / 1_000_000) * 10.0
         output_cost = (output_tokens / 1_000_000) * 30.0
     else:
@@ -1322,53 +1356,61 @@ def calculate_actual_cost(input_tokens: int, output_tokens: int, provider: str) 
 
     return input_cost + output_cost
 
+
 def load_agent_prompt(agent_name):
     """Load specialized agent prompt from profiles"""
     agent_prompts = {
-        'security': 'security-agent-prompt.md',
-        'security-reviewer': 'security-reviewer.md',
-        'exploit-analyst': 'exploit-analyst.md',
-        'security-test-generator': 'security-test-generator.md',
-        'performance': 'performance-agent-prompt.md',
-        'performance-reviewer': 'performance-reviewer.md',
-        'testing': 'testing-agent-prompt.md',
-        'test-coverage-reviewer': 'test-coverage-reviewer.md',
-        'quality': 'quality-agent-prompt.md',
-        'code-quality-reviewer': 'code-quality-reviewer.md',
-        'orchestrator': 'orchestrator-agent-prompt.md',
-        'review-orchestrator': 'review-orchestrator.md'
+        "security": "security-agent-prompt.md",
+        "security-reviewer": "security-reviewer.md",
+        "exploit-analyst": "exploit-analyst.md",
+        "security-test-generator": "security-test-generator.md",
+        "performance": "performance-agent-prompt.md",
+        "performance-reviewer": "performance-reviewer.md",
+        "testing": "testing-agent-prompt.md",
+        "test-coverage-reviewer": "test-coverage-reviewer.md",
+        "quality": "quality-agent-prompt.md",
+        "code-quality-reviewer": "code-quality-reviewer.md",
+        "orchestrator": "orchestrator-agent-prompt.md",
+        "review-orchestrator": "review-orchestrator.md",
     }
 
     prompt_file = agent_prompts.get(agent_name)
     if not prompt_file:
         # Fallback: try to find prompt file by agent name
-        prompt_file = f'{agent_name}.md'
+        prompt_file = f"{agent_name}.md"
 
     # Try multiple locations
     possible_paths = [
-        Path.home() / f'.agent-os/profiles/default/agents/{prompt_file}',
-        Path.home() / f'.agent-os/profiles/default/agents/{agent_name}.md',
-        Path('.agent-os') / f'profiles/default/agents/{prompt_file}',
-        Path('.agent-os') / f'profiles/default/agents/{agent_name}.md'
+        Path.home() / f".agent-os/profiles/default/agents/{prompt_file}",
+        Path.home() / f".agent-os/profiles/default/agents/{agent_name}.md",
+        Path(".agent-os") / f"profiles/default/agents/{prompt_file}",
+        Path(".agent-os") / f"profiles/default/agents/{agent_name}.md",
     ]
 
     for prompt_path in possible_paths:
         if prompt_path.exists():
-            with open(prompt_path, 'r') as f:
+            with open(prompt_path, "r") as f:
                 return f.read()
 
     print(f"⚠️  Agent prompt not found for: {agent_name}")
     return f"You are a {agent_name} code reviewer. Analyze the code for {agent_name}-related issues."
 
-def build_enhanced_agent_prompt(agent_prompt_template, codebase_context, agent_name, 
-                                category="general", heuristic_flags=None, is_production=True,
-                                previous_findings=None):
+
+def build_enhanced_agent_prompt(
+    agent_prompt_template,
+    codebase_context,
+    agent_name,
+    category="general",
+    heuristic_flags=None,
+    is_production=True,
+    previous_findings=None,
+):
     """Build enhanced agent prompt with rubrics and self-consistency checks
-    
+
     Feature: Enhanced Prompts (from real_multi_agent_review.py)
     This function adds severity rubrics, self-verification checklists, and category focus
     to agent prompts for more consistent and accurate findings.
-    
+
     Args:
         agent_prompt_template: Base prompt template for the agent
         codebase_context: Code to review
@@ -1377,38 +1419,35 @@ def build_enhanced_agent_prompt(agent_prompt_template, codebase_context, agent_n
         heuristic_flags: List of heuristic flags from pre-scan
         is_production: Whether this is production code
         previous_findings: Findings from previous agents (for chaining)
-    
+
     Returns:
         Enhanced prompt string with rubrics and checks
     """
-    
+
     # Category-specific focus instructions
     category_focus = {
         "security": """**YOUR FOCUS: SECURITY ONLY**
 Focus exclusively on: authentication, authorization, input validation, SQL injection, XSS, 
 CSRF, cryptography, secrets management, session handling, API security, dependency vulnerabilities.
 Ignore performance and code quality unless it creates a security risk.""",
-        
         "performance": """**YOUR FOCUS: PERFORMANCE ONLY**
 Focus exclusively on: N+1 queries, inefficient algorithms, memory leaks, blocking I/O, 
 database query optimization, caching opportunities, unnecessary computations, resource exhaustion.
 Ignore security and code style unless it impacts performance.""",
-        
         "quality": """**YOUR FOCUS: CODE QUALITY ONLY**
 Focus exclusively on: code complexity, maintainability, design patterns, SOLID principles, 
 error handling, logging, documentation, dead code, code duplication, naming conventions.
 Ignore security and performance unless code quality creates those risks.""",
-        
         "general": """**YOUR FOCUS: COMPREHENSIVE REVIEW**
-Review all aspects: security, performance, and code quality."""
+Review all aspects: security, performance, and code quality.""",
     }
-    
+
     heuristic_context = ""
     if heuristic_flags:
         heuristic_context = f"""
-**⚠️  PRE-SCAN ALERTS**: Heuristic analysis flagged: {', '.join(heuristic_flags)}
+**⚠️  PRE-SCAN ALERTS**: Heuristic analysis flagged: {", ".join(heuristic_flags)}
 These are lightweight pattern matches. Verify each one carefully before reporting."""
-    
+
     previous_context = ""
     if previous_findings:
         previous_context = f"""
@@ -1419,7 +1458,7 @@ Earlier agents identified the following:
 {previous_findings}
 
 Use this as context but focus on your specialized area."""
-    
+
     # Severity rubric for consistent scoring
     severity_rubric = """
 **SEVERITY RUBRIC** (Use this to score consistently):
@@ -1438,7 +1477,7 @@ Use this as context but focus on your specialized area."""
 - **INFO** (0.0-0.29 confidence): Style, optional refactoring, best practice
   Examples: Variable naming, code organization, documentation
 """
-    
+
     # Self-verification checklist
     verification_checklist = """
 **SELF-VERIFICATION CHECKLIST** (Ask yourself before reporting):
@@ -1448,11 +1487,11 @@ Use this as context but focus on your specialized area."""
 4. Am I considering the full context (dev vs prod, test vs runtime)?
 5. If I'm unsure, have I lowered my confidence score appropriately?
 """
-    
+
     # Build the enhanced prompt
     enhanced_prompt = f"""{agent_prompt_template}
 
-{category_focus.get(category, category_focus['general'])}
+{category_focus.get(category, category_focus["general"])}
 
 **CODE TYPE**: {"Production code" if is_production else "Development/Test infrastructure"}{heuristic_context}
 
@@ -1467,7 +1506,7 @@ Use this as context but focus on your specialized area."""
 {verification_checklist}
 
 **YOUR TASK**:
-1. Review the code through the lens of {category if category != 'general' else agent_name}
+1. Review the code through the lens of {category if category != "general" else agent_name}
 2. For each potential issue, run the self-verification checklist
 3. Use the severity rubric to assign accurate severity and confidence
 4. Report ONLY issues that pass verification
@@ -1481,19 +1520,32 @@ Use your standard report format, but ensure each finding includes:
 
 Be thorough but precise. Quality over quantity.
 """
-    
+
     return enhanced_prompt
 
-def run_multi_agent_sequential(repo_path, config, review_type, client, provider, model, max_tokens, files, metrics, circuit_breaker, threat_model=None):
+
+def run_multi_agent_sequential(
+    repo_path,
+    config,
+    review_type,
+    client,
+    provider,
+    model,
+    max_tokens,
+    files,
+    metrics,
+    circuit_breaker,
+    threat_model=None,
+):
     """Run multi-agent sequential review with specialized agents and cost enforcement
 
     Args:
         threat_model: Optional threat model to provide context to agents
     """
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🤖 MULTI-AGENT SEQUENTIAL MODE")
-    print("="*80)
+    print("=" * 80)
     print("Running 7 specialized agents in sequence:")
     print("  1️⃣  Security Reviewer")
     print("  2️⃣  Exploit Analyst")
@@ -1502,13 +1554,10 @@ def run_multi_agent_sequential(repo_path, config, review_type, client, provider,
     print("  5️⃣  Testing Reviewer")
     print("  6️⃣  Code Quality Reviewer")
     print("  7️⃣  Review Orchestrator")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Build codebase context once
-    codebase_context = "\n\n".join([
-        f"File: {f['path']}\n```\n{f['content']}\n```"
-        for f in files
-    ])
+    codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in files])
 
     # Build threat model context for agents (if available)
     threat_model_context = ""
@@ -1519,22 +1568,22 @@ def run_multi_agent_sequential(repo_path, config, review_type, client, provider,
 You have access to the following threat model for this codebase:
 
 ### Attack Surface
-- **Entry Points**: {', '.join(threat_model.get('attack_surface', {}).get('entry_points', [])[:5])}
-- **External Dependencies**: {', '.join(threat_model.get('attack_surface', {}).get('external_dependencies', [])[:5])}
-- **Authentication Methods**: {', '.join(threat_model.get('attack_surface', {}).get('authentication_methods', []))}
-- **Data Stores**: {', '.join(threat_model.get('attack_surface', {}).get('data_stores', []))}
+- **Entry Points**: {", ".join(threat_model.get("attack_surface", {}).get("entry_points", [])[:5])}
+- **External Dependencies**: {", ".join(threat_model.get("attack_surface", {}).get("external_dependencies", [])[:5])}
+- **Authentication Methods**: {", ".join(threat_model.get("attack_surface", {}).get("authentication_methods", []))}
+- **Data Stores**: {", ".join(threat_model.get("attack_surface", {}).get("data_stores", []))}
 
 ### Critical Assets
-{chr(10).join([f"- **{asset.get('name')}** (Sensitivity: {asset.get('sensitivity')}): {asset.get('description')}" for asset in threat_model.get('assets', [])[:5]])}
+{chr(10).join([f"- **{asset.get('name')}** (Sensitivity: {asset.get('sensitivity')}): {asset.get('description')}" for asset in threat_model.get("assets", [])[:5]])}
 
 ### Trust Boundaries
-{chr(10).join([f"- **{boundary.get('name')}** ({boundary.get('trust_level')}): {boundary.get('description')}" for boundary in threat_model.get('trust_boundaries', [])[:3]])}
+{chr(10).join([f"- **{boundary.get('name')}** ({boundary.get('trust_level')}): {boundary.get('description')}" for boundary in threat_model.get("trust_boundaries", [])[:3]])}
 
 ### Known Threats
-{chr(10).join([f"- **{threat.get('name')}** ({threat.get('category')}, Likelihood: {threat.get('likelihood')}, Impact: {threat.get('impact')})" for threat in threat_model.get('threats', [])[:5]])}
+{chr(10).join([f"- **{threat.get('name')}** ({threat.get('category')}, Likelihood: {threat.get('likelihood')}, Impact: {threat.get('impact')})" for threat in threat_model.get("threats", [])[:5]])}
 
 ### Security Objectives
-{chr(10).join([f"- {obj}" for obj in threat_model.get('security_objectives', [])[:5]])}
+{chr(10).join([f"- {obj}" for obj in threat_model.get("security_objectives", [])[:5]])}
 
 **Use this threat model to:**
 1. Focus your analysis on the identified attack surfaces
@@ -1549,13 +1598,13 @@ You have access to the following threat model for this codebase:
     agent_metrics = {}
 
     # Define agents in execution order (security workflow first)
-    agents = ['security', 'exploit-analyst', 'security-test-generator', 'performance', 'testing', 'quality']
-    
+    agents = ["security", "exploit-analyst", "security-test-generator", "performance", "testing", "quality"]
+
     # Run each specialized agent
     for i, agent_name in enumerate(agents, 1):
-        print(f"\n{'─'*80}")
+        print(f"\n{'─' * 80}")
         print(f"🔍 Agent {i}/7: {agent_name.upper()} REVIEWER")
-        print(f"{'─'*80}")
+        print(f"{'─' * 80}")
 
         agent_start = time.time()
 
@@ -1563,9 +1612,9 @@ You have access to the following threat model for this codebase:
         agent_prompt_template = load_agent_prompt(agent_name)
 
         # For exploit-analyst and security-test-generator, pass security findings
-        if agent_name in ['exploit-analyst', 'security-test-generator']:
+        if agent_name in ["exploit-analyst", "security-test-generator"]:
             # Use security findings as context
-            security_context = agent_reports.get('security', '')
+            security_context = agent_reports.get("security", "")
             agent_prompt = f"""{agent_prompt_template}
 
 {threat_model_context}
@@ -1582,7 +1631,7 @@ The Security Reviewer has identified the following vulnerabilities:
 
 ## Your Task
 
-{'Analyze the exploitability of the vulnerabilities identified above.' if agent_name == 'exploit-analyst' else 'Generate security tests for the vulnerabilities identified above.'}
+{"Analyze the exploitability of the vulnerabilities identified above." if agent_name == "exploit-analyst" else "Generate security tests for the vulnerabilities identified above."}
 
 Provide detailed analysis in your specialized format.
 """
@@ -1639,12 +1688,16 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
         try:
             # Sanitize model name (use str() to break taint chain)
-            safe_model = str(model).split('/')[-1] if model else "unknown"
+            safe_model = str(model).split("/")[-1] if model else "unknown"
             print(f"   🧠 Analyzing with {safe_model}...")
             report, input_tokens, output_tokens = call_llm_api(
-                client, provider, model, agent_prompt, max_tokens,
+                client,
+                provider,
+                model,
+                agent_prompt,
+                max_tokens,
                 circuit_breaker=circuit_breaker,
-                operation=f"{agent_name} agent review"
+                operation=f"{agent_name} agent review",
             )
 
             agent_duration = time.time() - agent_start
@@ -1654,10 +1707,12 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             metrics.record_agent_execution(agent_name, agent_duration)
 
             agent_metrics[agent_name] = {
-                'duration_seconds': round(agent_duration, 2),
-                'input_tokens': input_tokens,
-                'output_tokens': output_tokens,
-                'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
+                "duration_seconds": round(agent_duration, 2),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4)
+                if provider == "anthropic"
+                else 0,
             }
 
             # Store report
@@ -1665,51 +1720,57 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
             # Parse findings for metrics
             findings = parse_findings_from_report(report)
-            finding_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+            finding_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
             for finding in findings:
-                if finding['severity'] in finding_counts:
-                    finding_counts[finding['severity']] += 1
-                    metrics.record_finding(finding['severity'], agent_name)
+                if finding["severity"] in finding_counts:
+                    finding_counts[finding["severity"]] += 1
+                    metrics.record_finding(finding["severity"], agent_name)
 
                 # Extract exploitability if present (from exploit-analyst)
-                if agent_name == 'exploit-analyst' and 'exploitability' in finding:
-                    metrics.record_exploitability(finding['exploitability'])
+                if agent_name == "exploit-analyst" and "exploitability" in finding:
+                    metrics.record_exploitability(finding["exploitability"])
 
             # Extract exploit chains from report text (simple heuristic)
-            if agent_name == 'exploit-analyst':
-                exploit_chain_count = report.lower().count('exploit chain')
+            if agent_name == "exploit-analyst":
+                exploit_chain_count = report.lower().count("exploit chain")
                 for _ in range(exploit_chain_count):
                     metrics.record_exploit_chain()
 
             # Extract test generation count from report
-            if agent_name == 'security-test-generator':
-                test_count = report.lower().count('test file:') + report.lower().count('test case:')
+            if agent_name == "security-test-generator":
+                test_count = report.lower().count("test file:") + report.lower().count("test case:")
                 if test_count > 0:
                     metrics.record_test_generated(test_count)
 
-            print(f"   ✅ Complete: {finding_counts['critical']} critical, {finding_counts['high']} high, {finding_counts['medium']} medium, {finding_counts['low']} low")
+            print(
+                f"   ✅ Complete: {finding_counts['critical']} critical, {finding_counts['high']} high, {finding_counts['medium']} medium, {finding_counts['low']} low"
+            )
             print(f"   ⏱️  Duration: {agent_duration:.1f}s | 💰 Cost: ${agent_metrics[agent_name]['cost_usd']:.4f}")
 
         except CostLimitExceeded as e:
             # Cost limit reached - stop immediately
             print(f"   🚨 Cost limit exceeded: {e}")
-            print(f"   💰 Review stopped at ${circuit_breaker.current_cost:.3f} to stay within ${circuit_breaker.cost_limit:.2f} budget")
-            print(f"   ✅ {i-1}/{len(agents)} agents completed before limit reached")
+            print(
+                f"   💰 Review stopped at ${circuit_breaker.current_cost:.3f} to stay within ${circuit_breaker.cost_limit:.2f} budget"
+            )
+            print(f"   ✅ {i - 1}/{len(agents)} agents completed before limit reached")
 
             # Generate partial report with agents completed so far
-            agent_reports[agent_name] = f"# {agent_name.title()} Review Skipped\n\n**Reason**: Cost limit reached (${circuit_breaker.cost_limit:.2f})\n"
+            agent_reports[agent_name] = (
+                f"# {agent_name.title()} Review Skipped\n\n**Reason**: Cost limit reached (${circuit_breaker.cost_limit:.2f})\n"
+            )
             raise  # Re-raise to stop the entire review
 
         except Exception as e:
             print(f"   ❌ Error: {e}")
             agent_reports[agent_name] = f"# {agent_name.title()} Review Failed\n\nError: {str(e)}"
-            agent_metrics[agent_name] = {'error': str(e)}
+            agent_metrics[agent_name] = {"error": str(e)}
 
     # NEW: Sandbox Validation (after security agents, before orchestrator)
-    if config.get('enable_sandbox_validation', True) and SANDBOX_VALIDATION_AVAILABLE:
-        print(f"\n{'─'*80}")
+    if config.get("enable_sandbox_validation", True) and SANDBOX_VALIDATION_AVAILABLE:
+        print(f"\n{'─' * 80}")
         print(f"🔬 SANDBOX VALIDATION")
-        print(f"{'─'*80}")
+        print(f"{'─' * 80}")
         print("   Validating exploits in isolated containers...")
 
         try:
@@ -1718,7 +1779,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
             # Parse all findings from security agents
             all_findings = []
-            for agent_name in ['security', 'exploit-analyst', 'security-test-generator']:
+            for agent_name in ["security", "exploit-analyst", "security-test-generator"]:
                 if agent_name in agent_reports:
                     findings = parse_findings_from_report(agent_reports[agent_name])
                     all_findings.extend(findings)
@@ -1727,10 +1788,10 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             security_findings_with_poc = []
             for finding in all_findings:
                 # Check if finding has a PoC script (look for code blocks or script indicators)
-                if finding.get('category') == 'security':
+                if finding.get("category") == "security":
                     # Try to extract PoC code from the finding message or evidence
-                    message = finding.get('message', '')
-                    if 'poc' in message.lower() or 'exploit' in message.lower() or '```' in message:
+                    message = finding.get("message", "")
+                    if "poc" in message.lower() or "exploit" in message.lower() or "```" in message:
                         security_findings_with_poc.append(finding)
 
             if security_findings_with_poc:
@@ -1738,19 +1799,21 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
                 validated_findings = []
                 for i, finding in enumerate(security_findings_with_poc[:10], 1):  # Limit to 10 for performance
-                    print(f"   [{i}/{min(10, len(security_findings_with_poc))}] Validating: {finding.get('message', '')[:60]}...")
+                    print(
+                        f"   [{i}/{min(10, len(security_findings_with_poc))}] Validating: {finding.get('message', '')[:60]}..."
+                    )
 
                     # Extract PoC code (simplified - real impl would parse markdown code blocks)
                     poc_code = ""
-                    message = finding.get('message', '')
-                    if '```' in message:
+                    message = finding.get("message", "")
+                    if "```" in message:
                         # Extract code block
-                        parts = message.split('```')
+                        parts = message.split("```")
                         if len(parts) >= 3:
                             poc_code = parts[1]
                             # Remove language identifier
-                            if '\n' in poc_code:
-                                poc_code = '\n'.join(poc_code.split('\n')[1:])
+                            if "\n" in poc_code:
+                                poc_code = "\n".join(poc_code.split("\n")[1:])
 
                     if not poc_code:
                         # Skip if no PoC code found
@@ -1759,25 +1822,25 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
                     # Determine exploit type from finding
                     exploit_type = ExploitType.CUSTOM
-                    lower_msg = finding.get('message', '').lower()
-                    if 'sql injection' in lower_msg or 'sqli' in lower_msg:
+                    lower_msg = finding.get("message", "").lower()
+                    if "sql injection" in lower_msg or "sqli" in lower_msg:
                         exploit_type = ExploitType.SQL_INJECTION
-                    elif 'xss' in lower_msg or 'cross-site scripting' in lower_msg:
+                    elif "xss" in lower_msg or "cross-site scripting" in lower_msg:
                         exploit_type = ExploitType.XSS
-                    elif 'command injection' in lower_msg:
+                    elif "command injection" in lower_msg:
                         exploit_type = ExploitType.COMMAND_INJECTION
-                    elif 'path traversal' in lower_msg:
+                    elif "path traversal" in lower_msg:
                         exploit_type = ExploitType.PATH_TRAVERSAL
 
                     # Create exploit config
                     exploit = ExploitConfig(
-                        name=finding.get('message', 'Unknown')[:100],
+                        name=finding.get("message", "Unknown")[:100],
                         exploit_type=exploit_type,
-                        language='python',  # Default to Python
+                        language="python",  # Default to Python
                         code=poc_code,
-                        expected_indicators=['success', 'exploited', 'vulnerable'],  # Generic indicators
+                        expected_indicators=["success", "exploited", "vulnerable"],  # Generic indicators
                         timeout=15,  # 15 second timeout
-                        metadata={'finding_id': finding.get('rule_id', 'unknown')}
+                        metadata={"finding_id": finding.get("rule_id", "unknown")},
                     )
 
                     # Validate exploit
@@ -1789,8 +1852,8 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
                         # Only keep if exploitable
                         if validation_result.result == ValidationResult.EXPLOITABLE.value:
-                            finding['sandbox_validated'] = True
-                            finding['validation_confidence'] = 'high'
+                            finding["sandbox_validated"] = True
+                            finding["validation_confidence"] = "high"
                             validated_findings.append(finding)
                             print(f"      ✅ Confirmed exploitable")
                         else:
@@ -1801,9 +1864,11 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
                         logger.warning(f"Sandbox validation failed: {e}")
                         # Keep finding if validation fails (don't eliminate real issues)
                         validated_findings.append(finding)
-                        metrics.record_sandbox_validation('error')
+                        metrics.record_sandbox_validation("error")
 
-                print(f"   ✅ Sandbox validation complete: {len(validated_findings)}/{len(security_findings_with_poc[:10])} confirmed")
+                print(
+                    f"   ✅ Sandbox validation complete: {len(validated_findings)}/{len(security_findings_with_poc[:10])} confirmed"
+                )
                 print(f"   🎯 False positives eliminated: {metrics.metrics['sandbox']['false_positives_eliminated']}")
 
         except Exception as e:
@@ -1812,13 +1877,13 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
     # NEW: Consensus Building (from real_multi_agent_review.py)
     # Build consensus across agent findings to reduce false positives
-    enable_consensus = config.get('enable_consensus', 'true').lower() == 'true'
+    enable_consensus = config.get("enable_consensus", "true").lower() == "true"
     consensus_results = {}
 
     if enable_consensus and len(agent_reports) >= 2:
-        print(f"\n{'─'*80}")
+        print(f"\n{'─' * 80}")
         print(f"🤝 CONSENSUS BUILDING")
-        print(f"{'─'*80}")
+        print(f"{'─' * 80}")
         print("   Aggregating findings across agents to reduce false positives...")
 
         # Parse findings from all agents
@@ -1826,7 +1891,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
         for agent_name, report in agent_reports.items():
             findings = parse_findings_from_report(report)
             for finding in findings:
-                finding['source_agent'] = agent_name
+                finding["source_agent"] = agent_name
                 all_findings.append(finding)
 
         print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
@@ -1836,9 +1901,9 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
         consensus_results = consensus_builder.build_consensus(all_findings)
 
         if consensus_results:
-            confirmed = len([f for f in consensus_results.values() if f['confidence'] == 'high'])
-            likely = len([f for f in consensus_results.values() if f['confidence'] == 'medium'])
-            uncertain = len([f for f in consensus_results.values() if f['confidence'] == 'low'])
+            confirmed = len([f for f in consensus_results.values() if f["confidence"] == "high"])
+            likely = len([f for f in consensus_results.values() if f["confidence"] == "medium"])
+            uncertain = len([f for f in consensus_results.values() if f["confidence"] == "low"])
 
             print(f"   ✅ Consensus analysis complete:")
             print(f"      - {confirmed} high-confidence findings (multiple agents agree)")
@@ -1849,21 +1914,22 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             print(f"   ℹ️  Insufficient overlap for consensus building")
 
     # Run orchestrator agent
-    print(f"\n{'─'*80}")
+    print(f"\n{'─' * 80}")
     print(f"🎯 Agent 7/7: ORCHESTRATOR")
-    print(f"{'─'*80}")
+    print(f"{'─' * 80}")
     print("   🔄 Aggregating findings from all agents...")
 
     orchestrator_start = time.time()
 
     # Load orchestrator prompt
-    orchestrator_prompt_template = load_agent_prompt('orchestrator')
+    orchestrator_prompt_template = load_agent_prompt("orchestrator")
 
     # Combine all agent reports
-    combined_reports = "\n\n" + "="*80 + "\n\n".join([
-        f"# {name.upper()} AGENT FINDINGS\n\n{report}"
-        for name, report in agent_reports.items()
-    ])
+    combined_reports = (
+        "\n\n"
+        + "=" * 80
+        + "\n\n".join([f"# {name.upper()} AGENT FINDINGS\n\n{report}" for name, report in agent_reports.items()])
+    )
 
     # Create orchestrator prompt
     orchestrator_prompt = f"""{orchestrator_prompt_template}
@@ -1894,29 +1960,37 @@ Generate the complete audit report as specified in your instructions.
 
     try:
         # Sanitize model name (use str() to break taint chain)
-        safe_model = str(model).split('/')[-1] if model else "unknown"
+        safe_model = str(model).split("/")[-1] if model else "unknown"
         print(f"   🧠 Synthesizing with {safe_model}...")
         final_report, input_tokens, output_tokens = call_llm_api(
-            client, provider, model, orchestrator_prompt, max_tokens,
+            client,
+            provider,
+            model,
+            orchestrator_prompt,
+            max_tokens,
             circuit_breaker=circuit_breaker,
-            operation="orchestrator synthesis"
+            operation="orchestrator synthesis",
         )
 
         orchestrator_duration = time.time() - orchestrator_start
 
         # Record orchestrator metrics
         metrics.record_llm_call(input_tokens, output_tokens, provider)
-        metrics.record_agent_execution('orchestrator', orchestrator_duration)
+        metrics.record_agent_execution("orchestrator", orchestrator_duration)
 
-        agent_metrics['orchestrator'] = {
-            'duration_seconds': round(orchestrator_duration, 2),
-            'input_tokens': input_tokens,
-            'output_tokens': output_tokens,
-            'cost_usd': round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4) if provider == 'anthropic' else 0
+        agent_metrics["orchestrator"] = {
+            "duration_seconds": round(orchestrator_duration, 2),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4)
+            if provider == "anthropic"
+            else 0,
         }
 
         print(f"   ✅ Synthesis complete")
-        print(f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}")
+        print(
+            f"   ⏱️  Duration: {orchestrator_duration:.1f}s | 💰 Cost: ${agent_metrics['orchestrator']['cost_usd']:.4f}"
+        )
 
     except CostLimitExceeded as e:
         # Cost limit reached during orchestration
@@ -1928,7 +2002,7 @@ Generate the complete audit report as specified in your instructions.
         print(f"   ❌ Error: {e}")
 
     # Fallback: concatenate all reports (used if orchestrator fails OR cost limit reached)
-    if 'final_report' not in locals():
+    if "final_report" not in locals():
         final_report = f"""# Codebase Audit Report (Multi-Agent Sequential)
 
 ## Note
@@ -1936,12 +2010,12 @@ Orchestrator synthesis failed. Below are individual agent reports.
 
 {combined_reports}
 """
-        agent_metrics['orchestrator'] = {'error': str(e)}
-    
+        agent_metrics["orchestrator"] = {"error": str(e)}
+
     # Add multi-agent metadata to final report
-    total_cost = sum(m.get('cost_usd', 0) for m in agent_metrics.values())
-    total_duration = sum(m.get('duration_seconds', 0) for m in agent_metrics.values())
-    
+    total_cost = sum(m.get("cost_usd", 0) for m in agent_metrics.values())
+    total_duration = sum(m.get("duration_seconds", 0) for m in agent_metrics.values())
+
     multi_agent_summary = f"""
 ---
 
@@ -1954,82 +2028,85 @@ Orchestrator synthesis failed. Below are individual agent reports.
 ### Agent Performance
 | Agent | Duration | Cost | Status |
 |-------|----------|------|--------|
-| Security | {agent_metrics.get('security', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('security', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('security', {}) else '❌'} |
-| Exploit Analyst | {agent_metrics.get('exploit-analyst', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('exploit-analyst', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('exploit-analyst', {}) else '❌'} |
-| Security Test Generator | {agent_metrics.get('security-test-generator', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('security-test-generator', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('security-test-generator', {}) else '❌'} |
-| Performance | {agent_metrics.get('performance', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('performance', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('performance', {}) else '❌'} |
-| Testing | {agent_metrics.get('testing', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('testing', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('testing', {}) else '❌'} |
-| Quality | {agent_metrics.get('quality', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('quality', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('quality', {}) else '❌'} |
-| Orchestrator | {agent_metrics.get('orchestrator', {}).get('duration_seconds', 'N/A')}s | ${agent_metrics.get('orchestrator', {}).get('cost_usd', 0):.4f} | {'✅' if 'error' not in agent_metrics.get('orchestrator', {}) else '❌'} |
+| Security | {agent_metrics.get("security", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("security", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("security", {}) else "❌"} |
+| Exploit Analyst | {agent_metrics.get("exploit-analyst", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("exploit-analyst", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("exploit-analyst", {}) else "❌"} |
+| Security Test Generator | {agent_metrics.get("security-test-generator", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("security-test-generator", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("security-test-generator", {}) else "❌"} |
+| Performance | {agent_metrics.get("performance", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("performance", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("performance", {}) else "❌"} |
+| Testing | {agent_metrics.get("testing", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("testing", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("testing", {}) else "❌"} |
+| Quality | {agent_metrics.get("quality", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("quality", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("quality", {}) else "❌"} |
+| Orchestrator | {agent_metrics.get("orchestrator", {}).get("duration_seconds", "N/A")}s | ${agent_metrics.get("orchestrator", {}).get("cost_usd", 0):.4f} | {"✅" if "error" not in agent_metrics.get("orchestrator", {}) else "❌"} |
 
 ### Exploitability Metrics
-- **Trivial**: {metrics.metrics['exploitability']['trivial']} (fix within 24-48 hours)
-- **Moderate**: {metrics.metrics['exploitability']['moderate']} (fix within 1 week)
-- **Complex**: {metrics.metrics['exploitability']['complex']} (fix within 1 month)
-- **Theoretical**: {metrics.metrics['exploitability']['theoretical']} (fix in next release)
+- **Trivial**: {metrics.metrics["exploitability"]["trivial"]} (fix within 24-48 hours)
+- **Moderate**: {metrics.metrics["exploitability"]["moderate"]} (fix within 1 week)
+- **Complex**: {metrics.metrics["exploitability"]["complex"]} (fix within 1 month)
+- **Theoretical**: {metrics.metrics["exploitability"]["theoretical"]} (fix in next release)
 
 ### Security Testing
-- **Exploit Chains Found**: {metrics.metrics['exploit_chains_found']}
-- **Security Tests Generated**: {metrics.metrics['tests_generated']}
+- **Exploit Chains Found**: {metrics.metrics["exploit_chains_found"]}
+- **Security Tests Generated**: {metrics.metrics["tests_generated"]}
 
 ---
 
 *This report was generated by Agent OS Multi-Agent Sequential Review System*
 """
-    
+
     final_report += multi_agent_summary
-    
+
     # Save individual agent reports
-    report_dir = Path(repo_path) / '.agent-os/reviews'
+    report_dir = Path(repo_path) / ".agent-os/reviews"
     report_dir.mkdir(parents=True, exist_ok=True)
-    
-    agents_dir = report_dir / 'agents'
+
+    agents_dir = report_dir / "agents"
     agents_dir.mkdir(exist_ok=True)
-    
+
     for agent_name, report in agent_reports.items():
-        agent_file = agents_dir / f'{agent_name}-report.md'
-        with open(agent_file, 'w') as f:
+        agent_file = agents_dir / f"{agent_name}-report.md"
+        with open(agent_file, "w") as f:
             f.write(report)
         print(f"   📄 Saved: {agent_file}")
-    
+
     # Save agent metrics
-    agent_metrics_file = agents_dir / 'metrics.json'
-    with open(agent_metrics_file, 'w') as f:
+    agent_metrics_file = agents_dir / "metrics.json"
+    with open(agent_metrics_file, "w") as f:
         json.dump(agent_metrics, f, indent=2)
-    
-    print(f"\n{'='*80}")
+
+    print(f"\n{'=' * 80}")
     print(f"✅ MULTI-AGENT REVIEW COMPLETE")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"📊 Total Cost: ${total_cost:.4f}")
     print(f"⏱️  Total Duration: {total_duration:.1f}s")
-    print(f"🤖 Agents: 7 (Security, Exploit Analyst, Security Test Generator, Performance, Testing, Quality, Orchestrator)")
+    print(
+        f"🤖 Agents: 7 (Security, Exploit Analyst, Security Test Generator, Performance, Testing, Quality, Orchestrator)"
+    )
 
     # Display exploitability summary
-    if any(metrics.metrics['exploitability'].values()):
+    if any(metrics.metrics["exploitability"].values()):
         print(f"\n⚠️  Exploitability Breakdown:")
         print(f"   Trivial: {metrics.metrics['exploitability']['trivial']}")
         print(f"   Moderate: {metrics.metrics['exploitability']['moderate']}")
         print(f"   Complex: {metrics.metrics['exploitability']['complex']}")
         print(f"   Theoretical: {metrics.metrics['exploitability']['theoretical']}")
 
-    if metrics.metrics['exploit_chains_found'] > 0:
+    if metrics.metrics["exploit_chains_found"] > 0:
         print(f"\n⛓️  Exploit Chains: {metrics.metrics['exploit_chains_found']}")
 
-    if metrics.metrics['tests_generated'] > 0:
+    if metrics.metrics["tests_generated"] > 0:
         print(f"🧪 Tests Generated: {metrics.metrics['tests_generated']}")
 
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     return final_report
 
-def run_audit(repo_path, config, review_type='audit'):
+
+def run_audit(repo_path, config, review_type="audit"):
     """Run AI-powered code audit with multi-LLM support"""
-    
+
     metrics = ReviewMetrics()
-    
+
     print(f"🤖 Starting AI-powered {review_type} analysis...")
     print(f"📁 Repository: {repo_path}")
-    
+
     # Detect AI provider
     provider = detect_ai_provider(config)
     if not provider:
@@ -2045,12 +2122,12 @@ def run_audit(repo_path, config, review_type='audit'):
         print("      Install: https://ollama.ai/")
         print("      Set: OLLAMA_ENDPOINT=http://localhost:11434")
         sys.exit(2)
-    
+
     # Sanitize provider name (use str() to break taint chain)
-    safe_provider = str(provider).split('/')[-1] if provider else "unknown"
+    safe_provider = str(provider).split("/")[-1] if provider else "unknown"
     print(f"🔧 Provider: {safe_provider}")
     metrics.metrics["provider"] = provider
-    
+
     # Get AI client
     client, actual_provider = get_ai_client(provider, config)
 
@@ -2058,14 +2135,14 @@ def run_audit(repo_path, config, review_type='audit'):
     model = get_model_name(provider, config)
 
     # Verify model accessibility and fallback if needed (Anthropic only)
-    if provider == 'anthropic':
+    if provider == "anthropic":
         try:
             # Sanitize model name for logging (use str() to break taint chain)
-            safe_model = str(model).split('/')[-1] if model else "unknown"
+            safe_model = str(model).split("/")[-1] if model else "unknown"
             print(f"🔍 Verifying model accessibility: {safe_model}")
             working_model = get_working_model_with_fallback(client, provider, model)
             if working_model != model:
-                safe_working_model = str(working_model).split('/')[-1] if working_model else "unknown"
+                safe_working_model = str(working_model).split("/")[-1] if working_model else "unknown"
                 print(f"⚠️  Requested model '{safe_model}' not accessible")
                 print(f"✅ Using fallback model: {safe_working_model}")
                 model = working_model
@@ -2077,24 +2154,32 @@ def run_audit(repo_path, config, review_type='audit'):
             sys.exit(2)
 
     # Sanitize model name for logging (use str() to break taint chain)
-    safe_model = str(model).split('/')[-1] if model else "unknown"
+    safe_model = str(model).split("/")[-1] if model else "unknown"
     print(f"🧠 Model: {safe_model}")
     metrics.metrics["model"] = model
 
     # Check cost limit
-    cost_limit = float(config.get('cost_limit', 1.0))
-    max_tokens = int(config.get('max_tokens', 8000))
+    cost_limit = float(config.get("cost_limit", 1.0))
+    max_tokens = int(config.get("max_tokens", 8000))
 
     # Initialize cost circuit breaker for runtime enforcement
     circuit_breaker = CostCircuitBreaker(cost_limit_usd=cost_limit)
 
-    # Generate or load threat model (if enabled)
+    # Generate or load threat model (always runs if pytm available)
     threat_model = None
-    if config.get('enable_threat_modeling', 'true').lower() == 'true' and THREAT_MODELING_AVAILABLE:
+    if THREAT_MODELING_AVAILABLE:
         print("🛡️  Generating threat model...")
         try:
-            threat_model_path = Path(repo_path) / '.agent-os/threat-model.json'
-            generator = ThreatModelGenerator(config.get('anthropic_api_key', ''))
+            threat_model_path = Path(repo_path) / ".agent-os/threat-model.json"
+
+            # Initialize hybrid generator (pytm + optional Anthropic)
+            # API key is optional - pytm works without it
+            api_key = (
+                config.get("anthropic_api_key", "")
+                if config.get("enable_threat_modeling", "true").lower() == "true"
+                else None
+            )
+            generator = HybridThreatModelGenerator(api_key)
 
             # Load existing or generate new
             threat_model = generator.load_existing_threat_model(threat_model_path)
@@ -2103,6 +2188,7 @@ def run_audit(repo_path, config, review_type='audit'):
                 threat_model = generator.generate_threat_model(repo_context)
                 generator.save_threat_model(threat_model, threat_model_path)
                 print(f"✅ Threat model generated: {threat_model_path}")
+                print(f"   Generator: {threat_model.get('generator', 'pytm')}")
             else:
                 print(f"✅ Loaded existing threat model: {threat_model_path}")
 
@@ -2110,28 +2196,33 @@ def run_audit(repo_path, config, review_type='audit'):
             metrics.record_threat_model(threat_model)
 
             print(f"   Threats identified: {len(threat_model.get('threats', []))}")
-            print(f"   Attack surface: {len(threat_model.get('attack_surface', {}).get('entry_points', []))} entry points")
+            print(
+                f"   Attack surface: {len(threat_model.get('attack_surface', {}).get('entry_points', []))} entry points"
+            )
             print(f"   Trust boundaries: {len(threat_model.get('trust_boundaries', []))}")
 
         except Exception as e:
-            logger.warning(f"Failed to generate threat model: {e}")
-            print(f"⚠️  Threat modeling failed, continuing without threat model")
+            logger.error(f"Threat modeling failed: {e}")
+            print(f"⚠️  Threat modeling failed: {e}")
+            print(f"   Continuing without threat model")
+    else:
+        print("⚠️  Threat modeling not available (install pytm: pip install pytm)")
 
     # Get codebase context with guardrails
     print("📂 Analyzing codebase structure...")
     files = get_codebase_context(repo_path, config)
-    
+
     if not files:
         print("⚠️  No files to analyze")
         return 0, 0, metrics
-    
+
     # Record file metrics
     for f in files:
-        metrics.record_file(f['lines'])
-    
+        metrics.record_file(f["lines"])
+
     # FEATURE: Heuristic Pre-Scanning (from real_multi_agent_review.py)
     # Scan files with lightweight pattern matching before expensive LLM calls
-    enable_heuristics = config.get('enable_heuristics', 'true').lower() == 'true'
+    enable_heuristics = config.get("enable_heuristics", "true").lower() == "true"
     heuristic_results = {}
 
     if enable_heuristics:
@@ -2152,52 +2243,61 @@ def run_audit(repo_path, config, review_type='audit'):
 
     # Run Semgrep SAST scan (if enabled)
     semgrep_results = {}
-    enable_semgrep = config.get('enable_semgrep', True)
+    enable_semgrep = config.get("enable_semgrep", True)
 
     if enable_semgrep:
         try:
             from scripts.semgrep_scanner import SemgrepScanner
+
             print("🔍 Running Semgrep SAST scan...")
 
-            semgrep_scanner = SemgrepScanner({
-                'semgrep_rules': 'auto',  # Uses Semgrep Registry (2,000+ rules)
-                'exclude_patterns': [
-                    '*/test/*', '*/tests/*', '*/.git/*', '*/node_modules/*',
-                    '*/.venv/*', '*/venv/*', '*/build/*', '*/dist/*'
-                ]
-            })
+            semgrep_scanner = SemgrepScanner(
+                {
+                    "semgrep_rules": "auto",  # Uses Semgrep Registry (2,000+ rules)
+                    "exclude_patterns": [
+                        "*/test/*",
+                        "*/tests/*",
+                        "*/.git/*",
+                        "*/node_modules/*",
+                        "*/.venv/*",
+                        "*/venv/*",
+                        "*/build/*",
+                        "*/dist/*",
+                    ],
+                }
+            )
 
             semgrep_results = semgrep_scanner.scan(repo_path)
 
-            if semgrep_results.get('findings'):
-                semgrep_count = len(semgrep_results['findings'])
+            if semgrep_results.get("findings"):
+                semgrep_count = len(semgrep_results["findings"])
                 severity_counts = {}
-                for finding in semgrep_results['findings']:
-                    severity = finding.get('severity', 'unknown')
+                for finding in semgrep_results["findings"]:
+                    severity = finding.get("severity", "unknown")
                     severity_counts[severity] = severity_counts.get(severity, 0) + 1
 
                 print(f"   ⚠️  Semgrep found {semgrep_count} issues:")
-                for severity in ['high', 'medium', 'low']:
+                for severity in ["high", "medium", "low"]:
                     if severity in severity_counts:
                         print(f"      - {severity_counts[severity]} {severity} severity")
 
                 # Show top 3 findings
-                for finding in semgrep_results['findings'][:3]:
-                    file_path = finding['file_path']
-                    line = finding['start_line']
-                    rule_id = finding['rule_id'].split('.')[-1]  # Show short name
+                for finding in semgrep_results["findings"][:3]:
+                    file_path = finding["file_path"]
+                    line = finding["start_line"]
+                    rule_id = finding["rule_id"].split(".")[-1]  # Show short name
                     print(f"      - {file_path}:{line} ({rule_id})")
 
                 if semgrep_count > 3:
                     print(f"      ... and {semgrep_count - 3} more issues")
 
                 # Track in metrics
-                metrics.record('semgrep_findings', semgrep_count)
+                metrics.record("semgrep_findings", semgrep_count)
                 for severity, count in severity_counts.items():
-                    metrics.record(f'semgrep_{severity}_severity', count)
+                    metrics.record(f"semgrep_{severity}_severity", count)
             else:
                 print("   ✅ Semgrep: no issues found")
-                metrics.record('semgrep_findings', 0)
+                metrics.record("semgrep_findings", 0)
 
         except ImportError:
             logger.warning("⚠️  Semgrep not installed. Install with: pip install semgrep")
@@ -2206,78 +2306,84 @@ def run_audit(repo_path, config, review_type='audit'):
             logger.warning(f"Semgrep scan failed: {e}")
             print(f"   ⚠️  Semgrep scan failed: {e}")
 
-
     # Estimate cost
     estimated_cost, est_input, est_output = estimate_cost(files, max_tokens, provider)
-    if provider == 'ollama':
+    if provider == "ollama":
         print(f"💰 Estimated cost: $0.00 (local Ollama)")
     else:
         print(f"💰 Estimated cost: ${estimated_cost:.2f}")
-    
-    if estimated_cost > cost_limit and provider != 'ollama':
+
+    if estimated_cost > cost_limit and provider != "ollama":
         print(f"⚠️  Estimated cost ${estimated_cost:.2f} exceeds limit ${cost_limit:.2f}")
         print(f"💡 Reduce max-files, use path filters, or increase cost-limit")
         sys.exit(2)
-    
+
     # Check multi-agent mode
-    multi_agent_mode = config.get('multi_agent_mode', 'single')
-    
-    if multi_agent_mode == 'sequential':
+    multi_agent_mode = config.get("multi_agent_mode", "single")
+
+    if multi_agent_mode == "sequential":
         # Run multi-agent sequential review (with threat model context)
         report = run_multi_agent_sequential(
-            repo_path, config, review_type,
-            client, provider, model, max_tokens,
-            files, metrics, circuit_breaker,
-            threat_model=threat_model  # Pass threat model to agents
+            repo_path,
+            config,
+            review_type,
+            client,
+            provider,
+            model,
+            max_tokens,
+            files,
+            metrics,
+            circuit_breaker,
+            threat_model=threat_model,  # Pass threat model to agents
         )
-        
+
         # Skip to saving reports (multi-agent handles its own analysis)
-        report_dir = Path(repo_path) / '.agent-os/reviews'
+        report_dir = Path(repo_path) / ".agent-os/reviews"
         report_dir.mkdir(parents=True, exist_ok=True)
-        
-        report_file = report_dir / f'{review_type}-report.md'
-        with open(report_file, 'w') as f:
+
+        report_file = report_dir / f"{review_type}-report.md"
+        with open(report_file, "w") as f:
             f.write(report)
-        
+
         print(f"✅ Multi-agent audit complete! Report saved to: {report_file}")
-        
+
         # Parse findings from final orchestrated report
         findings = parse_findings_from_report(report)
 
         # Generate SARIF with metrics
         sarif = generate_sarif(findings, repo_path, metrics)
-        sarif_file = report_dir / 'results.sarif'
-        with open(sarif_file, 'w') as f:
+        sarif_file = report_dir / "results.sarif"
+        with open(sarif_file, "w") as f:
             json.dump(sarif, f, indent=2)
         print(f"📄 SARIF saved to: {sarif_file}")
-        
+
         # Generate structured JSON
         json_output = {
             "version": "2.1.0",
             "mode": "multi-agent-sequential",
-            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-            "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
-            "commit": os.environ.get('GITHUB_SHA', 'unknown'),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "repository": os.environ.get("GITHUB_REPOSITORY", "unknown"),
+            "commit": os.environ.get("GITHUB_SHA", "unknown"),
             "provider": provider,
             "model": model,
             "summary": metrics.metrics,
-            "findings": findings
+            "findings": findings,
         }
-        
-        json_file = report_dir / 'results.json'
-        with open(json_file, 'w') as f:
+
+        json_file = report_dir / "results.json"
+        with open(json_file, "w") as f:
             json.dump(json_output, f, indent=2)
         print(f"📊 JSON saved to: {json_file}")
-        
+
         # Save metrics
-        metrics_file = report_dir / 'metrics.json'
+        metrics_file = report_dir / "metrics.json"
         metrics.finalize()
         metrics.save(metrics_file)
-        
+
         # Count blockers and suggestions
-        blocker_count = metrics.metrics['findings']['critical'] + metrics.metrics['findings']['high']
-        suggestion_count = metrics.metrics['findings']['medium'] + metrics.metrics['findings']['low']
-        
+        blocker_count = metrics.metrics["findings"]["critical"] + metrics.metrics["findings"]["high"]
+        suggestion_count = metrics.metrics["findings"]["medium"] + metrics.metrics["findings"]["low"]
+
         print(f"\n📊 Final Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
         print(f"   High: {metrics.metrics['findings']['high']}")
@@ -2288,23 +2394,23 @@ def run_audit(repo_path, config, review_type='audit'):
         print(f"🤖 Mode: Multi-Agent Sequential (7 agents)")
 
         # Display exploitability metrics
-        if any(metrics.metrics['exploitability'].values()):
+        if any(metrics.metrics["exploitability"].values()):
             print(f"\n⚠️  Exploitability:")
-            if metrics.metrics['exploitability']['trivial'] > 0:
+            if metrics.metrics["exploitability"]["trivial"] > 0:
                 print(f"   ⚠️  Trivial: {metrics.metrics['exploitability']['trivial']}")
-            if metrics.metrics['exploitability']['moderate'] > 0:
+            if metrics.metrics["exploitability"]["moderate"] > 0:
                 print(f"   🟨 Moderate: {metrics.metrics['exploitability']['moderate']}")
-            if metrics.metrics['exploitability']['complex'] > 0:
+            if metrics.metrics["exploitability"]["complex"] > 0:
                 print(f"   🟦 Complex: {metrics.metrics['exploitability']['complex']}")
-            if metrics.metrics['exploitability']['theoretical'] > 0:
+            if metrics.metrics["exploitability"]["theoretical"] > 0:
                 print(f"   ⬜ Theoretical: {metrics.metrics['exploitability']['theoretical']}")
 
-        if metrics.metrics['exploit_chains_found'] > 0:
+        if metrics.metrics["exploit_chains_found"] > 0:
             print(f"   ⛓️  Exploit Chains: {metrics.metrics['exploit_chains_found']}")
 
-        if metrics.metrics['tests_generated'] > 0:
+        if metrics.metrics["tests_generated"] > 0:
             print(f"   🧪 Tests Generated: {metrics.metrics['tests_generated']}")
-        
+
         # Output for GitHub Actions
         print(f"completed=true")
         print(f"blockers={blocker_count}")
@@ -2315,51 +2421,51 @@ def run_audit(repo_path, config, review_type='audit'):
         print(f"cost-estimate={metrics.metrics['cost_usd']:.4f}")
         print(f"files-analyzed={metrics.metrics['files_reviewed']}")
         print(f"duration-seconds={metrics.metrics['duration_seconds']}")
-        
+
         # Check fail-on conditions
-        fail_on = config.get('fail_on', '')
+        fail_on = config.get("fail_on", "")
         should_fail = False
-        
+
         if fail_on:
             print(f"\n🚦 Checking fail conditions: {fail_on}")
-            conditions = [c.strip() for c in fail_on.split(',') if c.strip()]
-            
+            conditions = [c.strip() for c in fail_on.split(",") if c.strip()]
+
             for condition in conditions:
-                if ':' in condition:
-                    category, severity = condition.split(':', 1)
+                if ":" in condition:
+                    category, severity = condition.split(":", 1)
                     category = category.strip().lower()
                     severity = severity.strip().lower()
-                    
-                    if category == 'any':
-                        if severity in metrics.metrics['findings'] and metrics.metrics['findings'][severity] > 0:
+
+                    if category == "any":
+                        if severity in metrics.metrics["findings"] and metrics.metrics["findings"][severity] > 0:
                             print(f"   ❌ FAIL: Found {metrics.metrics['findings'][severity]} {severity} issues")
                             should_fail = True
                     else:
-                        matching_findings = [f for f in findings 
-                                           if f['category'] == category and f['severity'] == severity]
+                        matching_findings = [
+                            f for f in findings if f["category"] == category and f["severity"] == severity
+                        ]
                         if matching_findings:
                             print(f"   ❌ FAIL: Found {len(matching_findings)} {category}:{severity} issues")
                             should_fail = True
-        
+
         if should_fail:
             print(f"\n❌ Failing due to fail-on conditions")
             sys.exit(1)
-        
+
         return blocker_count, suggestion_count, metrics
-    
+
     # Single-agent mode (original logic)
     print(f"🤖 Mode: Single-Agent")
-    
+
     # Build context for LLM
-    codebase_context = "\n\n".join([
-        f"File: {f['path']}\n```\n{f['content']}\n```"
-        for f in files
-    ])
-    
+    codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in files])
+
     # Load audit command
-    audit_command_path = Path.home() / '.agent-os/profiles/default/commands/audit-codebase/multi-agent/audit-codebase.md'
+    audit_command_path = (
+        Path.home() / ".agent-os/profiles/default/commands/audit-codebase/multi-agent/audit-codebase.md"
+    )
     if audit_command_path.exists():
-        with open(audit_command_path, 'r') as f:
+        with open(audit_command_path, "r") as f:
             audit_instructions = f.read()
     else:
         audit_instructions = """
@@ -2384,7 +2490,7 @@ human oversight is essential for:
 
 Use this as a starting point for human review, not a replacement.
 """
-    
+
     # Create prompt
     prompt = f"""You are an expert code reviewer performing a comprehensive codebase audit.
 
@@ -2442,73 +2548,77 @@ Note any areas where human judgment is essential (architecture, business logic, 
 
 Be specific with file names and line numbers. Use format: `filename.ext:123` for references.
 """
-    
+
     # Sanitize provider/model names for logging (use str() to break taint chain)
-    safe_provider = str(provider).split('/')[-1] if provider else "unknown"
-    safe_model = str(model).split('/')[-1] if model else "unknown"
+    safe_provider = str(provider).split("/")[-1] if provider else "unknown"
+    safe_model = str(model).split("/")[-1] if model else "unknown"
     print(f"🧠 Analyzing code with {safe_provider} ({safe_model})...")
-    
+
     try:
         # Call LLM API with cost enforcement
         report, input_tokens, output_tokens = call_llm_api(
-            client, provider, model, prompt, max_tokens,
+            client,
+            provider,
+            model,
+            prompt,
+            max_tokens,
             circuit_breaker=circuit_breaker,
-            operation="single-agent review"
+            operation="single-agent review",
         )
-        
+
         # Record LLM metrics
         metrics.record_llm_call(input_tokens, output_tokens, provider)
-        
+
         # Save markdown report
-        report_dir = Path(repo_path) / '.agent-os/reviews'
+        report_dir = Path(repo_path) / ".agent-os/reviews"
         report_dir.mkdir(parents=True, exist_ok=True)
-        
-        report_file = report_dir / f'{review_type}-report.md'
-        with open(report_file, 'w') as f:
+
+        report_file = report_dir / f"{review_type}-report.md"
+        with open(report_file, "w") as f:
             f.write(report)
-        
+
         print(f"✅ Audit complete! Report saved to: {report_file}")
-        
+
         # Parse findings
         findings = parse_findings_from_report(report)
-        
+
         # Record finding metrics
         for finding in findings:
-            metrics.record_finding(finding['severity'], finding['category'])
+            metrics.record_finding(finding["severity"], finding["category"])
 
         # Generate SARIF with metrics
         sarif = generate_sarif(findings, repo_path, metrics)
-        sarif_file = report_dir / 'results.sarif'
-        with open(sarif_file, 'w') as f:
+        sarif_file = report_dir / "results.sarif"
+        with open(sarif_file, "w") as f:
             json.dump(sarif, f, indent=2)
         print(f"📄 SARIF saved to: {sarif_file}")
-        
+
         # Generate structured JSON
         json_output = {
             "version": "1.0.16",
-            "timestamp": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-            "repository": os.environ.get('GITHUB_REPOSITORY', 'unknown'),
-            "commit": os.environ.get('GITHUB_SHA', 'unknown'),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "repository": os.environ.get("GITHUB_REPOSITORY", "unknown"),
+            "commit": os.environ.get("GITHUB_SHA", "unknown"),
             "provider": provider,
             "model": model,
             "summary": metrics.metrics,
-            "findings": findings
+            "findings": findings,
         }
-        
-        json_file = report_dir / 'results.json'
-        with open(json_file, 'w') as f:
+
+        json_file = report_dir / "results.json"
+        with open(json_file, "w") as f:
             json.dump(json_output, f, indent=2)
         print(f"📊 JSON saved to: {json_file}")
-        
+
         # Save metrics
-        metrics_file = report_dir / 'metrics.json'
+        metrics_file = report_dir / "metrics.json"
         metrics.finalize()
         metrics.save(metrics_file)
-        
+
         # Count blockers and suggestions
-        blocker_count = metrics.metrics['findings']['critical'] + metrics.metrics['findings']['high']
-        suggestion_count = metrics.metrics['findings']['medium'] + metrics.metrics['findings']['low']
-        
+        blocker_count = metrics.metrics["findings"]["critical"] + metrics.metrics["findings"]["high"]
+        suggestion_count = metrics.metrics["findings"]["medium"] + metrics.metrics["findings"]["low"]
+
         print(f"\n📊 Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
         print(f"   High: {metrics.metrics['findings']['high']}")
@@ -2517,42 +2627,43 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         print(f"\n💰 Cost: ${metrics.metrics['cost_usd']:.2f}")
         print(f"⏱️  Duration: {metrics.metrics['duration_seconds']}s")
         # Sanitize for logging (use str() to break taint chain)
-        safe_provider = str(provider).split('/')[-1] if provider else "unknown"
-        safe_model = str(model).split('/')[-1] if model else "unknown"
+        safe_provider = str(provider).split("/")[-1] if provider else "unknown"
+        safe_model = str(model).split("/")[-1] if model else "unknown"
         print(f"🔧 Provider: {safe_provider} ({safe_model})")
-        
+
         # Check fail-on conditions
-        fail_on = config.get('fail_on', '')
+        fail_on = config.get("fail_on", "")
         should_fail = False
-        
+
         if fail_on:
             print(f"\n🚦 Checking fail conditions: {fail_on}")
-            conditions = [c.strip() for c in fail_on.split(',') if c.strip()]
-            
+            conditions = [c.strip() for c in fail_on.split(",") if c.strip()]
+
             for condition in conditions:
-                if ':' in condition:
-                    category, severity = condition.split(':', 1)
+                if ":" in condition:
+                    category, severity = condition.split(":", 1)
                     category = category.strip().lower()
                     severity = severity.strip().lower()
-                    
+
                     # Check if condition is met
-                    if category == 'any':
+                    if category == "any":
                         # any:critical means any category with critical severity
-                        if severity in metrics.metrics['findings'] and metrics.metrics['findings'][severity] > 0:
+                        if severity in metrics.metrics["findings"] and metrics.metrics["findings"][severity] > 0:
                             print(f"   ❌ FAIL: Found {metrics.metrics['findings'][severity]} {severity} issues")
                             should_fail = True
                     else:
                         # Check specific category:severity combination
-                        matching_findings = [f for f in findings 
-                                           if f['category'] == category and f['severity'] == severity]
+                        matching_findings = [
+                            f for f in findings if f["category"] == category and f["severity"] == severity
+                        ]
                         if matching_findings:
                             print(f"   ❌ FAIL: Found {len(matching_findings)} {category}:{severity} issues")
                             should_fail = True
-        
+
         # Output for GitHub Actions (using GITHUB_OUTPUT)
-        github_output = os.environ.get('GITHUB_OUTPUT')
+        github_output = os.environ.get("GITHUB_OUTPUT")
         if github_output:
-            with open(github_output, 'a') as f:
+            with open(github_output, "a") as f:
                 f.write(f"blockers={blocker_count}\n")
                 f.write(f"suggestions={suggestion_count}\n")
                 f.write(f"report-path={report_file}\n")
@@ -2571,54 +2682,56 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
             print(f"cost-estimate={metrics.metrics['cost_usd']:.2f}")
             print(f"files-analyzed={metrics.metrics['files_reviewed']}")
             print(f"duration-seconds={metrics.metrics['duration_seconds']}")
-        
+
         # Exit with appropriate code
         if should_fail:
             print(f"\n❌ Failing due to fail-on conditions")
             sys.exit(1)
-        
+
         return blocker_count, suggestion_count, metrics
-        
+
     except Exception as e:
         print(f"❌ Error during AI analysis: {e}")
         print(f"Error type: {type(e).__name__}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
-if __name__ == '__main__':
-    repo_path = sys.argv[1] if len(sys.argv) > 1 else '.'
-    review_type = sys.argv[2] if len(sys.argv) > 2 else 'audit'
-    
+
+if __name__ == "__main__":
+    repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
+    review_type = sys.argv[2] if len(sys.argv) > 2 else "audit"
+
     # Get configuration from environment
     config = {
-        'ai_provider': os.environ.get('INPUT_AI_PROVIDER', 'auto'),
-        'anthropic_api_key': os.environ.get('ANTHROPIC_API_KEY', ''),
-        'openai_api_key': os.environ.get('OPENAI_API_KEY', ''),
-        'ollama_endpoint': os.environ.get('OLLAMA_ENDPOINT', ''),
-        'foundation_sec_enabled': os.environ.get('FOUNDATION_SEC_ENABLED', 'false').lower() == 'true',
-        'foundation_sec_model': os.environ.get('FOUNDATION_SEC_MODEL', 'cisco-ai/foundation-sec-8b-instruct'),
-        'foundation_sec_device': os.environ.get('FOUNDATION_SEC_DEVICE', ''),
-        'model': os.environ.get('INPUT_MODEL', 'auto'),
-        'multi_agent_mode': os.environ.get('INPUT_MULTI_AGENT_MODE', 'single'),
-        'only_changed': os.environ.get('INPUT_ONLY_CHANGED', 'false').lower() == 'true',
-        'include_paths': os.environ.get('INPUT_INCLUDE_PATHS', ''),
-        'exclude_paths': os.environ.get('INPUT_EXCLUDE_PATHS', ''),
-        'max_file_size': os.environ.get('INPUT_MAX_FILE_SIZE', '50000'),
-        'max_files': os.environ.get('INPUT_MAX_FILES', '100'),
-        'max_tokens': os.environ.get('INPUT_MAX_TOKENS', '8000'),
-        'cost_limit': os.environ.get('INPUT_COST_LIMIT', '1.0'),
-        'fail_on': os.environ.get('INPUT_FAIL_ON', ''),
+        "ai_provider": os.environ.get("INPUT_AI_PROVIDER", "auto"),
+        "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+        "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
+        "ollama_endpoint": os.environ.get("OLLAMA_ENDPOINT", ""),
+        "foundation_sec_enabled": os.environ.get("FOUNDATION_SEC_ENABLED", "false").lower() == "true",
+        "foundation_sec_model": os.environ.get("FOUNDATION_SEC_MODEL", "cisco-ai/foundation-sec-8b-instruct"),
+        "foundation_sec_device": os.environ.get("FOUNDATION_SEC_DEVICE", ""),
+        "model": os.environ.get("INPUT_MODEL", "auto"),
+        "multi_agent_mode": os.environ.get("INPUT_MULTI_AGENT_MODE", "single"),
+        "only_changed": os.environ.get("INPUT_ONLY_CHANGED", "false").lower() == "true",
+        "include_paths": os.environ.get("INPUT_INCLUDE_PATHS", ""),
+        "exclude_paths": os.environ.get("INPUT_EXCLUDE_PATHS", ""),
+        "max_file_size": os.environ.get("INPUT_MAX_FILE_SIZE", "50000"),
+        "max_files": os.environ.get("INPUT_MAX_FILES", "100"),
+        "max_tokens": os.environ.get("INPUT_MAX_TOKENS", "8000"),
+        "cost_limit": os.environ.get("INPUT_COST_LIMIT", "1.0"),
+        "fail_on": os.environ.get("INPUT_FAIL_ON", ""),
         # NEW: Phase 1 feature flags
-        'enable_threat_modeling': os.environ.get('ENABLE_THREAT_MODELING', 'true'),
-        'enable_sandbox_validation': os.environ.get('ENABLE_SANDBOX_VALIDATION', 'true'),
+        "enable_threat_modeling": os.environ.get("ENABLE_THREAT_MODELING", "true"),
+        "enable_sandbox_validation": os.environ.get("ENABLE_SANDBOX_VALIDATION", "true"),
         # NEW: Phase 2 multi-agent enhancements (from real_multi_agent_review.py)
-        'enable_heuristics': os.environ.get('ENABLE_HEURISTICS', 'true'),
-        'enable_consensus': os.environ.get('ENABLE_CONSENSUS', 'true'),
-        'consensus_threshold': float(os.environ.get('CONSENSUS_THRESHOLD', '0.5')),
-        'category_passes': os.environ.get('CATEGORY_PASSES', 'true'),
+        "enable_heuristics": os.environ.get("ENABLE_HEURISTICS", "true"),
+        "enable_consensus": os.environ.get("ENABLE_CONSENSUS", "true"),
+        "consensus_threshold": float(os.environ.get("CONSENSUS_THRESHOLD", "0.5")),
+        "category_passes": os.environ.get("CATEGORY_PASSES", "true"),
         # NEW: Semgrep SAST integration
-        'enable_semgrep': os.environ.get('SEMGREP_ENABLED', 'true').lower() == 'true',
+        "enable_semgrep": os.environ.get("SEMGREP_ENABLED", "true").lower() == "true",
     }
-    
+
     run_audit(repo_path, config, review_type)

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 class ExploitType(Enum):
     """Types of exploits that can be validated"""
+
     SQL_INJECTION = "sql_injection"
     XSS = "xss"
     COMMAND_INJECTION = "command_injection"
@@ -46,6 +47,7 @@ class ExploitType(Enum):
 
 class ValidationResult(Enum):
     """Result of exploit validation"""
+
     EXPLOITABLE = "exploitable"  # Exploit works as expected
     NOT_EXPLOITABLE = "not_exploitable"  # Exploit doesn't work
     PARTIAL = "partial"  # Exploit partially works
@@ -57,6 +59,7 @@ class ValidationResult(Enum):
 @dataclass
 class ExploitConfig:
     """Configuration for an exploit to validate"""
+
     name: str
     exploit_type: ExploitType
     language: str
@@ -72,6 +75,7 @@ class ExploitConfig:
 @dataclass
 class ValidationMetrics:
     """Metrics from validation"""
+
     validation_id: str
     exploit_name: str
     exploit_type: str
@@ -365,10 +369,7 @@ class SandboxValidator:
         if exploit.exploit_type == ExploitType.DENIAL_OF_SERVICE:
             # DoS exploits need extra scrutiny
             if re.search(r"while\s+true", code_lower):
-                return {
-                    "safe": False,
-                    "reason": "Infinite loop detected in DoS exploit"
-                }
+                return {"safe": False, "reason": "Infinite loop detected in DoS exploit"}
 
         return {"safe": True, "reason": ""}
 
@@ -434,11 +435,7 @@ class SandboxValidator:
 
         if total_indicators == 0:
             # No indicators specified - use exit code
-            return (
-                ValidationResult.EXPLOITABLE
-                if execution_result["success"]
-                else ValidationResult.NOT_EXPLOITABLE
-            )
+            return ValidationResult.EXPLOITABLE if execution_result["success"] else ValidationResult.NOT_EXPLOITABLE
 
         found_ratio = len(indicators_found) / total_indicators
 
@@ -489,9 +486,7 @@ class SandboxValidator:
             by_result[metric.result] = by_result.get(metric.result, 0) + 1
 
             # Count by exploit type
-            by_exploit_type[metric.exploit_type] = (
-                by_exploit_type.get(metric.exploit_type, 0) + 1
-            )
+            by_exploit_type[metric.exploit_type] = by_exploit_type.get(metric.exploit_type, 0) + 1
 
             total_time += metric.execution_time_ms
 
@@ -500,9 +495,7 @@ class SandboxValidator:
             "by_result": by_result,
             "by_exploit_type": by_exploit_type,
             "avg_execution_time_ms": total_time // total if total > 0 else 0,
-            "success_rate": (
-                by_result.get(ValidationResult.EXPLOITABLE.value, 0) / total
-            ) * 100,
+            "success_rate": (by_result.get(ValidationResult.EXPLOITABLE.value, 0) / total) * 100,
         }
 
     def export_metrics(self, output_file: str) -> None:
@@ -561,7 +554,6 @@ if len(results) > 0:
             timeout=10,
             metadata={"severity": "high", "cwe": "CWE-89"},
         ),
-
         # Command Injection example
         ExploitConfig(
             name="Command Injection - Basic",
@@ -582,7 +574,6 @@ print(result.stderr)
             timeout=10,
             metadata={"severity": "critical", "cwe": "CWE-78"},
         ),
-
         # Path Traversal example
         ExploitConfig(
             name="Path Traversal - Basic",
@@ -648,7 +639,9 @@ if __name__ == "__main__":
         print(f"Type: {result.exploit_type}")
         print(f"Result: {result.result}")
         print(f"Execution Time: {result.execution_time_ms}ms")
-        print(f"Indicators Found: {len(result.indicators_found)}/{len(result.indicators_found) + len(result.indicators_missing)}")
+        print(
+            f"Indicators Found: {len(result.indicators_found)}/{len(result.indicators_found) + len(result.indicators_missing)}"
+        )
         if result.indicators_found:
             print(f"  - {', '.join(result.indicators_found)}")
         if result.error_message:
@@ -663,7 +656,7 @@ if __name__ == "__main__":
     print(f"Success Rate: {summary['success_rate']:.1f}%")
     print(f"Average Execution Time: {summary['avg_execution_time_ms']}ms")
     print("\nResults by Type:")
-    for result_type, count in summary['by_result'].items():
+    for result_type, count in summary["by_result"].items():
         print(f"  - {result_type}: {count}")
 
     # Export metrics

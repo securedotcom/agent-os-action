@@ -60,7 +60,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || pip install anthropic openai requests PyYAML
+          # Install core dependencies (skip optional heavy ML dependencies)
+          pip install anthropic openai tenacity pyyaml requests urllib3 certifi cryptography semgrep boto3 || pip install anthropic openai requests PyYAML
       
       - name: Install Security Tools
         run: |

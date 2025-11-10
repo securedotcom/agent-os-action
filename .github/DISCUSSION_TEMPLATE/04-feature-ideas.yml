@@ -1,0 +1,55 @@
+labels: [feature-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 💡 Feature Ideas
+        
+        Suggest new features or improvements!
+        
+  - type: input
+    id: feature
+    attributes:
+      label: Feature Name
+      description: What would you call this feature?
+    validations:
+      required: true
+  
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this solve?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would this feature work?
+      placeholder: |
+        - User does X
+        - System responds with Y
+        - Result is Z
+    validations:
+      required: true
+  
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other solutions did you think about?
+  
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (for you)
+      options:
+        - Low - Nice to have
+        - Medium - Would improve my workflow
+        - High - Blocking my use case
+        - Critical - Can't use Agent-OS without it
+    validations:
+      required: true

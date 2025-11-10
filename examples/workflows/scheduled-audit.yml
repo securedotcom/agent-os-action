@@ -1,4 +1,4 @@
-name: Weekly Security Audit
+name: Agent-OS Weekly Security Audit
 
 # Full codebase audit on a schedule
 # Creates PR with findings
@@ -27,7 +27,7 @@ jobs:
     
     - name: Run Full Codebase Audit
       id: audit
-      uses: securedotcom/agent-os-action@v1  # Our action - use semver tag
+      uses: securedotcom/agent-os-action@v1
       with:
         anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
         review-type: 'audit'
@@ -103,7 +103,7 @@ jobs:
           
           ---
           
-          *This PR is automatically created by Agent OS Code Reviewer.*  
+          *This PR is automatically created by Agent-OS Security Action.*  
           *Review the findings and merge when all critical issues are resolved.*
           `;
           

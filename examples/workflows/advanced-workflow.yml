@@ -1,4 +1,4 @@
-name: Agent OS Code Review (Advanced)
+name: Agent-OS Security Scan (Advanced)
 
 on:
   # Multiple triggers
@@ -38,7 +38,7 @@ permissions:
   issues: write
 
 jobs:
-  code-review:
+  security-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Generous timeout for advanced features
     
@@ -69,8 +69,8 @@ jobs:
         node-version: '18'
         cache: 'npm'
     
-    - name: Run Agent OS Code Review
-      uses: securedotcom/agent-os-action@v2.1.0  # Our action - use semver tag
+    - name: Run Agent-OS Security Scan
+      uses: securedotcom/agent-os-action@v1
       with:
         review-type: ${{ github.event.inputs.review_type || 'audit' }}
         project-path: '.'
@@ -106,7 +106,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `## 🤖 Agent OS Code Review\n\n${report}`
+              body: `## 🔍 Agent-OS Security Report\n\n${report}`
             });
           }
 

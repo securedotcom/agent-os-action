@@ -1,0 +1,54 @@
+# Cost-Optimized Security Scan
+# Minimizes AI API costs while maintaining security
+
+name: Cost-Optimized Security
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  security:
+    name: Budget-Friendly Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Cost-Optimized Scan
+        uses: devatsecure/agent-os-action@v1
+        with:
+          # AI Provider (choose free/cheap options)
+          ai_provider: auto  # Auto-selects cheapest available
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          
+          # Strict Cost Controls
+          cost_limit: 0.50  # Max $0.50 per run
+          max_files: 20     # Limit files analyzed
+          max_tokens: 4000  # Reduce token usage
+          
+          # Smart File Selection
+          only_changed: true  # Only analyze changed files
+          include_paths: "src/**,lib/**"  # Focus on source code
+          exclude_paths: "tests/**,vendor/**,node_modules/**"
+          
+          # Efficient Scanning
+          semgrep_enabled: true  # Free deterministic scan
+          multi_agent_mode: single  # Skip multi-agent for speed
+          
+          # Fail Fast
+          fail_on_blockers: true
+          severity_threshold: critical
+      
+      - name: Cost Report
+        if: always()
+        run: |
+          if [ -f .agent-os/reviews/metrics.json ]; then
+            COST=$(jq -r '.cost_usd' .agent-os/reviews/metrics.json)
+            echo "💰 Total Cost: \$$COST" >> $GITHUB_STEP_SUMMARY
+            
+            if (( $(echo "$COST > 0.50" | bc -l) )); then
+              echo "⚠️ Cost exceeded budget of \$0.50" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
