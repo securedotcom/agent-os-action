@@ -1,0 +1,93 @@
+labels: [case-study]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 📊 Case Study
+        
+        Share how Agent-OS helped your team!
+        
+  - type: input
+    id: company
+    attributes:
+      label: Company/Team
+      description: Your organization (can be anonymous)
+      placeholder: "e.g., Fortune 500 FinTech, Open Source Project, Startup"
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: team-size
+    attributes:
+      label: Team Size
+      options:
+        - 1-5 developers
+        - 6-20 developers
+        - 21-100 developers
+        - 100+ developers
+  
+  - type: dropdown
+    id: use-case
+    attributes:
+      label: Primary Use Case
+      options:
+        - Pull Request Reviews
+        - Pre-commit Hooks
+        - Scheduled Scans
+        - Security Audits
+        - Compliance
+        - Other
+  
+  - type: textarea
+    id: before
+    attributes:
+      label: Before Agent-OS
+      description: What was your security/code review process?
+      placeholder: |
+        - Manual security reviews taking 2-3 days
+        - Static analysis tools with 90% false positives
+        - No automated code quality checks
+    validations:
+      required: true
+  
+  - type: textarea
+    id: results
+    attributes:
+      label: Results & Impact
+      description: What changed after implementing Agent-OS?
+      placeholder: |
+        - Reduced review time from 3 days to 5 minutes (99% faster)
+        - False positive rate: 90% → 8% (82% improvement)
+        - Found 15 critical vulnerabilities that other tools missed
+        - Blocked 5 potential security incidents
+        - Saved $50,000/year in security audit costs
+    validations:
+      required: true
+  
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Key Metrics
+      description: Specific numbers/metrics
+      placeholder: |
+        - Scans per week: 50
+        - Average scan time: 3 minutes
+        - Cost per scan: $0.25 (using Ollama)
+        - Vulnerabilities found: 127 (in 6 months)
+        - False positives: <5%
+  
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Feedback & Recommendations
+      description: What would you tell others considering Agent-OS?
+    validations:
+      required: true
+  
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: Sharing Permission
+      options:
+        - label: You can share this case study publicly (anonymized)
+        - label: You can contact me for more details

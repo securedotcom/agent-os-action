@@ -1,0 +1,212 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      tag:
+        description: 'Tag to create release for'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+        with:
+          fetch-depth: 0  # Full history for changelog
+      
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        with:
+          python-version: '3.11'
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          
+          # Extract major.minor for Docker tags
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MAJOR.$MINOR" >> $GITHUB_OUTPUT
+      
+      - name: Get previous tag
+        id: previous
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.version.outputs.tag }}^ 2>/dev/null || echo "")
+          echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREVIOUS_TAG"
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          if [ -n "${{ steps.previous.outputs.tag }}" ]; then
+            COMMITS=$(git log ${{ steps.previous.outputs.tag }}..${{ steps.version.outputs.tag }} \
+              --pretty=format:"- %s (@%an)" --no-merges)
+          else
+            COMMITS=$(git log ${{ steps.version.outputs.tag }} \
+              --pretty=format:"- %s (@%an)" --no-merges | head -20)
+          fi
+          
+          # Save to file for multiline handling
+          echo "$COMMITS" > changelog.txt
+      
+      - name: Create release notes
+        run: |
+          cat > release-notes.md << 'NOTES_START'
+          ## 🚀 What's Changed
+          
+          NOTES_START
+          
+          # Add changelog
+          if [ -s changelog.txt ]; then
+            cat changelog.txt >> release-notes.md
+          else
+            echo "- Initial release" >> release-notes.md
+          fi
+          
+          # Add Docker section
+          cat >> release-notes.md << 'NOTES_END'
+          
+          ---
+          
+          ## 🐳 Docker Images
+          
+          Multi-platform container images are available on GitHub Container Registry:
+          
+          ```bash
+          # Pull the image
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.minor }}
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.major }}
+          docker pull ghcr.io/${{ github.repository }}:latest
+          ```
+          
+          ### Supported Platforms
+          - `linux/amd64`
+          - `linux/arm64`
+          
+          ### Quick Start
+          
+          ```bash
+          # Run security audit on current directory
+          docker run -v $(pwd):/workspace \
+            -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }} \
+            /workspace audit
+          ```
+          
+          ### GitHub Actions Usage
+          
+          ```yaml
+          - name: Run Agent-OS Security Review
+            uses: devatsecure/agent-os-action@${{ steps.version.outputs.tag }}
+            with:
+              anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+              severity_threshold: high
+          ```
+          
+          ---
+          
+          ## 📦 Installation
+          
+          ### Using Docker (Recommended)
+          ```bash
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          ```
+          
+          ### Using pip
+          ```bash
+          pip install git+https://github.com/${{ github.repository }}.git@${{ steps.version.outputs.tag }}
+          ```
+          
+          ### Using GitHub Actions
+          See [README.md](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/README.md) for complete setup instructions.
+          
+          ---
+          
+          ## 🔒 Security
+          
+          This release includes:
+          - ✅ Signed container images (Sigstore/cosign)
+          - ✅ Software Bill of Materials (SBOM)
+          - ✅ Provenance attestations
+          - ✅ Vulnerability scanning (Trivy)
+          
+          ### Verify Container Signature
+          ```bash
+          cosign verify \
+            --certificate-identity-regexp="https://github.com/${{ github.repository }}" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          ```
+          
+          ---
+          
+          ## 📚 Documentation
+          
+          - [README](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/README.md)
+          - [Security Policy](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/SECURITY.md)
+          - [Contributing Guide](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.tag }}/README.md#contributing)
+          
+          ---
+          
+          ## 🐛 Bug Reports
+          
+          Found a bug? Please [open an issue](https://github.com/${{ github.repository }}/issues/new).
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.previous.outputs.tag }}...${{ steps.version.outputs.tag }}
+          NOTES_END
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191  # v2.0.8
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update release summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## ✅ Release Created Successfully
+          
+          ### Release Details
+          - **Version**: `${{ steps.version.outputs.version }}`
+          - **Tag**: `${{ steps.version.outputs.tag }}`
+          - **Docker Tags**: `${{ steps.version.outputs.version }}`, `${{ steps.version.outputs.minor }}`, `${{ steps.version.outputs.major }}`, `latest`
+          
+          ### Links
+          - 🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }})
+          - 🐳 [Docker Image](https://github.com/${{ github.repository }}/pkgs/container/agent-os-action)
+          - 📝 [Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.previous.outputs.tag }}...${{ steps.version.outputs.tag }})
+          
+          ### Next Steps
+          1. Announce the release to users
+          2. Update documentation if needed
+          3. Monitor for issues
+          EOF

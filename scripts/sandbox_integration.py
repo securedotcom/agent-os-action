@@ -22,6 +22,7 @@ try:
         ValidationMetrics,
     )
     from docker_manager import DockerManager
+
     SANDBOX_AVAILABLE = True
 except ImportError:
     SANDBOX_AVAILABLE = False
@@ -121,12 +122,8 @@ def update_sandbox_metrics(
 
     # Calculate averages and rates
     if sandbox["total_validations"] > 0:
-        sandbox["avg_execution_time_ms"] = (
-            sandbox["total_execution_time_ms"] // sandbox["total_validations"]
-        )
-        sandbox["success_rate_percent"] = (
-            (sandbox["exploitable"] / sandbox["total_validations"]) * 100
-        )
+        sandbox["avg_execution_time_ms"] = sandbox["total_execution_time_ms"] // sandbox["total_validations"]
+        sandbox["success_rate_percent"] = (sandbox["exploitable"] / sandbox["total_validations"]) * 100
 
     return metrics_dict
 
@@ -239,7 +236,7 @@ def _generate_exploit_code(
     # This is a simplified version - real implementation would be more sophisticated
     templates = {
         ExploitType.SQL_INJECTION: {
-            "python": '''
+            "python": """
 import sqlite3
 
 # Create test database
@@ -261,10 +258,10 @@ try:
         print(f"Extracted {len(results)} rows")
 except Exception as e:
     print(f"SQL_INJECTION_FAILED: {e}")
-''',
+""",
         },
         ExploitType.COMMAND_INJECTION: {
-            "python": '''
+            "python": """
 import subprocess
 
 # Test command injection
@@ -283,10 +280,10 @@ try:
         print("EXPLOIT_VERIFIED")
 except Exception as e:
     print(f"COMMAND_INJECTION_FAILED: {e}")
-''',
+""",
         },
         ExploitType.PATH_TRAVERSAL: {
-            "python": '''
+            "python": """
 import os
 
 # Create test file
@@ -309,7 +306,7 @@ finally:
     # Cleanup
     if os.path.exists(test_file):
         os.remove(test_file)
-''',
+""",
         },
     }
 
@@ -317,7 +314,7 @@ finally:
         return templates[exploit_type][language]
 
     # Generic exploit template
-    return f'''
+    return f"""
 # Generic exploit test for {exploit_type.value}
 print("Testing {exploit_type.value}")
 
@@ -325,7 +322,7 @@ print("Testing {exploit_type.value}")
 # Based on finding: {finding.get("description", "No description")}
 
 print("EXPLOIT_TEST_COMPLETED")
-'''
+"""
 
 
 def _get_expected_indicators(exploit_type: ExploitType) -> List[str]:

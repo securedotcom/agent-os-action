@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Add scripts directory to path
-scripts_dir = Path(__file__).parent.parent.parent / 'scripts'
+scripts_dir = Path(__file__).parent.parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
 
@@ -26,36 +26,38 @@ class TestPerformance:
         # Create test repository
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
-        (repo_dir / 'app.py').write_text('''
+        (repo_dir / "app.py").write_text(
+            """
 def process_payment(amount, user_input):
     query = f"SELECT * FROM payments WHERE amount = {amount} AND user = '{user_input}'"
     return db.execute(query)
 
 def display_message(msg):
     return eval(msg)
-        ''')
+        """
+        )
 
         # Run with Claude
         config_claude = {
-            'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY'),
-            'ai_provider': 'anthropic',
-            'max_files': 5,
-            'max_tokens': 2000,
+            "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+            "ai_provider": "anthropic",
+            "max_files": 5,
+            "max_tokens": 2000,
         }
 
-        results_claude = run_audit(str(repo_dir), config_claude, 'audit')
-        cost_claude = results_claude['metrics']['cost_usd']
+        results_claude = run_audit(str(repo_dir), config_claude, "audit")
+        cost_claude = results_claude["metrics"]["cost_usd"]
 
         # Run with Foundation-Sec
         config_foundation = {
-            'ai_provider': 'foundation-sec',
-            'foundation_sec_enabled': True,
-            'max_files': 5,
-            'max_tokens': 2000,
+            "ai_provider": "foundation-sec",
+            "foundation_sec_enabled": True,
+            "max_files": 5,
+            "max_tokens": 2000,
         }
 
-        results_foundation = run_audit(str(repo_dir), config_foundation, 'audit')
-        cost_foundation = results_foundation['metrics']['cost_usd']
+        results_foundation = run_audit(str(repo_dir), config_foundation, "audit")
+        cost_foundation = results_foundation["metrics"]["cost_usd"]
 
         # Verify savings
         assert cost_foundation == 0.0
@@ -74,9 +76,9 @@ def display_message(msg):
 
         # Test various providers
         providers_and_costs = [
-            ('anthropic', 'claude-sonnet-4-5-20250929', 1000000, 1000000, 18.0),  # $3 + $15
-            ('foundation-sec', None, 1000000, 1000000, 0.0),
-            ('ollama', None, 1000000, 1000000, 0.0),
+            ("anthropic", "claude-sonnet-4-5-20250929", 1000000, 1000000, 18.0),  # $3 + $15
+            ("foundation-sec", None, 1000000, 1000000, 0.0),
+            ("ollama", None, 1000000, 1000000, 0.0),
         ]
 
         for provider, model, input_tokens, output_tokens, expected_cost in providers_and_costs:
@@ -94,48 +96,54 @@ def display_message(msg):
 
         # Create safe files (should be filtered by heuristics)
         for i in range(20):
-            (repo_dir / f'safe_{i}.py').write_text(f'''
+            (repo_dir / f"safe_{i}.py").write_text(
+                f'''
 def safe_function_{i}(data):
     """Safe function {i}"""
     result = data.strip().lower()
     return result.capitalize()
-            ''')
+            '''
+            )
 
         # Create vulnerable files (should pass heuristics)
         for i in range(5):
-            (repo_dir / f'vuln_{i}.py').write_text(f'''
+            (repo_dir / f"vuln_{i}.py").write_text(
+                f"""
 def vulnerable_{i}(user_input):
     query = f"SELECT * FROM table WHERE id = '{{user_input}}'"
     return eval(user_input)
-            ''')
+            """
+            )
 
         # Run without heuristics
         start_time = time.time()
         config_no_heuristics = {
-            'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY'),
-            'enable_heuristic_filtering': False,
-            'max_files': 25,
-            'max_tokens': 2000,
+            "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+            "enable_heuristic_filtering": False,
+            "max_files": 25,
+            "max_tokens": 2000,
         }
-        results_no_heuristics = run_audit(str(repo_dir), config_no_heuristics, 'audit')
+        results_no_heuristics = run_audit(str(repo_dir), config_no_heuristics, "audit")
         time_without = time.time() - start_time
 
         # Run with heuristics
         start_time = time.time()
         config_with_heuristics = {
-            'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY'),
-            'enable_heuristic_filtering': True,
-            'max_files': 25,
-            'max_tokens': 2000,
+            "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+            "enable_heuristic_filtering": True,
+            "max_files": 25,
+            "max_tokens": 2000,
         }
-        results_with_heuristics = run_audit(str(repo_dir), config_with_heuristics, 'audit')
+        results_with_heuristics = run_audit(str(repo_dir), config_with_heuristics, "audit")
         time_with = time.time() - start_time
 
         # Should be faster with heuristics
         assert time_with < time_without
 
         # Should have fewer API calls
-        assert results_with_heuristics['metrics']['files_reviewed'] <= results_no_heuristics['metrics']['files_reviewed']
+        assert (
+            results_with_heuristics["metrics"]["files_reviewed"] <= results_no_heuristics["metrics"]["files_reviewed"]
+        )
 
         print(f"Time without heuristics: {time_without:.2f}s")
         print(f"Time with heuristics: {time_with:.2f}s")
@@ -160,10 +168,7 @@ result = subprocess.run(['echo', 'test'], capture_output=True)
 print(result.stdout.decode())
         """
 
-        finding = {
-            'vulnerability': 'Command Injection',
-            'severity': 'high'
-        }
+        finding = {"vulnerability": "Command Injection", "severity": "high"}
 
         # Time the validation
         start_time = time.time()
@@ -184,13 +189,13 @@ print(result.stdout.decode())
         repo_dir.mkdir()
 
         for i in range(1000):
-            (repo_dir / f'file_{i}.py').write_text(f'def func_{i}(): pass\n')
+            (repo_dir / f"file_{i}.py").write_text(f"def func_{i}(): pass\n")
 
         config = {
-            'max_files': '50',
-            'max_file_size': '50000',
-            'include_paths': '',
-            'exclude_paths': '',
+            "max_files": "50",
+            "max_file_size": "50000",
+            "include_paths": "",
+            "exclude_paths": "",
         }
 
         # Time file selection
@@ -214,10 +219,10 @@ print(result.stdout.decode())
         # Create test repository
         repo_dir = tmp_path / "test_repo"
         repo_dir.mkdir()
-        (repo_dir / 'app.py').write_text('def main(): pass')
-        (repo_dir / 'README.md').write_text('# Test App')
+        (repo_dir / "app.py").write_text("def main(): pass")
+        (repo_dir / "README.md").write_text("# Test App")
 
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        api_key = os.getenv("ANTHROPIC_API_KEY")
         generator = ThreatModelGenerator(api_key)
 
         # Time repository analysis
@@ -249,7 +254,7 @@ print(result.stdout.decode())
         start_time = time.time()
         for i in range(1000):
             metrics.record_file(50)
-            metrics.record_llm_call(1000, 500, 'anthropic')
+            metrics.record_llm_call(1000, 500, "anthropic")
         duration = time.time() - start_time
 
         # Should be very fast (< 100ms for 1000 events)
@@ -277,15 +282,15 @@ class TestScalability:
         repo_dir.mkdir()
 
         for i in range(100):
-            (repo_dir / f'file_{i}.py').write_text('def func(): pass\n' * 100)
+            (repo_dir / f"file_{i}.py").write_text("def func(): pass\n" * 100)
 
         from run_ai_audit import select_files_for_review
 
         config = {
-            'max_files': '100',
-            'max_file_size': '50000',
-            'include_paths': '',
-            'exclude_paths': '',
+            "max_files": "100",
+            "max_file_size": "50000",
+            "include_paths": "",
+            "exclude_paths": "",
         }
 
         files = select_files_for_review(str(repo_dir), config)
@@ -325,18 +330,20 @@ class TestScalability:
         repo_dir.mkdir()
 
         for i in range(50):
-            (repo_dir / f'file_{i}.py').write_text(f'''
+            (repo_dir / f"file_{i}.py").write_text(
+                f'''
 def function_{i}(param):
     """Function {i}"""
     result = param * 2
     return result
-            ''')
+            '''
+            )
 
         config = {
-            'max_files': '50',
-            'max_file_size': '50000',
-            'include_paths': '',
-            'exclude_paths': '',
+            "max_files": "50",
+            "max_file_size": "50000",
+            "include_paths": "",
+            "exclude_paths": "",
         }
 
         # Process files
@@ -368,7 +375,7 @@ class TestCostOptimization:
         # Should now be near limit (0.9 out of 1.0)
         # Next large operation should fail
         with pytest.raises(CostLimitExceeded):
-            breaker.check_before_call(0.5, 'anthropic')
+            breaker.check_before_call(0.5, "anthropic")
 
     def test_cost_warnings_at_thresholds(self):
         """Test that cost warnings are issued at threshold percentages"""
@@ -394,25 +401,23 @@ class TestCostOptimization:
 
         # Simulate many calls with Foundation-Sec
         for i in range(100):
-            metrics.record_llm_call(1000, 500, 'foundation-sec')
+            metrics.record_llm_call(1000, 500, "foundation-sec")
 
         output = metrics.finalize()
 
         # Cost should still be zero
-        assert output['cost_usd'] == 0.0
+        assert output["cost_usd"] == 0.0
 
     def test_token_limit_prevents_excessive_usage(self):
         """Test that max_tokens setting limits usage"""
         from run_ai_audit import estimate_tokens
 
-        config = {
-            'max_tokens': '1000'
-        }
+        config = {"max_tokens": "1000"}
 
         large_text = "This is a test. " * 1000
         token_count = estimate_tokens(large_text)
 
-        max_allowed = int(config['max_tokens'])
+        max_allowed = int(config["max_tokens"])
 
         # In practice, text should be truncated before sending
         # This test verifies token counting works
@@ -431,8 +436,8 @@ class TestResourceUtilization:
         initial_memory = process.memory_info().rss / 1024 / 1024
 
         # Create large file
-        large_file = tmp_path / 'large.py'
-        large_file.write_text('x = 1\n' * 10000)
+        large_file = tmp_path / "large.py"
+        large_file.write_text("x = 1\n" * 10000)
 
         # Read file
         from run_ai_audit import read_file_safe
@@ -475,26 +480,28 @@ class TestResourceUtilization:
         # Create many findings
         findings = []
         for i in range(100):
-            findings.append({
-                'category': 'security',
-                'severity': 'medium',
-                'title': f'Issue {i}',
-                'description': f'Description {i}',
-                'file': f'file_{i}.py',
-                'line': i,
-                'code': f'code line {i}',
-                'recommendation': f'Fix {i}'
-            })
+            findings.append(
+                {
+                    "category": "security",
+                    "severity": "medium",
+                    "title": f"Issue {i}",
+                    "description": f"Description {i}",
+                    "file": f"file_{i}.py",
+                    "line": i,
+                    "code": f"code line {i}",
+                    "recommendation": f"Fix {i}",
+                }
+            )
 
         # Time SARIF generation
         start_time = time.time()
-        sarif = generate_sarif_output(findings, '/test/repo')
+        sarif = generate_sarif_output(findings, "/test/repo")
         duration = time.time() - start_time
 
         # Should be fast
         assert duration < 1.0
 
         # Should have all findings
-        assert len(sarif['runs'][0]['results']) == 100
+        assert len(sarif["runs"][0]["results"]) == 100
 
         print(f"SARIF generation: {duration * 1000:.2f}ms for 100 findings")

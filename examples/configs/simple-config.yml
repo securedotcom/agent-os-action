@@ -1,0 +1,39 @@
+# Simple Agent-OS Configuration Example
+# Copy this to your repo as .agent-os.yml
+
+# AI Provider (required)
+ai_provider: anthropic  # Options: anthropic, openai, foundation-sec, ollama
+
+# Analysis scope
+max_files: 50
+max_tokens: 8000
+
+# Severity threshold  
+severity_threshold: medium  # Block on medium+ findings
+
+# Enabled scanners
+enabled_scanners:
+  - semgrep  # SAST
+  - gitleaks # Secrets
+  - trivy    # Dependencies
+
+# Excluded paths
+excluded_paths:
+  - tests/
+  - vendor/
+  - node_modules/
+  - "*.lock"
+  - package-lock.json
+
+# Cost controls
+cost_limit: 1.00  # Max $1 per run
+
+# Features
+enable_threat_modeling: false
+enable_sandbox_validation: false
+enable_auto_fix: true
+
+# Output formats
+sarif_output: true
+json_output: true
+markdown_report: true

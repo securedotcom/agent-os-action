@@ -1,0 +1,35 @@
+labels: [q-and-a]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ❓ Questions & Answers
+        
+        Ask the community for help!
+        
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What do you need help with?
+    validations:
+      required: true
+  
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Share relevant details
+      placeholder: |
+        - What have you tried?
+        - What error messages did you see?
+        - What's your setup? (OS, Python version, etc.)
+    validations:
+      required: true
+  
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration (optional)
+      description: Share your .agent-os.yml or relevant config
+      render: yaml

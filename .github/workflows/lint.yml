@@ -1,0 +1,99 @@
+name: Lint Code
+
+on:
+  pull_request:
+    branches: [main, develop, master]
+  push:
+    branches: [main, develop, master]
+
+permissions:
+  contents: read
+
+jobs:
+  ruff:
+    name: Ruff Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install ruff
+        run: pip install ruff
+      
+      - name: Run ruff check
+        run: |
+          echo "🔍 Running ruff linter..."
+          ruff check . --output-format=github
+      
+      - name: Run ruff format check
+        run: |
+          echo "📝 Checking code formatting..."
+          ruff format --check .
+      
+      - name: Create summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🔍 Ruff Linting Results
+          
+          Ruff combines the functionality of:
+          - **Black** (code formatting)
+          - **isort** (import sorting)
+          - **Pylint** (code quality)
+          - **Flake8** (style guide)
+          - And 50+ other Python linters
+          
+          **Speed:** ~10-100x faster than Black + Pylint combined
+          **Written in:** Rust 🦀
+          
+          ### Checks Performed
+          - ✅ Code style (PEP 8)
+          - ✅ Import sorting
+          - ✅ Code quality
+          - ✅ Formatting consistency
+          - ✅ Common bugs and anti-patterns
+          
+          EOF
+
+  mypy:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install mypy types-requests
+          pip install -r requirements.txt
+      
+      - name: Run mypy
+        run: |
+          echo "🔍 Running mypy type checker..."
+          mypy scripts/ --ignore-missing-imports || true
+        continue-on-error: true
+      
+      - name: Create summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🔍 Type Checking Results
+          
+          MyPy performs static type analysis to catch type-related bugs.
+          
+          **Note:** Type checking is currently advisory (does not fail build).
+          EOF

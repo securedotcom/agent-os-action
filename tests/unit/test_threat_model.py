@@ -8,7 +8,8 @@ from unittest.mock import Mock, patch, MagicMock
 
 # Add scripts directory to path for imports
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'scripts'))
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
 from threat_model_generator import ThreatModelGenerator
 
@@ -24,7 +25,7 @@ class TestThreatModelGenerator:
     @pytest.fixture
     def mock_anthropic_client(self):
         """Mock Anthropic client"""
-        with patch('threat_model_generator.Anthropic') as mock:
+        with patch("threat_model_generator.Anthropic") as mock:
             yield mock
 
     @pytest.fixture
@@ -109,12 +110,7 @@ class TestThreatModelGenerator:
         context = {
             "frameworks": set(),
             "technologies": set(),
-            "key_files": [
-                {
-                    "name": "requirements.txt",
-                    "content": "django==4.0\nflask==2.0\npytest==7.0"
-                }
-            ]
+            "key_files": [{"name": "requirements.txt", "content": "django==4.0\nflask==2.0\npytest==7.0"}],
         }
 
         generator._detect_frameworks(context)
@@ -132,9 +128,9 @@ class TestThreatModelGenerator:
             "key_files": [
                 {
                     "name": "package.json",
-                    "content": '{"dependencies": {"react": "^18.0", "next": "^13.0", "express": "^4.0"}}'
+                    "content": '{"dependencies": {"react": "^18.0", "next": "^13.0", "express": "^4.0"}}',
                 }
-            ]
+            ],
         }
 
         generator._detect_frameworks(context)
@@ -149,12 +145,7 @@ class TestThreatModelGenerator:
         context = {
             "frameworks": set(),
             "technologies": set(),
-            "key_files": [
-                {
-                    "name": "package.json",
-                    "content": 'postgresql mongodb redis mysql'
-                }
-            ]
+            "key_files": [{"name": "package.json", "content": "postgresql mongodb redis mysql"}],
         }
 
         generator._detect_frameworks(context)
@@ -168,33 +159,37 @@ class TestThreatModelGenerator:
         """Test successful threat model generation"""
         # Mock the API response
         mock_message = Mock()
-        mock_message.content = [Mock(text=json.dumps({
-            "attack_surface": {
-                "entry_points": ["API endpoint"],
-                "external_dependencies": ["npm"],
-                "authentication_methods": ["JWT"],
-                "data_stores": ["PostgreSQL"]
-            },
-            "trust_boundaries": [
-                {"name": "Public API", "trust_level": "untrusted", "description": "External"}
-            ],
-            "assets": [
-                {"name": "User data", "sensitivity": "high", "description": "PII"}
-            ],
-            "threats": [
-                {
-                    "id": "THREAT-001",
-                    "name": "SQL Injection",
-                    "category": "injection",
-                    "likelihood": "high",
-                    "impact": "critical",
-                    "affected_components": ["database"],
-                    "description": "Test threat",
-                    "mitigation": "Use parameterized queries"
-                }
-            ],
-            "security_objectives": ["Protect data"]
-        }))]
+        mock_message.content = [
+            Mock(
+                text=json.dumps(
+                    {
+                        "attack_surface": {
+                            "entry_points": ["API endpoint"],
+                            "external_dependencies": ["npm"],
+                            "authentication_methods": ["JWT"],
+                            "data_stores": ["PostgreSQL"],
+                        },
+                        "trust_boundaries": [
+                            {"name": "Public API", "trust_level": "untrusted", "description": "External"}
+                        ],
+                        "assets": [{"name": "User data", "sensitivity": "high", "description": "PII"}],
+                        "threats": [
+                            {
+                                "id": "THREAT-001",
+                                "name": "SQL Injection",
+                                "category": "injection",
+                                "likelihood": "high",
+                                "impact": "critical",
+                                "affected_components": ["database"],
+                                "description": "Test threat",
+                                "mitigation": "Use parameterized queries",
+                            }
+                        ],
+                        "security_objectives": ["Protect data"],
+                    }
+                )
+            )
+        ]
         mock_message.usage = Mock(input_tokens=1000, output_tokens=500)
 
         mock_client = Mock()
@@ -208,7 +203,7 @@ class TestThreatModelGenerator:
             "frameworks": ["Django"],
             "technologies": ["PostgreSQL"],
             "key_files": [],
-            "file_tree": []
+            "file_tree": [],
         }
 
         threat_model = generator.generate_threat_model(repo_context)
@@ -237,7 +232,7 @@ class TestThreatModelGenerator:
             "frameworks": [],
             "technologies": [],
             "key_files": [],
-            "file_tree": []
+            "file_tree": [],
         }
 
         # Should return fallback threat model
@@ -250,17 +245,13 @@ class TestThreatModelGenerator:
     def test_save_threat_model(self, api_key, mock_anthropic_client, tmp_path):
         """Test saving threat model to file"""
         generator = ThreatModelGenerator(api_key)
-        threat_model = {
-            "version": "1.0",
-            "repository": "test",
-            "threats": []
-        }
+        threat_model = {"version": "1.0", "repository": "test", "threats": []}
 
         output_path = tmp_path / "threat-model.json"
         generator.save_threat_model(threat_model, str(output_path))
 
         assert output_path.exists()
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             loaded = json.load(f)
         assert loaded["version"] == "1.0"
         assert loaded["repository"] == "test"
@@ -270,13 +261,9 @@ class TestThreatModelGenerator:
         generator = ThreatModelGenerator(api_key)
 
         # Create a threat model file
-        threat_model = {
-            "version": "1.0",
-            "repository": "test",
-            "threats": []
-        }
+        threat_model = {"version": "1.0", "repository": "test", "threats": []}
         output_path = tmp_path / "threat-model.json"
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(threat_model, f)
 
         # Load it
@@ -302,7 +289,7 @@ class TestThreatModelGenerator:
             "name": "test-repo",
             "languages": ["Python"],
             "frameworks": ["Django"],
-            "technologies": ["PostgreSQL"]
+            "technologies": ["PostgreSQL"],
         }
 
         threat_model = generator._create_fallback_threat_model(repo_context)
@@ -318,13 +305,24 @@ class TestThreatModelGenerator:
         """Test updating existing threat model"""
         # Mock API response
         mock_message = Mock()
-        mock_message.content = [Mock(text=json.dumps({
-            "attack_surface": {"entry_points": [], "external_dependencies": [], "authentication_methods": [], "data_stores": []},
-            "trust_boundaries": [],
-            "assets": [],
-            "threats": [],
-            "security_objectives": []
-        }))]
+        mock_message.content = [
+            Mock(
+                text=json.dumps(
+                    {
+                        "attack_surface": {
+                            "entry_points": [],
+                            "external_dependencies": [],
+                            "authentication_methods": [],
+                            "data_stores": [],
+                        },
+                        "trust_boundaries": [],
+                        "assets": [],
+                        "threats": [],
+                        "security_objectives": [],
+                    }
+                )
+            )
+        ]
         mock_message.usage = Mock(input_tokens=1000, output_tokens=500)
 
         mock_client = Mock()
@@ -340,7 +338,7 @@ class TestThreatModelGenerator:
             "frameworks": [],
             "technologies": [],
             "key_files": [],
-            "file_tree": []
+            "file_tree": [],
         }
 
         updated = generator.update_threat_model(existing, new_context)
@@ -355,17 +353,15 @@ class TestReviewMetricsThreatModel:
     def test_record_threat_model(self):
         """Test recording threat model metrics"""
         # Import from run_ai_audit
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'scripts'))
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
         from run_ai_audit import ReviewMetrics
 
         metrics = ReviewMetrics()
         threat_model = {
             "threats": [{"id": "T1"}, {"id": "T2"}, {"id": "T3"}],
-            "attack_surface": {
-                "entry_points": ["API1", "API2", "API3", "API4"]
-            },
+            "attack_surface": {"entry_points": ["API1", "API2", "API3", "API4"]},
             "trust_boundaries": [{"name": "B1"}, {"name": "B2"}],
-            "assets": [{"name": "A1"}, {"name": "A2"}, {"name": "A3"}]
+            "assets": [{"name": "A1"}, {"name": "A2"}, {"name": "A3"}],
         }
 
         metrics.record_threat_model(threat_model)
@@ -378,7 +374,7 @@ class TestReviewMetricsThreatModel:
 
     def test_threat_model_metrics_initialization(self):
         """Test that threat model metrics are initialized"""
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'scripts'))
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
         from run_ai_audit import ReviewMetrics
 
         metrics = ReviewMetrics()

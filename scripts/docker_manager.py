@@ -23,6 +23,7 @@ try:
     import docker
     from docker.errors import DockerException, ImageNotFound, NotFound
     from docker.models.containers import Container
+
     DOCKER_AVAILABLE = True
 except ImportError:
     DOCKER_AVAILABLE = False
@@ -46,9 +47,7 @@ class DockerManager:
             image: Docker image to use (defaults to DEFAULT_IMAGE)
         """
         if not DOCKER_AVAILABLE:
-            raise RuntimeError(
-                "Docker Python SDK not available. Install with: pip install docker"
-            )
+            raise RuntimeError("Docker Python SDK not available. Install with: pip install docker")
 
         try:
             self.client = docker.from_env()
@@ -56,8 +55,7 @@ class DockerManager:
         except DockerException as e:
             logger.exception("Failed to connect to Docker daemon")
             raise RuntimeError(
-                "Docker is not available or not running. "
-                "Please ensure Docker is installed and running."
+                "Docker is not available or not running. " "Please ensure Docker is installed and running."
             ) from e
 
         self.image = image or self.DEFAULT_IMAGE
@@ -96,18 +94,14 @@ class DockerManager:
                         f"-t {self.image} ."
                     )
                     raise
-                logger.warning(
-                    f"Image {self.image} not ready, attempt {attempt + 1}/{max_retries}"
-                )
-                time.sleep(2 ** attempt)
+                logger.warning(f"Image {self.image} not ready, attempt {attempt + 1}/{max_retries}")
+                time.sleep(2**attempt)
             except DockerException:
                 if attempt == max_retries - 1:
                     logger.exception(f"Failed to verify image {self.image}")
                     raise
-                logger.warning(
-                    f"Docker error verifying image, attempt {attempt + 1}/{max_retries}"
-                )
-                time.sleep(2 ** attempt)
+                logger.warning(f"Docker error verifying image, attempt {attempt + 1}/{max_retries}")
+                time.sleep(2**attempt)
 
     def create_container(
         self,
@@ -408,10 +402,7 @@ class DockerManager:
             List of container info dicts
         """
         try:
-            containers = self.client.containers.list(
-                all=True,
-                filters={"label": "agent-os-sandbox=true"}
-            )
+            containers = self.client.containers.list(all=True, filters={"label": "agent-os-sandbox=true"})
 
             return [
                 {
