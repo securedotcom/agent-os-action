@@ -12,10 +12,10 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from gate import PolicyGate
-from normalizer import Finding, UnifiedNormalizer
-from normalizer.semgrep import SemgrepNormalizer
-from normalizer.trufflehog import TruffleHogNormalizer
+from gate import PolicyGate  # noqa: E402
+from normalizer import Finding, UnifiedNormalizer  # noqa: E402
+from normalizer.semgrep import SemgrepNormalizer  # noqa: E402
+from normalizer.trufflehog import TruffleHogNormalizer  # noqa: E402
 
 
 class TestFindingSchema:

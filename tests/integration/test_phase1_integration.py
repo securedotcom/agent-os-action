@@ -13,7 +13,7 @@ import pytest
 scripts_dir = Path(__file__).parent.parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
-from run_ai_audit import ReviewMetrics, detect_ai_provider, estimate_call_cost
+from run_ai_audit import ReviewMetrics, detect_ai_provider, estimate_call_cost  # noqa: E402
 
 
 class TestPhase1Integration:

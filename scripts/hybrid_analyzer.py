@@ -656,11 +656,12 @@ Respond with JSON only:"""
 
                 elif agent_name == "exploit_analyst":
                     # Exploit analyst focuses on exploitable issues
-                    if (
+                    is_exploitable = (
                         finding.exploitability in ["trivial", "moderate"]
                         or finding.cvss_score
                         and finding.cvss_score >= 7.0
-                    ):
+                    )
+                    if is_exploitable:
                         # Upgrade severity if highly exploitable
                         if finding.exploitability == "trivial" and finding.cvss_score and finding.cvss_score >= 9.0:
                             agent_finding["severity"] = "critical"

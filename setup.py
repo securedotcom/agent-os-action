@@ -1,5 +1,4 @@
 """Setup script for agent-os-code-reviewer package."""
-
 from setuptools import find_packages, setup
 
 setup(
