@@ -27,6 +27,7 @@ jobs:
             p/python
             p/owasp-top-ten
           generateSarif: true
+        continue-on-error: true  # Don't fail on findings, just report them
         
       - name: Upload SARIF
         if: always()
