@@ -1947,6 +1947,7 @@ Pay special attention to:
 Generate the complete audit report as specified in your instructions.
 """
 
+    error_msg = None
     try:
         # Sanitize model name (use str() to break taint chain)
         safe_model = str(model).split("/")[-1] if model else "unknown"
@@ -1983,12 +1984,14 @@ Generate the complete audit report as specified in your instructions.
 
     except CostLimitExceeded as e:
         # Cost limit reached during orchestration
-        print(f"   🚨 Cost limit exceeded during synthesis: {e}")
+        error_msg = str(e)
+        print(f"   🚨 Cost limit exceeded during synthesis: {error_msg}")
         print(f"   📊 Generating report from {len(agent_reports)} completed agents")
         # Fall through to generate partial report
 
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        error_msg = str(e)
+        print(f"   ❌ Error: {error_msg}")
 
     # Fallback: concatenate all reports (used if orchestrator fails OR cost limit reached)
     if "final_report" not in locals():
@@ -1999,7 +2002,7 @@ Orchestrator synthesis failed. Below are individual agent reports.
 
 {combined_reports}
 """
-        agent_metrics["orchestrator"] = {"error": str(e)}
+        agent_metrics["orchestrator"] = {"error": error_msg if error_msg else "Unknown error"}
 
     # Add multi-agent metadata to final report
     total_cost = sum(m.get("cost_usd", 0) for m in agent_metrics.values())
