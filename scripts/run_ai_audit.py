@@ -445,7 +445,7 @@ class ReviewMetrics:
         print(f"📊 Metrics saved to: {path}")
 
 
-class CostLimitExceededErrorError(Exception):
+class CostLimitExceededError(Exception):
     """Raised when cost limit would be exceeded by an operation"""
 
     pass

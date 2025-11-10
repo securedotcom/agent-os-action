@@ -156,7 +156,7 @@ class HeuristicAuditor:
             match = re.search(pattern, content, flags)
             if match:
                 return content[: match.start()].count("\n") + 1
-        except:
+        except Exception:
             pass
         return 0
 
