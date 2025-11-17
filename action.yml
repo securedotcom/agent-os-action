@@ -314,7 +314,7 @@ runs:
 
     - name: Cache Foundation-Sec Model
       if: inputs.foundation-sec-enabled == 'true'
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/huggingface
         key: foundation-sec-8b-4bit-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
