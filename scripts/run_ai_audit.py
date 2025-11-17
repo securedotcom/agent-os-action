@@ -1884,7 +1884,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
         print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
 
         # Build consensus
-        consensus_builder = ConsensusBuilder()
+        consensus_builder = ConsensusBuilder(agents)
         consensus_results = consensus_builder.build_consensus(all_findings)
 
         if consensus_results:
