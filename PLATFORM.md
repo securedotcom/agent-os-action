@@ -69,7 +69,7 @@ Agent-OS aligns security with delivery velocity, compliance mandates, and execut
 
 ### Prerequisites
 
-- **Python**: 3.9 or higher
+- **Python**: 3.10 or higher (Python 3.9 is EOL and has dependency conflicts)
 - **Git**: 2.30 or higher
 - **OS**: macOS, Linux, or WSL2
 - **API Keys** (optional):

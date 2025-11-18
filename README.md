@@ -129,7 +129,7 @@ Agent-OS uses AI to reduce noise and assess exploitability. Choose one:
 
 | Option | Cost | Quality | Setup |
 |--------|------|---------|-------|
-| **Foundation-Sec-8B** (Default) | $0 | ⭐⭐⭐⭐ | Runs locally in runner (4GB download, CPU-compatible) |
+| **Foundation-Sec-8B** (Default) | $0 | ⭐⭐⭐⭐ | Runs locally in runner (4-8GB download, CPU-compatible) |
 | **Claude Sonnet** (Optional) | ~$0.35/run | ⭐⭐⭐⭐⭐ | Requires `ANTHROPIC_API_KEY` |
 
 **Recommendation**: Start with Foundation-Sec (free), upgrade to Claude if you need higher accuracy.
@@ -137,7 +137,7 @@ Agent-OS uses AI to reduce noise and assess exploitability. Choose one:
 ### Foundation-Sec-8B Details
 - **What it is**: Cisco's security-optimized LLM, fine-tuned for vulnerability analysis
 - **Why it's free**: Local inference in your GitHub Actions runner (no API calls)
-- **Requirements**: ~4GB download (cached after first run), works on standard `ubuntu-latest` runners
+- **Requirements**: ~4-8GB download (depends on quantization, cached after first run), works on standard `ubuntu-latest` runners
 - **Performance**: 84% recall on obfuscated secrets, 60%+ noise reduction
 
 ---
