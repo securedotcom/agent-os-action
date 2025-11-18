@@ -1883,7 +1883,7 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
         print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
 
-        # Build consensus - group findings by agent
+        # Build consensus - group findings by agent (fixed: use aggregate_findings method)
         agent_findings_dict = {}
         for finding in all_findings:
             agent_name = finding.get("source_agent", "unknown")
