@@ -1883,14 +1883,21 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
         print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
 
-        # Build consensus
+        # Build consensus - group findings by agent
+        agent_findings_dict = {}
+        for finding in all_findings:
+            agent_name = finding.get("source_agent", "unknown")
+            if agent_name not in agent_findings_dict:
+                agent_findings_dict[agent_name] = []
+            agent_findings_dict[agent_name].append(finding)
+
         consensus_builder = ConsensusBuilder(agents)
-        consensus_results = consensus_builder.build_consensus(all_findings)
+        consensus_results = consensus_builder.aggregate_findings(agent_findings_dict)
 
         if consensus_results:
-            confirmed = len([f for f in consensus_results.values() if f["confidence"] == "high"])
-            likely = len([f for f in consensus_results.values() if f["confidence"] == "medium"])
-            uncertain = len([f for f in consensus_results.values() if f["confidence"] == "low"])
+            confirmed = len([f for f in consensus_results if f.get("consensus", {}).get("confidence", 0) >= 0.85])
+            likely = len([f for f in consensus_results if 0.70 <= f.get("consensus", {}).get("confidence", 0) < 0.85])
+            uncertain = len([f for f in consensus_results if f.get("consensus", {}).get("confidence", 0) < 0.70])
 
             print("   ✅ Consensus analysis complete:")
             print(f"      - {confirmed} high-confidence findings (multiple agents agree)")
