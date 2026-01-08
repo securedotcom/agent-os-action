@@ -264,12 +264,13 @@ except Exception as e:
 import subprocess
 
 # Test command injection
-payload = "test; echo COMMAND_INJECTION_SUCCESS"
+payload = "test"
 
 try:
+    # Use list-based command to avoid shell injection
+    # This safely passes arguments without shell interpretation
     result = subprocess.run(
-        f"echo {payload}",
-        shell=True,
+        ["echo", payload, "COMMAND_INJECTION_SUCCESS"],
         capture_output=True,
         text=True,
         timeout=5

@@ -1,11 +1,11 @@
 # Agent-OS Security Action
 
-> **GitHub Action for Production Security Scanning**  
-> Orchestrates TruffleHog, Gitleaks, Semgrep, Trivy, Checkov + AI triage + policy gates
+> **GitHub Action for Production Security Scanning**
+> Orchestrates TruffleHog, Semgrep, Trivy, Checkov + AI triage + policy gates
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
-[![Foundation-Sec](https://img.shields.io/badge/AI-Foundation--Sec--8B-green.svg)](#ai-triage-options)
+[![AI-Powered](https://img.shields.io/badge/AI-Claude%20%7C%20OpenAI-blue.svg)](#ai-triage-options)
 
 ---
 
@@ -13,11 +13,12 @@
 
 **Runs multiple security scanners, applies AI triage to suppress false positives, and blocks PRs only on verified, high-confidence threats.**
 
-- **Multi-Scanner**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov in parallel
-- **AI Triage**: Foundation-Sec-8B (free) or Claude for intelligent noise reduction
+- **Multi-Scanner**: TruffleHog, Semgrep, Trivy, Checkov in parallel
+- **AI Triage**: Claude (Anthropic) or OpenAI for intelligent noise reduction
 - **Smart Blocking**: Only fails on verified secrets, critical CVEs, and high-confidence SAST findings
 - **60% Noise Reduction**: ML-powered false positive suppression
-- **Zero to $0.35**: Free with Foundation-Sec, optional Claude upgrade
+- **Intelligent Caching**: 10-100x faster repeat scans with smart caching
+- **Real-Time Progress**: Live progress bars for all scanning operations
 
 ---
 
@@ -41,10 +42,11 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### 2. Add Secret (Optional)
+### 2. Add API Key
 
-- **Free tier**: Omit `anthropic-api-key` to use Foundation-Sec-8B (local inference, $0)
-- **Paid tier**: Add `ANTHROPIC_API_KEY` in Settings → Secrets for Claude analysis (~$0.35/run)
+- Add `ANTHROPIC_API_KEY` in Settings → Secrets for Claude analysis (~$0.35/run)
+- Alternatively, use `OPENAI_API_KEY` for OpenAI GPT-4 analysis
+- For free local analysis, use Ollama (see [Configuration](#configuration))
 
 ### 3. Open a PR
 
@@ -100,7 +102,7 @@ User.where(email: params[:email])
 **Metrics**:
 - Files Analyzed: 247
 - Duration: 3.2 minutes
-- Cost: $0.00 (Foundation-Sec)
+- Cost: $0.32 (Claude Sonnet)
 - Noise Reduction: 67% (6 findings → 2 actionable)
 ```
 
@@ -112,12 +114,12 @@ See full example: [examples/reports/sample-pr-comment.md](examples/reports/sampl
 
 | Aspect | Details |
 |--------|---------|
-| **Scanners Orchestrated** | **TruffleHog** (verified secrets), **Gitleaks** (pattern-based secrets), **Semgrep** (SAST, 2000+ rules), **Trivy** (CVE scanning), **Checkov** (IaC security) |
-| **AI Analysis** | **Foundation-Sec-8B** (Cisco security-optimized LLM, local inference, $0) or **Claude Sonnet** (Anthropic, ~$0.35/run) |
-| **Data Handling** | All scanning runs **in your GitHub Actions runner**. Optional: API calls to Anthropic if using Claude (code snippets for context only). **No telemetry, no data collection**. |
+| **Scanners Orchestrated** | **TruffleHog** (verified secrets), **Semgrep** (SAST, 2000+ rules), **Trivy** (CVE scanning), **Checkov** (IaC security). Note: GitLeaks is a paid tool and not included. |
+| **AI Analysis** | **Claude Sonnet** (Anthropic, ~$0.35/run) or **OpenAI GPT-4** (~$0.40/run). For free local option, use **Ollama** (requires self-hosted runner). |
+| **Data Handling** | All scanning runs **in your GitHub Actions runner**. Optional: API calls to Anthropic/OpenAI if using cloud AI (code snippets for context only). **No telemetry, no data collection**. |
 | **Permissions Required** | `contents: read` (scan code), `pull-requests: write` (comment), `actions: read` (upload artifacts). Optional: `contents: write` (create audit PRs) |
-| **Runtime** | **<5 minutes** for typical repos (p95). Scales linearly with repo size. Parallelized scanning. |
-| **Cost** | **$0.00** with Foundation-Sec-8B (default), **$0.20-0.50** with Claude (depends on findings count) |
+| **Runtime** | **<5 minutes** for typical repos (p95). Scales linearly with repo size. Parallelized scanning with intelligent caching for 10-100x speedup on repeat scans. |
+| **Cost** | **$0.20-0.50** with Claude/OpenAI (depends on findings count), **$0.00** with Ollama (local, requires self-hosted runner) |
 | **Noise Reduction** | **60-70%** false positive suppression via ML scoring + historical analysis |
 | **When It Blocks** | Only on: **(1)** Verified secrets (API-validated), **(2)** Critical CVEs with known exploits, **(3)** High-confidence SAST findings (low noise score). Customizable via Rego policies. |
 
@@ -129,16 +131,11 @@ Agent-OS uses AI to reduce noise and assess exploitability. Choose one:
 
 | Option | Cost | Quality | Setup |
 |--------|------|---------|-------|
-| **Foundation-Sec-8B** (Default) | $0 | ⭐⭐⭐⭐ | Runs locally in runner (4-8GB download, CPU-compatible) |
-| **Claude Sonnet** (Optional) | ~$0.35/run | ⭐⭐⭐⭐⭐ | Requires `ANTHROPIC_API_KEY` |
+| **Claude Sonnet** (Recommended) | ~$0.35/run | ⭐⭐⭐⭐⭐ | Requires `ANTHROPIC_API_KEY` |
+| **OpenAI GPT-4** | ~$0.40/run | ⭐⭐⭐⭐⭐ | Requires `OPENAI_API_KEY` |
+| **Ollama** (Free) | $0 | ⭐⭐⭐ | Requires self-hosted runner with GPU/CPU model |
 
-**Recommendation**: Start with Foundation-Sec (free), upgrade to Claude if you need higher accuracy.
-
-### Foundation-Sec-8B Details
-- **What it is**: Cisco's security-optimized LLM, fine-tuned for vulnerability analysis
-- **Why it's free**: Local inference in your GitHub Actions runner (no API calls)
-- **Requirements**: ~4-8GB download (depends on quantization, cached after first run), works on standard `ubuntu-latest` runners
-- **Performance**: 84% recall on obfuscated secrets, 60%+ noise reduction
+**Recommendation**: Use Claude Sonnet for best results. For cost-conscious teams with self-hosted infrastructure, Ollama provides free local inference.
 
 ---
 
@@ -158,7 +155,7 @@ Agent-OS uses AI to reduce noise and assess exploitability. Choose one:
     # Comment on PR with results (default: true)
     comment-on-pr: 'true'
     
-    # AI provider: auto, anthropic, foundation-sec (default: auto)
+    # AI provider: anthropic, openai, ollama (default: auto)
     ai-provider: 'auto'
     
     # Enable Semgrep SAST (default: true)
@@ -264,7 +261,7 @@ More examples: [examples/workflows/](examples/workflows/)
 | **False Positives** | 100+ noisy findings | 60% suppressed, ~40 actionable |
 | **Context** | Raw tool output | AI-explained with fix suggestions |
 | **Prioritization** | All treated equal | Risk-scored: CVSS × Exploitability × Reachability |
-| **Coverage** | Run 1-2 tools | 5 tools orchestrated + correlated |
+| **Coverage** | Run 1-2 tools | 4 tools orchestrated + correlated |
 | **Cost** | Dev time to triage | $0-0.35 automated |
 
 ### vs Generic GitHub Actions
@@ -291,14 +288,14 @@ More examples: [examples/workflows/](examples/workflows/)
 - ✅ **Run multiple scanners** without managing each separately
 - ✅ **Enforce security policies** via Rego gates
 - ✅ **Generate SBOMs** for supply chain transparency
-- ✅ **Zero-cost security scanning** (with Foundation-Sec)
+- ✅ **Zero-cost security scanning** (with Ollama on self-hosted runners)
 - ✅ **Enterprise compliance** (SOC2, PCI-DSS)
 
 **Ideal Teams:**
 
 | Team Type | Why Agent-OS Fits |
 |-----------|-------------------|
-| **Startups** | Free tier (Foundation-Sec), easy setup, production-ready |
+| **Startups** | Low cost (~$0.35/scan), easy setup, production-ready |
 | **Scale-ups** | Handles repos at scale, multi-repo support, cost-efficient |
 | **Enterprises** | Compliance packs, policy enforcement, self-hosted option |
 | **Security Teams** | Comprehensive scanning, prioritization, metrics |
@@ -335,7 +332,7 @@ More examples: [examples/workflows/](examples/workflows/)
 
 ### vs Running Scanners Manually
 
-| Aspect | Manual (Trivy + Semgrep + Gitleaks) | Agent-OS |
+| Aspect | Manual (Trivy + Semgrep + TruffleHog) | Agent-OS |
 |--------|--------------------------------------|----------|
 | **Setup Time** | 2-4 hours per repo | 3 minutes (copy YAML) |
 | **Raw Findings** | 50-200+ per scan | 3-10 actionable (60-70% noise reduction) |
@@ -368,8 +365,8 @@ More examples: [examples/workflows/](examples/workflows/)
 
 | Feature | Commercial SAST/SCA | Agent-OS | Notes |
 |---------|---------------------|----------|-------|
-| **Pricing** | $1,000-10,000+/year | $0 | Commercial tools include support |
-| **Coverage** | Excellent (mature) | Very Good (5 tools) | Commercial tools more specialized |
+| **Pricing** | $1,000-10,000+/year | ~$100-500/year (usage-based) | Commercial tools include support |
+| **Coverage** | Excellent (mature) | Very Good (4 tools) | Commercial tools more specialized |
 | **Noise Reduction** | Good (tuned rulesets) | Very Good (AI-powered) | Agent-OS learns from feedback |
 | **Fix Suggestions** | Basic | AI-generated | Agent-OS uses LLMs |
 | **Policy Engine** | Proprietary | Open (Rego) | Agent-OS more flexible |
@@ -391,7 +388,7 @@ More examples: [examples/workflows/](examples/workflows/)
 | **Privacy** | Trust vendor | Self-hosted option |
 | **Integration** | Vendor-managed | GitHub Action |
 
-**Agent-OS Advantage**: Zero external data sharing (use Foundation-Sec for 100% local processing).
+**Agent-OS Advantage**: Minimal external data sharing (only code snippet context for AI analysis). Use Ollama on self-hosted runners for 100% local processing.
 
 ---
 
@@ -480,13 +477,9 @@ Full deployment guide: [PLATFORM.md#deployment](PLATFORM.md#deployment)
 
 ## Troubleshooting
 
-### "Failed to download Foundation-Sec model"
-- **Cause**: Network timeout or insufficient disk space
-- **Fix**: Model is ~4GB. Ensure runner has 10GB+ free space. Cached after first run.
-
 ### "Cost limit exceeded"
-- **Cause**: Large repo or many findings triggered Claude API calls
-- **Fix**: Use Foundation-Sec (free) or increase `cost-limit: '2.0'`
+- **Cause**: Large repo or many findings triggered Claude/OpenAI API calls
+- **Fix**: Use Ollama (free on self-hosted) or increase `cost-limit: '2.0'`
 
 ### "No blockers found but PR still fails"
 - **Cause**: Custom Rego policy or `fail-on` configuration
@@ -506,8 +499,9 @@ More: [docs/FAQ.md](docs/FAQ.md)
 
 | Mode | Data Sent Externally | Recipient |
 |------|---------------------|-----------|
-| **Foundation-Sec** | ❌ Nothing | Local inference only |
+| **Ollama (Local)** | ❌ Nothing | Local inference only |
 | **Claude (Anthropic)** | ✅ Code snippets (findings context only, ~200 lines max) | Anthropic API (encrypted HTTPS) |
+| **OpenAI GPT-4** | ✅ Code snippets (findings context only, ~200 lines max) | OpenAI API (encrypted HTTPS) |
 
 **Guarantees**:
 - ✅ No full repository data sent anywhere
@@ -566,13 +560,13 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 Agent-OS is built on:
-- **TruffleHog** (secret scanning)
-- **Gitleaks** (secret detection)
+- **TruffleHog** (secret scanning with verification)
 - **Semgrep** (SAST analysis)
 - **Trivy** (vulnerability scanning)
 - **Checkov** (IaC security)
-- **Foundation-Sec-8B** (Cisco security-optimized LLM)
 - **Claude** (Anthropic AI)
+- **OpenAI** (GPT-4)
+- **Ollama** (local LLM inference)
 - **OPA** (policy engine)
 
 Special thanks to the open-source security community.

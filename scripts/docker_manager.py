@@ -14,6 +14,7 @@ import contextlib
 import logging
 import os
 import secrets
+import shlex
 import socket
 import time
 from pathlib import Path
@@ -204,8 +205,8 @@ class DockerManager:
             container_id: Container ID
             code: Code to execute
             language: Programming language (python, javascript, java, go)
-            timeout: Execution timeout in seconds
-            working_dir: Working directory for execution
+            timeout: Execution timeout in seconds (must be positive integer)
+            working_dir: Working directory for execution (must be valid path)
 
         Returns:
             Dict with stdout, stderr, exit_code, and success
@@ -213,27 +214,41 @@ class DockerManager:
         if container_id not in self._containers:
             raise ValueError(f"Container {container_id} not found")
 
+        # Input validation
+        if not isinstance(timeout, int) or timeout <= 0:
+            raise ValueError(f"Timeout must be a positive integer, got: {timeout}")
+
+        if not working_dir or not isinstance(working_dir, str):
+            raise ValueError(f"Working directory must be a non-empty string, got: {working_dir}")
+
         container = self._containers[container_id]
 
-        # Prepare execution command based on language
+        # Build command list safely without shell injection vulnerabilities
+        # Each element is a separate argument, preventing injection
+        cmd_list = [
+            "timeout",
+            str(timeout),
+        ]
+
         if language == "python":
-            cmd = f"cd {working_dir} && timeout {timeout} python3 -c {self._quote(code)}"
+            cmd_list.extend(["python3", "-c", code])
         elif language in ("javascript", "js", "node"):
-            cmd = f"cd {working_dir} && timeout {timeout} node -e {self._quote(code)}"
+            cmd_list.extend(["node", "-e", code])
         elif language == "java":
             # For Java, code should be a filename
-            cmd = f"cd {working_dir} && timeout {timeout} java {code}"
+            cmd_list.extend(["java", code])
         elif language == "go":
             # For Go, code should be a filename
-            cmd = f"cd {working_dir} && timeout {timeout} go run {code}"
+            cmd_list.extend(["go", "run", code])
         elif language == "bash":
-            cmd = f"cd {working_dir} && timeout {timeout} bash -c {self._quote(code)}"
+            # For bash, wrap the code in bash -c with the code as a single argument
+            cmd_list.extend(["bash", "-c", code])
         else:
             raise ValueError(f"Unsupported language: {language}")
 
         try:
             result = container.exec_run(
-                cmd=["bash", "-c", cmd],
+                cmd=cmd_list,
                 demux=True,
                 workdir=working_dir,
             )
@@ -263,17 +278,25 @@ class DockerManager:
         container_id: str,
         local_path: str,
         container_path: str = "/workspace",
+        allowed_base: Optional[Path] = None,
     ) -> bool:
         """
-        Copy files from local filesystem to container
+        Copy files from local filesystem to container with path traversal protection.
+
+        This method validates all paths to prevent directory traversal attacks,
+        symbolic link escapes, and other path-based security issues.
 
         Args:
             container_id: Container ID
             local_path: Local file or directory path
             container_path: Destination path in container
+            allowed_base: Base directory for path validation (defaults to cwd)
 
         Returns:
             True if successful
+
+        Raises:
+            ValueError: If container not found or path validation fails
         """
         if container_id not in self._containers:
             raise ValueError(f"Container {container_id} not found")
@@ -284,29 +307,51 @@ class DockerManager:
             import tarfile
             from io import BytesIO
 
-            local_path_obj = Path(local_path).resolve()
-            if not local_path_obj.exists():
-                logger.error(f"Local path does not exist: {local_path_obj}")
+            # Validate the local path to prevent directory traversal attacks
+            local_path_obj = Path(local_path)
+            try:
+                validated_path = self._validate_path(local_path_obj, allowed_base)
+            except ValueError as e:
+                logger.error(f"Path validation failed for {local_path}: {e}")
+                raise
+
+            if not validated_path.exists():
+                logger.error(f"Local path does not exist: {validated_path}")
                 return False
 
             tar_buffer = BytesIO()
             with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
-                if local_path_obj.is_file():
-                    tar.add(local_path_obj, arcname=local_path_obj.name)
+                if validated_path.is_file():
+                    tar.add(validated_path, arcname=validated_path.name)
                 else:
-                    for item in local_path_obj.rglob("*"):
+                    # When adding directory contents, validate each file path
+                    for item in validated_path.rglob("*"):
                         if item.is_file():
-                            rel_path = item.relative_to(local_path_obj)
+                            # Verify each item is still within allowed bounds
+                            try:
+                                self._validate_path(item, allowed_base)
+                            except ValueError as e:
+                                logger.error(
+                                    f"Path validation failed for file in archive {item}: {e}"
+                                )
+                                raise
+                            rel_path = item.relative_to(validated_path)
                             tar.add(item, arcname=rel_path)
 
             tar_buffer.seek(0)
             container.put_archive(container_path, tar_buffer.getvalue())
 
-            logger.info(f"Copied {local_path} to container {container_id[:12]}:{container_path}")
+            logger.info(
+                f"Copied {validated_path} to container {container_id[:12]}:{container_path}"
+            )
             return True
 
-        except (OSError, DockerException):
-            logger.exception(f"Failed to copy files to container {container_id}")
+        except ValueError as e:
+            # Path validation errors should be raised, not caught
+            logger.error(f"Path validation error in copy_to_container: {e}")
+            raise
+        except (OSError, DockerException) as e:
+            logger.exception(f"Failed to copy files to container {container_id}: {e}")
             return False
 
     def get_container_logs(self, container_id: str, tail: int = 100) -> str:
@@ -418,8 +463,94 @@ class DockerManager:
             logger.exception("Failed to list containers")
             return []
 
+    def _validate_path(self, path: Path, allowed_base: Optional[Path] = None) -> Path:
+        """
+        Validate a path to prevent directory traversal attacks.
+
+        This method ensures that the resolved path:
+        - Does not contain symbolic links pointing outside allowed directories
+        - Does not escape the allowed base directory using ../ or similar tricks
+        - Resolves to a real path within the allowed boundaries
+
+        Args:
+            path: Path object to validate
+            allowed_base: Base directory path must be relative to (defaults to cwd)
+
+        Returns:
+            Resolved Path object if validation passes
+
+        Raises:
+            ValueError: If path traversal or symbolic link escape detected
+        """
+        if allowed_base is None:
+            allowed_base = Path.cwd()
+
+        # Resolve the path to absolute and eliminate symbolic links
+        try:
+            resolved_path = path.resolve(strict=False)
+        except (OSError, ValueError) as e:
+            logger.error(f"Failed to resolve path {path}: {e}")
+            raise ValueError(f"Invalid path {path}: {e}") from e
+
+        # Ensure resolved path is relative to allowed base
+        try:
+            resolved_path.relative_to(allowed_base)
+        except ValueError:
+            logger.error(
+                f"Path traversal attempt detected: {path} resolves to {resolved_path} "
+                f"which is outside allowed base {allowed_base}"
+            )
+            raise ValueError(
+                f"Path {path} escapes allowed directory {allowed_base}. "
+                "Path traversal attacks are not allowed."
+            )
+
+        # Check for symbolic links that might escape the allowed directory
+        current = resolved_path
+        while current != current.parent:
+            try:
+                if current.is_symlink():
+                    link_target = current.resolve(strict=False)
+                    try:
+                        link_target.relative_to(allowed_base)
+                    except ValueError:
+                        logger.error(
+                            f"Symbolic link escape attempt detected: {current} -> {link_target} "
+                            f"which is outside allowed base {allowed_base}"
+                        )
+                        raise ValueError(
+                            f"Symbolic link {current} points outside allowed directory. "
+                            "Symbolic link escapes are not allowed."
+                        )
+            except (OSError, ValueError) as e:
+                if isinstance(e, ValueError) and "points outside" in str(e):
+                    raise
+                logger.warning(f"Could not check symlink for {current}: {e}")
+
+            current = current.parent
+
+        logger.debug(f"Path validation successful for {resolved_path}")
+        return resolved_path
+
     def _quote(self, s: str) -> str:
-        """Quote a string for shell execution"""
+        """
+        Quote a string for safe shell execution.
+
+        DEPRECATED: Use list-based command construction with exec_run(cmd=[...])
+        instead of building shell command strings.
+
+        This method uses single-quote escaping which is safe for single-quoted
+        strings in POSIX shells, but shell-based command construction is inherently
+        more error-prone than list-based subprocess calls.
+
+        Args:
+            s: String to quote
+
+        Returns:
+            Properly single-quoted string safe for shell execution
+        """
+        # Replace single quotes with '\'' (end quote, escaped quote, start quote)
+        # This is the standard POSIX shell escaping mechanism
         return f"'{s.replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'"
 
     def __enter__(self):
