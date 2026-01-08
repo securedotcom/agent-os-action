@@ -177,7 +177,7 @@ jobs:
       
       - name: Upload SARIF to GitHub Security
         if: always() && hashFiles('.agent-os/hybrid-results/*.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: .agent-os/hybrid-results/
           category: hybrid-security-scan
