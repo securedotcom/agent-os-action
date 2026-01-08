@@ -151,7 +151,7 @@ jobs:
   build-hotfix-artifacts:
     name: Build Hotfix Artifacts
     runs-on: ubuntu-latest
-    needs: [validate-hotfix, critical-tests, security-check]
+    needs: [validate-hotfix, critical-tests, security-check, regression-test]
     
     steps:
       - name: Checkout code
