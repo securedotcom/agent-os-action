@@ -5,7 +5,7 @@ Combines multiple security scanning tools for comprehensive analysis:
 
 1. Semgrep - Fast SAST (static analysis)
 2. Trivy - CVE/dependency scanning
-3. Foundation-Sec-8B - AI-powered security analysis & CWE mapping
+3. AI-powered security analysis & CWE mapping (Claude/OpenAI)
 4. Existing Agent-OS multi-agent system
 
 Architecture:
@@ -15,7 +15,7 @@ Architecture:
 │  └─ Trivy (CVE/Dependencies)                                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHASE 2: AI Enrichment (2-5 min)                               │
-│  ├─ Foundation-Sec-8B (Security analysis, CWE mapping)          │
+│  ├─ Claude/OpenAI (Security analysis, CWE mapping)              │
 │  └─ Existing Agent-OS agents                                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHASE 3: Multi-Agent Consensus Review (Optional)               │
@@ -28,7 +28,7 @@ Architecture:
 │  └─ SARIF + JSON + Markdown                                     │
 └─────────────────────────────────────────────────────────────────┘
 
-Cost Savings: 75-90% vs all-Claude approach
+Cost Optimization: Deterministic tools first, AI only when needed
 """
 
 import json
@@ -99,17 +99,17 @@ class HybridSecurityAnalyzer:
     Hybrid Security Analyzer
 
     Combines deterministic tools (Semgrep, Trivy) with AI analysis
-    (Foundation-Sec-8B, CodeLlama, Agent-OS agents)
+    (Claude, OpenAI, Agent-OS agents)
     """
 
     def __init__(
         self,
         enable_semgrep: bool = True,
         enable_trivy: bool = True,
-        enable_foundation_sec: bool = True,
+        enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
-        foundation_sec_model: Optional[Any] = None,
+        ai_provider: Optional[str] = None,
         config: Optional[dict] = None,
     ):
         """
@@ -118,45 +118,43 @@ class HybridSecurityAnalyzer:
         Args:
             enable_semgrep: Run Semgrep SAST
             enable_trivy: Run Trivy CVE scanning
-            enable_foundation_sec: Use Foundation-Sec-8B for enrichment
+            enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
-            foundation_sec_model: Pre-loaded Foundation-Sec model
+            ai_provider: AI provider name (anthropic, openai, etc.)
             config: Additional configuration
         """
         self.enable_semgrep = enable_semgrep
         self.enable_trivy = enable_trivy
-        self.enable_foundation_sec = enable_foundation_sec
+        self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
-        self.foundation_sec_model = foundation_sec_model
+        self.ai_provider = ai_provider
         self.config = config or {}
 
         # Initialize scanners
         self.semgrep_scanner = None
         self.trivy_scanner = None
         self.sandbox_validator = None
+        self.ai_client = None
 
-        # Load Foundation-Sec AI model (SageMaker endpoint only)
-        if self.enable_foundation_sec and not self.foundation_sec_model:
-            sagemaker_endpoint = os.getenv("SAGEMAKER_ENDPOINT")
-            if not sagemaker_endpoint:
-                logger.error("❌ SAGEMAKER_ENDPOINT not set")
-                logger.info("   Set SAGEMAKER_ENDPOINT environment variable to use AI enrichment")
-                logger.info("   Example: export SAGEMAKER_ENDPOINT='your-endpoint-name'")
-                self.enable_foundation_sec = False
-            else:
-                try:
-                    logger.info(f"🤖 Loading Foundation-Sec-8B (SageMaker: {sagemaker_endpoint})...")
-                    from providers.sagemaker_foundation_sec import SageMakerFoundationSecProvider
+        # Initialize AI client if enrichment is enabled
+        if self.enable_ai_enrichment:
+            try:
+                from orchestrator.llm_manager import LLMManager
 
-                    self.foundation_sec_model = SageMakerFoundationSecProvider()
-                    logger.info("✅ Foundation-Sec-8B loaded successfully")
-                except Exception as e:
-                    logger.warning(f"⚠️  Could not load Foundation-Sec: {e}")
+                self.llm_manager = LLMManager(config=self.config)
+                if self.llm_manager.initialize(provider=ai_provider):
+                    self.ai_client = self.llm_manager
+                    logger.info(f"✅ AI enrichment enabled with {self.llm_manager.provider}")
+                else:
+                    logger.warning("⚠️  Could not initialize AI client")
                     logger.info("   💡 Continuing without AI enrichment")
-                    self.enable_foundation_sec = False
-                    self.foundation_sec_model = None
+                    self.enable_ai_enrichment = False
+            except Exception as e:
+                logger.warning(f"⚠️  Could not load AI client: {e}")
+                logger.info("   💡 Continuing without AI enrichment")
+                self.enable_ai_enrichment = False
 
         if self.enable_semgrep:
             try:
@@ -173,7 +171,7 @@ class HybridSecurityAnalyzer:
                 from trivy_scanner import TrivyScanner
 
                 self.trivy_scanner = TrivyScanner(
-                    foundation_sec_enabled=enable_foundation_sec, foundation_sec_model=foundation_sec_model
+                    foundation_sec_enabled=False, foundation_sec_model=None
                 )
                 logger.info("✅ Trivy scanner initialized")
             except (ImportError, RuntimeError) as e:
@@ -192,10 +190,10 @@ class HybridSecurityAnalyzer:
                 self.enable_sandbox = False
 
         # Validation: At least one scanner or AI enrichment must be enabled
-        if not self.enable_semgrep and not self.enable_trivy and not self.enable_foundation_sec:
+        if not self.enable_semgrep and not self.enable_trivy and not self.enable_ai_enrichment:
             raise ValueError(
                 "❌ ERROR: At least one tool must be enabled!\n"
-                "   Enable: --enable-semgrep, --enable-trivy, or --enable-foundation-sec"
+                "   Enable: --enable-semgrep, --enable-trivy, or --enable-ai-enrichment"
             )
 
     def analyze(
@@ -266,10 +264,10 @@ class HybridSecurityAnalyzer:
             logger.info("   ℹ️  No findings from Phase 1 scanners")
 
         # PHASE 2: AI Enrichment (Optional)
-        if self.enable_foundation_sec and all_findings:
+        if self.enable_ai_enrichment and all_findings:
             logger.info("")
             logger.info("─" * 80)
-            logger.info("🤖 PHASE 2: AI Enrichment (Foundation-Sec-8B)")
+            logger.info("🤖 PHASE 2: AI Enrichment (Claude/OpenAI)")
             logger.info("─" * 80)
 
             phase2_start = time.time()
@@ -285,7 +283,7 @@ class HybridSecurityAnalyzer:
 
             phase_timings["phase2_ai_enrichment"] = time.time() - phase2_start
             logger.info(f"   ⏱️  Phase 2 duration: {phase_timings['phase2_ai_enrichment']:.1f}s")
-        elif self.enable_foundation_sec and not all_findings:
+        elif self.enable_ai_enrichment and not all_findings:
             logger.info("   ⚠️  Skipping Phase 2: No findings to enrich")
 
         # PHASE 3: Agent-OS Integration (Optional)
@@ -353,7 +351,7 @@ class HybridSecurityAnalyzer:
             cost_usd=total_cost,
             phase_timings=phase_timings,
             tools_used=self._get_enabled_tools(),
-            llm_enrichment_enabled=self.enable_foundation_sec,
+            llm_enrichment_enabled=self.enable_ai_enrichment,
         )
 
         # Save results
@@ -428,7 +426,7 @@ class HybridSecurityAnalyzer:
                     ),
                     references=trivy_finding.references,
                     confidence=1.0,  # CVEs are confirmed
-                    llm_enriched=trivy_finding.cwe_id is not None,  # CWE mapped by Foundation-Sec
+                    llm_enriched=False,  # Will be enriched in Phase 2 if AI is enabled
                 )
                 findings.append(finding)
 
@@ -439,7 +437,7 @@ class HybridSecurityAnalyzer:
 
     def _enrich_with_ai(self, findings: list[HybridFinding]) -> list[HybridFinding]:
         """
-        Enrich findings with Foundation-Sec-8B analysis
+        Enrich findings with AI analysis (Claude/OpenAI)
 
         For each finding:
         - Map to CWE (if not already mapped)
@@ -447,8 +445,8 @@ class HybridSecurityAnalyzer:
         - Generate remediation recommendations
         - Adjust severity based on context
         """
-        if not self.foundation_sec_model:
-            logger.warning("⚠️  Foundation-Sec model not available, skipping enrichment")
+        if not self.ai_client:
+            logger.warning("⚠️  AI client not available, skipping enrichment")
             return findings
 
         enriched = []
@@ -457,22 +455,21 @@ class HybridSecurityAnalyzer:
         logger.info(f"   🤖 Enriching {len(findings)} findings with AI analysis...")
 
         for finding in findings:
-            # Skip if already enriched by Trivy
+            # Skip if already enriched
             if finding.llm_enriched:
                 enriched.append(finding)
                 continue
 
             try:
-                # Build prompt for Foundation-Sec
+                # Build prompt for AI analysis
                 prompt = self._build_enrichment_prompt(finding)
 
-                # Call Foundation-Sec model
-                response = self.foundation_sec_model.generate(
+                # Call AI model
+                response, _input_tokens, _output_tokens = self.ai_client.call_llm_api(
                     prompt=prompt,
-                    max_new_tokens=1000,
-                    temperature=0.3,  # Low temp for consistent security analysis
+                    max_tokens=1000,
+                    operation=f"Enrich finding {finding.finding_id}"
                 )
-                _input_tokens, _output_tokens = 0, 0  # SageMaker doesn't return token counts
 
                 # Parse AI response
                 analysis = self._parse_ai_response(response)
@@ -518,7 +515,7 @@ class HybridSecurityAnalyzer:
         return enriched
 
     def _build_enrichment_prompt(self, finding: HybridFinding) -> str:
-        """Build prompt for Foundation-Sec to analyze a finding"""
+        """Build prompt for AI to analyze a finding"""
 
         prompt = f"""You are a security expert analyzing a potential vulnerability.
 
@@ -569,7 +566,7 @@ Respond with JSON only:"""
         return prompt
 
     def _parse_ai_response(self, response: str) -> Optional[dict[str, Any]]:
-        """Parse Foundation-Sec AI response"""
+        """Parse AI response"""
         try:
             # Try to extract JSON from response
             # Sometimes models add extra text, so find the JSON part
@@ -822,8 +819,8 @@ Respond with JSON only:"""
             tools.append("Semgrep")
         if self.enable_trivy:
             tools.append("Trivy")
-        if self.enable_foundation_sec:
-            tools.append("Foundation-Sec-8B")
+        if self.enable_ai_enrichment and self.ai_client:
+            tools.append(f"AI-Enrichment ({self.ai_client.provider})")
         if self.enable_agent_os:
             tools.append("Agent-OS")
         if self.enable_sandbox:
@@ -1009,7 +1006,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Hybrid Security Analyzer - Combines Semgrep, Trivy, and Foundation-Sec-8B"
+        description="Hybrid Security Analyzer - Combines Semgrep, Trivy, and AI enrichment (Claude/OpenAI)"
     )
     parser.add_argument("target", help="Target path to analyze (repository or directory)")
     parser.add_argument(
@@ -1020,24 +1017,31 @@ def main():
     parser.add_argument("--enable-semgrep", action="store_true", default=True, help="Enable Semgrep SAST")
     parser.add_argument("--enable-trivy", action="store_true", default=True, help="Enable Trivy CVE scanning")
     parser.add_argument(
-        "--enable-foundation-sec",
+        "--enable-ai-enrichment",
         action="store_true",
         default=False,
-        help="Enable Foundation-Sec-8B AI enrichment (local LLM, free)",
+        help="Enable AI enrichment with Claude/OpenAI",
     )
+    parser.add_argument("--ai-provider", help="AI provider (anthropic, openai, ollama)")
     parser.add_argument("--severity-filter", help="Comma-separated severity levels to report (e.g., critical,high)")
 
     args = parser.parse_args()
 
-    # Foundation-Sec will be loaded automatically by HybridSecurityAnalyzer if enabled
-    foundation_sec_model = None
+    # Build config from environment
+    config = {
+        "ai_provider": args.ai_provider or os.getenv("INPUT_AI_PROVIDER", "auto"),
+        "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY"),
+        "ollama_endpoint": os.getenv("OLLAMA_ENDPOINT"),
+    }
 
     # Initialize analyzer
     analyzer = HybridSecurityAnalyzer(
         enable_semgrep=args.enable_semgrep,
         enable_trivy=args.enable_trivy,
-        enable_foundation_sec=args.enable_foundation_sec,
-        foundation_sec_model=foundation_sec_model,
+        enable_ai_enrichment=args.enable_ai_enrichment,
+        ai_provider=args.ai_provider,
+        config=config,
     )
 
     # Parse severity filter

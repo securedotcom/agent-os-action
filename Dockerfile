@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user for security
+RUN groupadd -r agentuser && useradd -r -g agentuser -u 1000 agentuser
+
 # Create app directory
 WORKDIR /app
 
@@ -45,9 +48,10 @@ COPY policy/ ./policy/
 COPY profiles/ ./profiles/
 COPY schemas/ ./schemas/
 
-# Create necessary directories
+# Create necessary directories with proper permissions for non-root user
 RUN mkdir -p /workspace /output && \
-    chmod 755 /workspace /output
+    chmod 755 /workspace /output && \
+    chown -R agentuser:agentuser /app /workspace /output
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
@@ -55,6 +59,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Set working directory for analysis
 WORKDIR /workspace
+
+# Switch to non-root user
+USER agentuser
 
 # Default entrypoint
 ENTRYPOINT ["python", "-m", "scripts.run_ai_audit"]

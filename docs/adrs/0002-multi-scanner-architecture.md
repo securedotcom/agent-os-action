@@ -27,23 +27,22 @@ Security scanning requires comprehensive coverage across multiple threat vectors
 
 ## Decision
 
-Use **5 specialized scanners in parallel**: TruffleHog, Gitleaks, Semgrep, Trivy, and Checkov.
+Use **4 specialized scanners in parallel**: Semgrep, Trivy, TruffleHog, and Checkov.
 
 ### Implementation
 
 ```python
 # Parallel scanner execution in run_ai_audit.py
 scanners = [
-    ('trufflehog', run_trufflehog),
-    ('gitleaks', run_gitleaks),
     ('semgrep', run_semgrep),
     ('trivy', run_trivy),
+    ('trufflehog', run_trufflehog),
     ('checkov', run_checkov)
 ]
 
 # Run in parallel
-with ThreadPoolExecutor(max_workers=5) as executor:
-    futures = {executor.submit(scanner_func): name 
+with ThreadPoolExecutor(max_workers=4) as executor:
+    futures = {executor.submit(scanner_func): name
                for name, scanner_func in scanners}
     results = [future.result() for future in futures]
 ```
@@ -54,10 +53,10 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 
 | Benefit | Impact |
 |---------|--------|
-| **Comprehensive Coverage** | 5 threat vectors covered (secrets, SAST, CVE, IaC, containers) |
+| **Comprehensive Coverage** | 4 threat vectors covered (SAST, CVE, secrets, IaC) |
 | **Specialized Tools** | Each scanner optimized for its domain |
-| **Parallel Execution** | 5 scanners run simultaneously, total time ~3 min (vs 15 min sequential) |
-| **Redundancy** | TruffleHog + Gitleaks catch different secret patterns |
+| **Parallel Execution** | 4 scanners run simultaneously, total time ~2-3 min (vs 10 min sequential) |
+| **Verified Secrets** | TruffleHog provides API-verified secret detection |
 | **Best-in-Class** | Each scanner is industry-leading in its category |
 
 ### Negative
@@ -117,10 +116,9 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 
 | Scanner | Why Chosen | Alternative Considered | Why Not Alternative |
 |---------|-----------|----------------------|-------------------|
-| **TruffleHog** | Verified secret detection (API validation) | git-secrets | No verification, higher false positives |
-| **Gitleaks** | Fast pattern-based secrets | detect-secrets | Slower, fewer patterns |
 | **Semgrep** | Best SAST, 2000+ rules, low FP | CodeQL | Requires compilation, slower |
 | **Trivy** | Comprehensive CVE DB, fast | Snyk | Expensive, vendor lock-in |
+| **TruffleHog** | Verified secret detection (API validation) | Gitleaks | No verification, pattern-only detection |
 | **Checkov** | Best IaC security, 1000+ policies | tfsec | Terraform-only, fewer checks |
 
 ## Coverage Analysis
@@ -129,8 +127,8 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 
 | Threat Type | Scanner(s) | Coverage |
 |-------------|-----------|----------|
-| **Secrets in Code** | TruffleHog, Gitleaks | 95%+ (verified + patterns) |
-| **Secrets in History** | TruffleHog, Gitleaks | 90%+ (git history scan) |
+| **Secrets in Code** | TruffleHog | 95%+ (API-verified) |
+| **Secrets in History** | TruffleHog | 90%+ (git history scan with verification) |
 | **SQL Injection** | Semgrep | 90%+ (2000+ rules) |
 | **XSS** | Semgrep | 85%+ (language-aware) |
 | **Command Injection** | Semgrep | 90%+ (pattern matching) |
@@ -143,14 +141,14 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 
 ### Performance Impact
 
-| Metric | Single Scanner | 5 Scanners (Sequential) | 5 Scanners (Parallel) |
+| Metric | Single Scanner | 4 Scanners (Sequential) | 4 Scanners (Parallel) |
 |--------|---------------|------------------------|---------------------|
-| **Runtime** | 2 min | 15 min | 3 min |
-| **Memory** | 300MB | 1.3GB | 1.3GB |
+| **Runtime** | 2 min | 10 min | 2-3 min |
+| **Memory** | 300MB | 1.1GB | 1.1GB |
 | **Coverage** | 20% | 90%+ | 90%+ |
 | **False Positives** | High (no AI triage) | High (no AI triage) | Low (AI triage) |
 
-**Result**: Parallel execution achieves 90%+ coverage in 3 min
+**Result**: Parallel execution achieves 90%+ coverage in 2-3 min
 
 ## Risk Mitigation
 
@@ -163,25 +161,26 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 - Keeps highest-confidence finding
 
 ### Risk 2: High False Positive Rate
-**Risk**: 5 scanners = 5x false positives
+**Risk**: Multiple scanners increase false positives
 
 **Mitigation**:
-- AI triage (Foundation-Sec or Claude)
+- AI triage (Claude, OpenAI, or Ollama)
 - Noise scorer (ML model)
 - 60-70% false positive suppression
 - Historical analysis
 
 ### Risk 3: Resource Exhaustion
-**Risk**: 5 scanners use too much memory/CPU
+**Risk**: Multiple scanners use significant memory/CPU
 
 **Mitigation**:
 - File limits (max 50-100 files)
 - Path exclusions (tests, node_modules)
 - Parallel execution (not sequential)
 - GitHub Actions has 7GB RAM available
+- 4 scanners use ~1.1GB total (well within limits)
 
 ### Risk 4: Maintenance Burden
-**Risk**: 5 tools to keep updated
+**Risk**: Multiple tools to keep updated
 
 **Mitigation**:
 - Docker containers for isolation
@@ -257,4 +256,5 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 - ✅ Performance validated: <3 min runtime in production
 - ✅ False positives validated: <15% with AI triage
 - 🔄 Monitor: New scanners (consider adding DAST, fuzzing)
+
 

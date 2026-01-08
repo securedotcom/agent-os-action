@@ -34,12 +34,15 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-### 2. Add API Key (Optional)
+### 2. Add API Key
 
 ```bash
-# For free tier: Skip this (uses Foundation-Sec-8B)
-# For paid tier: Add Anthropic API key
+# Add your AI provider API key
+# For Claude:
 gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
+# For OpenAI:
+gh secret set OPENAI_API_KEY --body "sk-..."
+# For Ollama: No API key needed (local inference)
 ```
 
 ### 3. Test It
@@ -72,9 +75,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: securedotcom/agent-os-action@v3
-        with:
+with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          review-type: 'security'
+  review-type: 'security'
           fail-on-blockers: 'true'
           comment-on-pr: 'true'
 ```
@@ -98,10 +101,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: securedotcom/agent-os-action@v3
-        with:
+with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          review-type: 'audit'
-          max-files: 100
+  review-type: 'audit'
+  max-files: 100
           aardvark-mode: 'true'
           upload-reports: 'true'
 ```
@@ -115,17 +118,18 @@ jobs:
 **Configuration**:
 ```yaml
 - uses: securedotcom/agent-os-action@v3
-  with:
-    # Use free Foundation-Sec instead of Claude
-    foundation-sec-enabled: 'true'
+with:
+    # Use free Ollama for local inference
+    ai-provider: 'ollama'
+    ollama-endpoint: 'http://localhost:11434'
     # Limit files analyzed
-    max-files: 50
+  max-files: 50
     exclude-paths: 'tests/**,*.test.*,node_modules/**'
     # Only analyze changed files in PRs
     only-changed: 'true'
 ```
 
-**Expected outcome**: $0 cost, 60%+ noise reduction, <3 min runtime
+**Expected outcome**: $0 API cost, good noise reduction, <3 min runtime
 
 ### Use Case 4: High-Security Projects
 
@@ -134,7 +138,7 @@ jobs:
 **Configuration**:
 ```yaml
 - uses: securedotcom/agent-os-action@v3
-  with:
+with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     review-type: 'security'
     aardvark-mode: 'true'
@@ -151,8 +155,8 @@ jobs:
 **Configuration**:
 ```yaml
 - uses: securedotcom/agent-os-action@v3
-  with:
-    foundation-sec-enabled: 'true'
+with:
+    ai-provider: 'ollama'
     max-files: 20
     fail-on-blockers: 'false'
     comment-on-pr: 'true'
@@ -164,7 +168,7 @@ jobs:
 
 | Setting | Development | Staging | Production | Rationale |
 |---------|-------------|---------|------------|-----------|
-| **AI Provider** | Foundation-Sec | Foundation-Sec | Claude | Dev/staging: free; Prod: higher accuracy |
+| **AI Provider** | Ollama | Claude | Claude | Dev: free local; Staging/Prod: higher accuracy |
 | **max-files** | 20 | 50 | 100 | Dev: fast feedback; Prod: comprehensive |
 | **fail-on-blockers** | false | true | true | Dev: informational; Staging/Prod: enforce |
 | **aardvark-mode** | false | false | true | Prod only: exploit analysis adds time |
@@ -176,17 +180,17 @@ jobs:
 
 ### Cost Optimization
 
-- **Use Foundation-Sec-8B**: Saves 100% ($0 vs $0.35/run) - **Annual savings: $420 (100 PRs/month)**
+- **Use Ollama**: Saves 100% on API costs ($0 vs $0.35-0.50/run) - **Annual savings: $420+ (100 PRs/month)**
 - **Limit file count to 50**: Reduces cost by ~40% - **Saves $0.14/run**
 - **Exclude test files**: Saves 30% on analysis time - **Saves ~1 minute/run**
 - **Use `only-changed: true` for PRs**: Analyzes only changed files - **Saves 50-70% cost**
 - **Set `cost-limit`**: Prevents runaway costs - **Hard cap at your budget**
 
-**Example**: Foundation-Sec + max 50 files + exclude tests = **$0/run, <3 min**
+**Example**: Ollama + max 50 files + exclude tests = **$0 API cost, <3 min**
 
 ### Performance Optimization
 
-- **Parallel scanning**: Already enabled by default - **5 scanners run simultaneously**
+- **Parallel scanning**: Already enabled by default - **4 scanners run simultaneously**
 - **File filtering**: Use `include-paths` to focus on important code - **Improves speed by 40%**
 - **Disable unnecessary scanners**: Use `disable-scanners` if not needed - **Saves 20% time per scanner**
 - **Cache dependencies**: GitHub Actions caches scanner downloads - **Saves 30s after first run**
@@ -196,7 +200,7 @@ jobs:
 ### Quality Optimization
 
 - **Enable Aardvark mode**: Exploit analysis for critical findings - **Reduces false positives by 20%**
-- **Use Claude for production**: Higher accuracy than Foundation-Sec - **90%+ precision**
+- **Use Claude for production**: Higher accuracy than Ollama - **90%+ precision**
 - **Upload SARIF**: Track findings over time in Code Scanning - **Trend analysis**
 - **Custom Rego policies**: Define project-specific rules - **Reduces noise by 30%**
 
@@ -208,11 +212,11 @@ jobs:
 |-------|-------|-----|
 | **High cost (>$2/run)** | Too many files or findings | Set `max-files: 50`, `cost-limit: 1.0` |
 | **Slow runtime (>10 min)** | Large repo, many files | Use `exclude-paths`, `max-files: 50` |
-| **Too many false positives** | Using Foundation-Sec | Upgrade to Claude or enable Aardvark mode |
+| **Too many false positives** | AI model limitations | Use Claude for better accuracy or enable Aardvark mode |
 | **SARIF upload fails** | Code Scanning not enabled | Enable in Settings → Security → Code scanning |
 | **Workflow fails unexpectedly** | Blockers found | Set `fail-on-blockers: false` or fix issues |
 | **No findings reported** | All suppressed as noise | Check `metrics.json` for suppression stats |
-| **API rate limit** | Too many runs | Space out runs or use Foundation-Sec |
+| **API rate limit** | Too many runs | Space out runs or use Ollama for local inference |
 | **Out of memory** | Too many files | Reduce `max-files` to 50 or less |
 
 ## Advanced Patterns
@@ -227,18 +231,19 @@ jobs:
   dev-scan:
     if: github.event_name == 'pull_request'
     steps:
-      - uses: securedotcom/agent-os-action@v3
-        with:
-          foundation-sec-enabled: 'true'
+- uses: securedotcom/agent-os-action@v3
+  with:
+          ai-provider: 'ollama'
           max-files: 20
           fail-on-blockers: 'false'
-  
+
   prod-scan:
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: securedotcom/agent-os-action@v3
-        with:
+- uses: securedotcom/agent-os-action@v3
+  with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          ai-provider: 'anthropic'
           aardvark-mode: 'true'
           fail-on-blockers: 'true'
 ```
@@ -247,8 +252,8 @@ jobs:
 
 ```yaml
 # Fail on critical in dev, high+ in staging, medium+ in prod
-- uses: securedotcom/agent-os-action@v3
-  with:
+  - uses: securedotcom/agent-os-action@v3
+    with:
     fail-on: ${{ 
       github.ref == 'refs/heads/main' && 'security:medium,security:high,security:critical' ||
       github.ref == 'refs/heads/staging' && 'security:high,security:critical' ||

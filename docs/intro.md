@@ -10,7 +10,7 @@ Welcome to the comprehensive documentation for **Agent OS Code Reviewer** - an A
 
 ## 🎯 What is Agent OS Code Reviewer?
 
-Agent OS Code Reviewer is a GitHub Action that uses advanced AI models (Claude, GPT-4, or local LLMs) to analyze your codebase and provide:
+Agent OS Code Reviewer is a GitHub Action that uses advanced AI models (Claude, OpenAI, or Ollama) to analyze your codebase and provide:
 
 - **Security Analysis**: Identify vulnerabilities, exploits, and security risks
 - **Performance Review**: Find bottlenecks and optimization opportunities
@@ -46,9 +46,11 @@ jobs:
 
 ### 2. Configure Secrets
 
-Add your API key to GitHub Secrets:
+Add your AI provider API key to GitHub Secrets:
 - Go to Settings → Secrets and variables → Actions
-- Add `ANTHROPIC_API_KEY` with your Anthropic API key
+- For Claude: Add `ANTHROPIC_API_KEY` with your Anthropic API key
+- For OpenAI: Add `OPENAI_API_KEY` with your OpenAI API key
+- For Ollama: No API key needed (local inference)
 
 ### 3. Run Your First Review
 
@@ -105,7 +107,7 @@ Complete configuration and API references:
 - Code examples and references
 
 ### 🔧 Flexible Configuration
-- Multiple AI providers (Anthropic, OpenAI, Ollama)
+- Multiple AI providers (Claude, OpenAI, Ollama)
 - Customizable review types (audit, security, review)
 - Project-type aware analysis
 - Path inclusion/exclusion patterns

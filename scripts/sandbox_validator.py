@@ -558,12 +558,16 @@ if len(results) > 0:
             language="python",
             code="""
 import subprocess
+import shlex
 
 # Vulnerable code (for demonstration)
 user_input = "test; echo COMMAND_INJECTION_SUCCESS"
-command = f"echo {user_input}"
 
-result = subprocess.run(command, shell=True, capture_output=True, text=True)
+# FIXED: Use list-based command instead of shell=True
+# This prevents command injection by not invoking a shell
+command = ["echo", user_input]
+
+result = subprocess.run(command, capture_output=True, text=True)
 print(result.stdout)
 print(result.stderr)
 """,

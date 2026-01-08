@@ -84,3 +84,6 @@ deployment/
 .env.*.local
 CODE_ANALYSIS_IMPROVEMENT_PLAN.md
 COMPREHENSIVE_IMPROVEMENT_PLAN.md
+
+# Cache directory
+.agent-os-cache/

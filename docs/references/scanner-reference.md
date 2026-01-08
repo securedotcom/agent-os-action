@@ -9,111 +9,16 @@ last_updated: 2024-11-10
 
 # Scanner Reference
 
-Complete reference for all 5 security scanners orchestrated by Agent-OS.
+Complete reference for all 4 security scanners orchestrated by Agent-OS.
 
 ## Scanner Overview
 
 | Scanner | Type | Purpose | Strength | Speed | False Positive Rate |
 |---------|------|---------|----------|-------|---------------------|
-| **TruffleHog** | Secret Detection | Verified secrets via API validation | High precision | Fast | Very Low (~5%) |
-| **Gitleaks** | Secret Detection | Pattern-based secret detection | Broad coverage | Very Fast | Low (~15%) |
 | **Semgrep** | SAST | Static code analysis (2000+ rules) | Language-aware | Fast | Low (~10%) |
 | **Trivy** | Dependency Scan | CVE detection in dependencies | Comprehensive DB | Fast | Medium (~25%) |
+| **TruffleHog** | Secret Detection | Verified secrets via API validation | High precision | Fast | Very Low (~5%) |
 | **Checkov** | IaC Security | Infrastructure misconfigurations | Cloud-native | Fast | Medium (~20%) |
-
-## TruffleHog
-
-### What It Does
-Detects secrets (API keys, tokens, credentials) and **verifies them** by calling the actual service APIs to confirm they're valid.
-
-### Key Features
-- **Verified Detection**: Calls APIs to confirm secrets are real
-- **Git History Scanning**: Finds secrets in commit history
-- **Entropy Detection**: Identifies high-entropy strings
-- **Custom Patterns**: Supports custom regex patterns
-
-### What It Finds
-- AWS access keys (verified via AWS API)
-- GitHub tokens (verified via GitHub API)
-- Stripe API keys (verified via Stripe API)
-- Database credentials
-- Private keys (SSH, PGP)
-- 700+ secret types
-
-### Configuration
-
-```yaml
-- uses: securedotcom/agent-os-action@v3
-  with:
-    # TruffleHog is enabled by default
-    trufflehog-verify: 'true'  # Enable API verification
-    trufflehog-since: '1 week ago'  # Scan recent commits
-```
-
-### Example Finding
-
-```json
-{
-  "scanner": "trufflehog",
-  "type": "AWS Access Key",
-  "file": "config/aws.yml",
-  "line": 12,
-  "verified": true,
-  "severity": "critical",
-  "message": "AWS access key verified via API - immediate rotation required"
-}
-```
-
-### When to Use
-- ✅ Always enable (default)
-- ✅ Critical for preventing secret leaks
-- ✅ Low false positive rate due to verification
-
-## Gitleaks
-
-### What It Does
-Detects secrets using **regex patterns** without API verification. Faster but less precise than TruffleHog.
-
-### Key Features
-- **Fast Scanning**: No API calls, pure regex
-- **Git History**: Scans entire commit history
-- **Custom Rules**: TOML-based rule configuration
-- **Baseline Support**: Ignore known findings
-
-### What It Finds
-- API keys and tokens (pattern-based)
-- Passwords in code
-- Connection strings
-- Generic secrets (high entropy)
-- 100+ built-in patterns
-
-### Configuration
-
-```yaml
-- uses: securedotcom/agent-os-action@v3
-  with:
-    gitleaks-config: '.gitleaks.toml'  # Custom rules
-    gitleaks-baseline: '.gitleaks-baseline.json'  # Ignore known
-```
-
-### Example Finding
-
-```json
-{
-  "scanner": "gitleaks",
-  "type": "Generic API Key",
-  "file": "src/api/client.py",
-  "line": 45,
-  "verified": false,
-  "severity": "high",
-  "message": "Potential API key detected (pattern match)"
-}
-```
-
-### When to Use
-- ✅ Always enable (default)
-- ✅ Complements TruffleHog (catches different patterns)
-- ⚠️ Higher false positives (15%) - AI triage helps
 
 ## Semgrep
 
@@ -167,6 +72,54 @@ Python, JavaScript, TypeScript, Java, Go, Ruby, PHP, C#, Kotlin, Scala, Rust, Sw
 - ✅ Always enable (default)
 - ✅ Best SAST tool for modern languages
 - ✅ Low false positives (~10%)
+
+## TruffleHog
+
+### What It Does
+Detects secrets (API keys, tokens, credentials) and **verifies them** by calling the actual service APIs to confirm they're valid.
+
+### Key Features
+- **Verified Detection**: Calls APIs to confirm secrets are real
+- **Git History Scanning**: Finds secrets in commit history
+- **Entropy Detection**: Identifies high-entropy strings
+- **Custom Patterns**: Supports custom regex patterns
+
+### What It Finds
+- AWS access keys (verified via AWS API)
+- GitHub tokens (verified via GitHub API)
+- Stripe API keys (verified via Stripe API)
+- Database credentials
+- Private keys (SSH, PGP)
+- 700+ secret types
+
+### Configuration
+
+```yaml
+- uses: securedotcom/agent-os-action@v3
+  with:
+    # TruffleHog is enabled by default
+    trufflehog-verify: 'true'  # Enable API verification
+    trufflehog-since: '1 week ago'  # Scan recent commits
+```
+
+### Example Finding
+
+```json
+{
+  "scanner": "trufflehog",
+  "type": "AWS Access Key",
+  "file": "config/aws.yml",
+  "line": 12,
+  "verified": true,
+  "severity": "critical",
+  "message": "AWS access key verified via API - immediate rotation required"
+}
+```
+
+### When to Use
+- ✅ Always enable (default)
+- ✅ Critical for preventing secret leaks
+- ✅ Low false positive rate due to verification
 
 ## Trivy
 
@@ -280,24 +233,23 @@ Terraform, CloudFormation, Kubernetes, Helm, ARM templates, Docker, Serverless
 
 | Use Case | Recommended Scanners | Rationale |
 |----------|---------------------|-----------|
-| **Prevent Secret Leaks** | TruffleHog + Gitleaks | Verified + pattern-based coverage |
+| **Prevent Secret Leaks** | TruffleHog | Verified secret detection with API validation |
 | **Find Code Vulnerabilities** | Semgrep | Best SAST for modern languages |
 | **Track CVEs** | Trivy | Comprehensive vulnerability DB |
 | **Secure Infrastructure** | Checkov | IaC security and compliance |
 | **Fast PR Reviews** | All (default) | Parallel execution, <5 min |
-| **Cost-Optimized** | All with Foundation-Sec | $0 cost, 60%+ noise reduction |
+| **Cost-Optimized** | All with Ollama | $0 API cost, good noise reduction |
 | **High-Security Projects** | All with Claude + Aardvark | 95%+ accuracy, exploit analysis |
 
 ### Performance Comparison
 
 | Scanner | Avg Runtime | Memory Usage | CPU Usage |
 |---------|-------------|--------------|-----------|
-| TruffleHog | 30-60s | 200MB | Low |
-| Gitleaks | 10-30s | 100MB | Low |
 | Semgrep | 60-120s | 500MB | Medium |
 | Trivy | 30-60s | 300MB | Low |
+| TruffleHog | 30-60s | 200MB | Low |
 | Checkov | 20-40s | 200MB | Low |
-| **Total (Parallel)** | **2-3 min** | **1.3GB** | **Medium** |
+| **Total (Parallel)** | **2-3 min** | **1.2GB** | **Medium** |
 
 ## Disabling Scanners
 
@@ -312,11 +264,13 @@ If you don't need a specific scanner:
 **When to disable**:
 - No IaC → Disable Checkov
 - No dependencies → Disable Trivy
-- Secrets only → Disable Semgrep, Trivy, Checkov
+- Secrets only → Disable Semgrep and Checkov
+- Code analysis only → Disable TruffleHog and Checkov
 
 ## Related Documentation
 
 - [Architecture Overview](../architecture/overview.md)
 - [Best Practices Guide](../best-practices.md)
 - [ADR-0002: Multi-Scanner Architecture](../adrs/0002-multi-scanner-architecture.md)
+
 

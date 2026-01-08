@@ -353,10 +353,6 @@ class ReviewMetrics:
             # GPT-4: $10/1M input, $30/1M output
             input_cost = (input_tokens / 1_000_000) * 10.0
             output_cost = (output_tokens / 1_000_000) * 30.0
-        elif provider == "foundation-sec":
-            # Foundation-Sec: Zero cost (local inference)
-            input_cost = 0.0
-            output_cost = 0.0
         else:
             # Ollama and other local models: Free
             input_cost = 0.0
@@ -612,10 +608,8 @@ def detect_ai_provider(config):
         return provider
 
     # Auto-detect based on available API keys/config
-    # Check Foundation-Sec first (zero-cost, security-optimized)
-    if config.get("foundation_sec_enabled", False):
-        return "foundation-sec"
-    elif config.get("anthropic_api_key"):
+    # Priority: Anthropic (best for security) > OpenAI > Ollama (local)
+    if config.get("anthropic_api_key"):
         return "anthropic"
     elif config.get("openai_api_key"):
         return "openai"
@@ -623,7 +617,7 @@ def detect_ai_provider(config):
         return "ollama"
     else:
         print("⚠️  No AI provider configured")
-        print("💡 Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, FOUNDATION_SEC_ENABLED=true, or OLLAMA_ENDPOINT")
+        print("💡 Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, or OLLAMA_ENDPOINT")
         return None
 
 
@@ -655,24 +649,6 @@ def get_ai_client(provider, config):
             return OpenAI(api_key=api_key), "openai"
         except ImportError:
             print("❌ openai package not installed. Run: pip install openai")
-            sys.exit(2)
-
-    elif provider == "foundation-sec":
-        try:
-            # Add scripts directory to path for provider imports
-            from pathlib import Path
-
-            scripts_dir = Path(__file__).parent
-            if str(scripts_dir) not in sys.path:
-                sys.path.insert(0, str(scripts_dir))
-
-            from providers.foundation_sec import get_foundation_sec_client
-
-            print("🔑 Using Foundation-Sec-8B (local, zero-cost)")
-            return get_foundation_sec_client(config)
-        except ImportError as e:
-            print(f"❌ Foundation-Sec dependencies not installed: {e}")
-            print("Run: pip install transformers torch accelerate")
             sys.exit(2)
 
     elif provider == "ollama":
@@ -708,7 +684,6 @@ def get_model_name(provider, config):
     defaults = {
         "anthropic": "claude-sonnet-4-5-20250929",
         "openai": "gpt-4-turbo-preview",
-        "foundation-sec": "cisco-ai/foundation-sec-8b-instruct",
         "ollama": "llama3",
     }
 
@@ -979,10 +954,6 @@ def estimate_cost(files, max_tokens, provider):
     elif provider == "openai":
         input_cost = (estimated_input_tokens / 1_000_000) * 10.0
         output_cost = (estimated_output_tokens / 1_000_000) * 30.0
-    elif provider == "foundation-sec":
-        # Foundation-Sec: Zero cost (local inference)
-        input_cost = 0.0
-        output_cost = 0.0
     else:  # ollama or other local models
         input_cost = 0.0
         output_cost = 0.0
@@ -1281,10 +1252,6 @@ def call_llm_api(client, provider, model, prompt, max_tokens, circuit_breaker=No
             input_tokens = message.usage.input_tokens
             output_tokens = message.usage.output_tokens
 
-        elif provider == "foundation-sec":
-            # Use Foundation-Sec provider's generate method
-            response_text, input_tokens, output_tokens = client.generate(prompt=prompt, max_tokens=max_tokens)
-
         elif provider in ["openai", "ollama"]:
             response = client.chat.completions.create(
                 model=model,
@@ -1329,7 +1296,7 @@ def calculate_actual_cost(input_tokens: int, output_tokens: int, provider: str) 
         input_cost = (input_tokens / 1_000_000) * 10.0
         output_cost = (output_tokens / 1_000_000) * 30.0
     else:
-        # Foundation-Sec and Ollama: Free (local)
+        # Ollama and other local models: Free
         input_cost = 0.0
         output_cost = 0.0
 
@@ -2691,9 +2658,6 @@ if __name__ == "__main__":
         "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
         "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
         "ollama_endpoint": os.environ.get("OLLAMA_ENDPOINT", ""),
-        "foundation_sec_enabled": os.environ.get("FOUNDATION_SEC_ENABLED", "false").lower() == "true",
-        "foundation_sec_model": os.environ.get("FOUNDATION_SEC_MODEL", "cisco-ai/foundation-sec-8b-instruct"),
-        "foundation_sec_device": os.environ.get("FOUNDATION_SEC_DEVICE", ""),
         "model": os.environ.get("INPUT_MODEL", "auto"),
         "multi_agent_mode": os.environ.get("INPUT_MULTI_AGENT_MODE", "single"),
         "only_changed": os.environ.get("INPUT_ONLY_CHANGED", "false").lower() == "true",

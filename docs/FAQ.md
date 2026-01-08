@@ -4,11 +4,11 @@
 
 ### What is Agent-OS?
 
-Agent-OS is a security control plane that orchestrates multiple security scanners (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov), applies AI-powered triage to reduce false positives, and enforces policy gates. It can be used as a GitHub Action, CLI tool, or deployed platform.
+Agent-OS is a security control plane that orchestrates multiple security scanners (Semgrep, Trivy, TruffleHog, Checkov), applies AI-powered triage to reduce false positives, and enforces policy gates. It can be used as a GitHub Action, CLI tool, or deployed platform.
 
 ### Is Agent-OS free?
 
-Yes! Agent-OS is open source (MIT license) and free to use. The default AI provider (Foundation-Sec-8B) uses local inference, so there are zero API costs. Optionally, you can use Claude for enhanced accuracy (~$0.35/run).
+Yes! Agent-OS is open source (MIT license) and free to use. You can choose from multiple AI providers including Claude (Anthropic), OpenAI, or Ollama for local inference. API costs vary depending on your chosen provider.
 
 ### How is this different from GitHub's built-in security features?
 
@@ -29,9 +29,11 @@ Agent-OS **complements** GitHub Security (you can use both), but adds AI triage 
 
 ### Do I need an API key to use Agent-OS?
 
-**No, not required!** Agent-OS works with Foundation-Sec-8B (local inference, zero cost) by default.
+**Yes, for most providers.** Agent-OS supports multiple AI providers:
 
-**Optional**: Add `ANTHROPIC_API_KEY` for Claude analysis if you want higher accuracy.
+- **Claude (Anthropic)**: Requires `ANTHROPIC_API_KEY`
+- **OpenAI**: Requires `OPENAI_API_KEY`
+- **Ollama**: No API key needed (local inference)
 
 ### How do I get started in under 5 minutes?
 
@@ -84,8 +86,9 @@ See [PLATFORM.md](../PLATFORM.md#usage) for full CLI documentation.
 
 | AI Provider | Cost per Run | Notes |
 |-------------|-------------|--------|
-| **Foundation-Sec-8B** (default) | $0.00 | Local inference, no API calls |
-| **Claude Sonnet** (optional) | $0.20-0.50 | Depends on findings count |
+| **Claude Sonnet** | $0.20-0.50 | Depends on findings count |
+| **OpenAI GPT-4** | $0.30-0.70 | Varies by model and usage |
+| **Ollama** | $0.00 | Local inference, no API calls |
 
 **GitHub Actions runner time**: ~3-5 minutes = $0.008-0.013 (on public repos, free)
 
@@ -109,17 +112,17 @@ See [PLATFORM.md](../PLATFORM.md#usage) for full CLI documentation.
 
 **With noise reduction**, you get 3-5 actionable findings instead of 50+ raw alerts, which actually **speeds up** overall review time.
 
-### What's the difference between Foundation-Sec and Claude?
+### What AI provider should I choose?
 
-| Aspect | Foundation-Sec-8B | Claude Sonnet |
-|--------|------------------|---------------|
-| **Cost** | $0 (local) | ~$0.35/run |
-| **Speed** | 2-3 minutes | 1-2 minutes |
-| **Accuracy** | ⭐⭐⭐⭐ (84% recall) | ⭐⭐⭐⭐⭐ (92% recall) |
-| **Noise Reduction** | 60-70% | 70-80% |
-| **Best For** | Most teams, cost-conscious | High-security, accuracy-critical |
+| Aspect | Ollama | Claude Sonnet | OpenAI GPT-4 |
+|--------|--------|---------------|--------------|
+| **Cost** | $0 (local) | ~$0.35/run | ~$0.50/run |
+| **Speed** | 2-3 minutes | 1-2 minutes | 1-2 minutes |
+| **Accuracy** | Good | Excellent | Excellent |
+| **Setup** | Self-hosted required | API key only | API key only |
+| **Best For** | Air-gapped environments, cost-conscious | High-security, general use | Alternative to Claude |
 
-**Recommendation**: Start with Foundation-Sec, upgrade to Claude if needed.
+**Recommendation**: Use Claude or OpenAI for best results, Ollama for cost-sensitive or air-gapped environments.
 
 ---
 
@@ -129,8 +132,9 @@ See [PLATFORM.md](../PLATFORM.md#usage) for full CLI documentation.
 
 | Mode | Data Sent | Recipient |
 |------|-----------|-----------|
-| **Foundation-Sec** | ❌ Nothing | Local inference only |
+| **Ollama** | ❌ Nothing | Local inference only |
 | **Claude** | ✅ Code snippets (findings context, ~200 lines max) | Anthropic API |
+| **OpenAI** | ✅ Code snippets (findings context, ~200 lines max) | OpenAI API |
 
 **Never sent**: Full repository, commit history, secrets, credentials.
 
@@ -147,16 +151,17 @@ See [PLATFORM.md](../PLATFORM.md#usage) for full CLI documentation.
 - ✅ No telemetry or phone-home
 - ✅ No credential storage
 - ✅ Runs entirely in your infrastructure
-- ✅ Optional: Use Foundation-Sec (no external API calls)
+- ✅ Optional: Use Ollama for local inference (no external API calls)
 
 ### Can I run Agent-OS in air-gapped environments?
 
-**Yes, with Foundation-Sec-8B:**
-1. Pre-download model (4GB): `huggingface-cli download fdtn-ai/Foundation-Sec-8B`
-2. Set `HF_HOME` to your cache directory
-3. Run Agent-OS (no internet required)
+**Yes, with Ollama:**
+1. Install Ollama locally
+2. Download your chosen model (e.g., llama3, mistral)
+3. Configure Agent-OS to use Ollama endpoint
+4. Run Agent-OS (no internet required)
 
-**No** with Claude (requires Anthropic API access).
+**No** with Claude or OpenAI (requires external API access).
 
 ---
 
@@ -232,10 +237,9 @@ with:
 
 | Scanner | Purpose | Enabled by Default |
 |---------|---------|-------------------|
-| **TruffleHog** | Verified secret detection | ✅ Yes |
-| **Gitleaks** | Pattern-based secrets | ✅ Yes |
 | **Semgrep** | SAST (2000+ rules) | ✅ Yes |
 | **Trivy** | CVE scanning | ✅ Yes |
+| **TruffleHog** | Verified secret detection | ✅ Yes |
 | **Checkov** | IaC security | ✅ Yes |
 | **Syft** | SBOM generation | ⚙️ On-demand |
 | **Cosign** | Artifact signing | ⚙️ On-demand |
@@ -247,7 +251,7 @@ with:
 ```yaml
 with:
   semgrep-enabled: 'false'  # Disable Semgrep
-  # Note: TruffleHog, Gitleaks, Trivy always run (core security)
+  # Note: Core scanners (TruffleHog, Trivy, Semgrep) are enabled by default
 ```
 
 Or use `exclude-paths` to skip scanning certain directories:
@@ -276,17 +280,17 @@ Agent-OS will automatically use your custom rules alongside the default `p/secur
 
 **Yes, for most languages:**
 
-| Language | Semgrep | Trivy | Gitleaks | TruffleHog | Checkov |
-|----------|---------|-------|----------|------------|---------|
-| JavaScript/TypeScript | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Python | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Java | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Go | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Ruby | ✅ | ✅ | ✅ | ✅ | ✅ |
-| PHP | ✅ | ✅ | ✅ | ✅ | ⚠️ |
-| C/C++ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
-| Rust | ⚠️ | ✅ | ✅ | ✅ | ❌ |
-| Terraform/IaC | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Language | Semgrep | Trivy | TruffleHog | Checkov |
+|----------|---------|-------|------------|---------|
+| JavaScript/TypeScript | ✅ | ✅ | ✅ | ✅ |
+| Python | ✅ | ✅ | ✅ | ✅ |
+| Java | ✅ | ✅ | ✅ | ✅ |
+| Go | ✅ | ✅ | ✅ | ✅ |
+| Ruby | ✅ | ✅ | ✅ | ✅ |
+| PHP | ✅ | ✅ | ✅ | ⚠️ |
+| C/C++ | ⚠️ | ✅ | ✅ | ❌ |
+| Rust | ⚠️ | ✅ | ✅ | ❌ |
+| Terraform/IaC | ✅ | ✅ | ✅ | ✅ |
 
 **Legend**: ✅ Full support, ⚠️ Partial support, ❌ Not supported
 
@@ -294,22 +298,22 @@ Agent-OS will automatically use your custom rules alongside the default `p/secur
 
 ## Troubleshooting
 
-### "Failed to download Foundation-Sec model"
+### "AI provider connection failed"
 
-**Cause**: Network timeout or insufficient disk space
+**Cause**: Invalid API key or network issues
 
 **Solutions**:
-1. **Increase timeout**: Model is ~4GB, first download takes 5-10 min
-2. **Check disk space**: Ensure runner has 10GB+ free
-3. **Use Claude instead**: `with: { ai-provider: 'anthropic' }`
-4. **Pre-cache model**: See [caching guide](../PLATFORM.md#caching)
+1. **Check API key**: Verify `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is set correctly
+2. **Test API access**: Ensure your GitHub Actions runner can reach the AI provider API
+3. **Try alternative provider**: Switch between Claude, OpenAI, or Ollama
+4. **Check rate limits**: Ensure you haven't exceeded API rate limits
 
 ### "Cost limit exceeded"
 
-**Cause**: Large repo or many findings triggered Claude API calls
+**Cause**: Large repo or many findings triggered excessive API calls
 
 **Solutions**:
-1. **Use Foundation-Sec**: `with: { ai-provider: 'foundation-sec' }` (free)
+1. **Use Ollama**: `with: { ai-provider: 'ollama' }` (free, local)
 2. **Increase limit**: `with: { cost-limit: '2.0' }`
 3. **Scan fewer files**: `with: { max-files: '50', only-changed: 'true' }`
 
@@ -352,6 +356,35 @@ Or create `.agent-os/allowlist.yml` to suppress specific patterns.
 1. **If legitimately wrong**: React with 👎 on PR comment (teaches model)
 2. **If test file but real risk**: Move to production code or adjust policy
 3. **If need manual override**: Lower noise threshold: `NOISE_THRESHOLD: '0.8'`
+
+### Does Agent-OS support caching?
+
+**Yes!** Agent-OS supports multiple caching strategies:
+
+1. **Scanner tool caching**: GitHub Actions automatically caches downloaded scanner binaries
+2. **Dependency caching**: Cache node_modules, pip packages, etc. to speed up scans
+3. **AI model caching**: When using Ollama, models are cached locally after first download
+
+**Example caching configuration**:
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: |
+      ~/.cache/semgrep
+      ~/.cache/trivy
+    key: scanner-cache-${{ runner.os }}
+```
+
+### Does Agent-OS show progress during scans?
+
+**Yes!** Agent-OS displays real-time progress:
+
+- Scanner execution status (running, completed, failed)
+- File analysis progress (X of Y files analyzed)
+- Cost tracking (current spend vs. limit)
+- Time elapsed and estimated completion
+
+Progress is shown in GitHub Actions logs and can be monitored in real-time during workflow execution.
 
 ---
 
@@ -428,11 +461,9 @@ See [PLATFORM.md#sbom](../PLATFORM.md#sbom-generation-and-signing) for details.
 ### Can I use custom AI models?
 
 **Yes!** Agent-OS supports:
-- **Foundation-Sec** (default, local)
 - **Claude** (Anthropic API)
 - **OpenAI** (GPT-4)
 - **Ollama** (self-hosted, local)
-- **SageMaker** (AWS-hosted)
 
 Example with Ollama:
 ```yaml

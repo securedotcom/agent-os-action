@@ -11,14 +11,14 @@ last_updated: 2024-11-10
 
 ## System Purpose
 
-Agent-OS Security Action is a **production security control plane** for GitHub repositories that orchestrates multiple security scanners (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov), applies AI-powered triage to suppress false positives, and enforces policy gates. It reduces security noise by 60-70% while maintaining high detection accuracy, enabling teams to focus on real threats.
+Agent-OS Security Action is a **production security control plane** for GitHub repositories that orchestrates multiple security scanners (Semgrep, Trivy, TruffleHog, Checkov), applies AI-powered triage to suppress false positives, and enforces policy gates. It reduces security noise by 60-70% while maintaining high detection accuracy, enabling teams to focus on real threats.
 
 ## Major Features
 
 | Feature | Purpose | Components |
 |---------|---------|------------|
-| **Multi-Scanner Orchestration** | Run 5 security scanners in parallel | TruffleHog, Gitleaks, Semgrep, Trivy, Checkov |
-| **AI Triage & Noise Reduction** | Suppress false positives using AI | Foundation-Sec-8B, Claude Sonnet |
+| **Multi-Scanner Orchestration** | Run 4 security scanners in parallel | Semgrep, Trivy, TruffleHog, Checkov |
+| **AI Triage & Noise Reduction** | Suppress false positives using AI | Claude Sonnet, OpenAI GPT-4, Ollama (local) |
 | **Policy Enforcement** | Block PRs based on verified threats | Rego policy engine, quality gates |
 | **SBOM Generation** | Track dependencies and vulnerabilities | Syft SBOM generator |
 | **SARIF Integration** | Upload findings to GitHub Code Scanning | SARIF report generator |
@@ -42,16 +42,16 @@ graph TB
     end
     
     subgraph "Security Scanners (Parallel)"
-        TH[TruffleHog<br/>Verified Secrets]
-        GL[Gitleaks<br/>Pattern Secrets]
         SG[Semgrep<br/>SAST 2000+ Rules]
         TV[Trivy<br/>CVE Scanner]
+        TH[TruffleHog<br/>Verified Secrets]
         CK[Checkov<br/>IaC Security]
     end
-    
+
     subgraph "AI Triage"
-        FS[Foundation-Sec-8B<br/>Local Free]
-        Claude[Claude Sonnet<br/>API Paid]
+        Claude[Claude Sonnet<br/>Anthropic API]
+        OpenAI[OpenAI GPT-4<br/>OpenAI API]
+        Ollama[Ollama<br/>Local/Self-Hosted]
         NoiseScorer[Noise Scorer<br/>ML Model]
     end
     
@@ -88,24 +88,24 @@ graph TB
     Main --> FileSelector
     FileSelector --> CostEstimator
     
-    CostEstimator --> TH
-    CostEstimator --> GL
     CostEstimator --> SG
     CostEstimator --> TV
+    CostEstimator --> TH
     CostEstimator --> CK
-    
-    TH --> Dedup
-    GL --> Dedup
+
     SG --> Dedup
     TV --> Dedup
+    TH --> Dedup
     CK --> Dedup
-    
+
     Dedup --> Correlator
-    Correlator --> FS
     Correlator --> Claude
-    
-    FS --> NoiseScorer
+    Correlator --> OpenAI
+    Correlator --> Ollama
+
     Claude --> NoiseScorer
+    OpenAI --> NoiseScorer
+    Ollama --> NoiseScorer
     
     NoiseScorer --> RiskScorer
     RiskScorer --> ExploitAnalyzer
@@ -132,18 +132,18 @@ graph TB
 
 | Scanner | Purpose | What It Detects | Strength |
 |---------|---------|-----------------|----------|
-| **TruffleHog** | Verified secret detection | API keys, tokens, credentials (with verification) | High precision via API validation |
-| **Gitleaks** | Pattern-based secret detection | Secrets via regex patterns | Fast, broad coverage |
 | **Semgrep** | Static analysis (SAST) | Code vulnerabilities, anti-patterns (2000+ rules) | Language-aware, low false positives |
 | **Trivy** | Dependency scanning | CVEs in dependencies, containers, IaC | Comprehensive vulnerability database |
+| **TruffleHog** | Verified secret detection | API keys, tokens, credentials (with verification) | High precision via API validation |
 | **Checkov** | Infrastructure as Code | IaC misconfigurations, security issues | Cloud-native security best practices |
 
 ### AI Triage System
 
 | Component | Purpose | Cost | Quality |
 |-----------|---------|------|---------|
-| **Foundation-Sec-8B** | Local AI triage (Cisco security-optimized LLM) | $0 (local inference) | ⭐⭐⭐⭐ |
 | **Claude Sonnet** | Cloud AI triage (Anthropic) | ~$0.35/run | ⭐⭐⭐⭐⭐ |
+| **OpenAI GPT-4** | Cloud AI triage (OpenAI) | ~$0.90/run | ⭐⭐⭐⭐⭐ |
+| **Ollama** | Local AI triage (self-hosted models) | $0 (local inference) | ⭐⭐⭐⭐ |
 | **Noise Scorer** | ML-based false positive detection | $0 (local) | 60-70% noise reduction |
 
 ### Analysis Pipeline
@@ -166,16 +166,15 @@ graph TB
 
 ### Backend
 - **Language**: Python 3.9+
-- **AI Providers**: Foundation-Sec-8B (local), Claude (Anthropic API), OpenAI (alternative)
+- **AI Providers**: Claude (Anthropic API), OpenAI (OpenAI API), Ollama (local/self-hosted)
 - **Policy Engine**: Open Policy Agent (Rego)
 - **SBOM**: Syft
 - **Threat Modeling**: PyTM
 
 ### Security Scanners
-- **TruffleHog**: v3.x (verified secret detection)
-- **Gitleaks**: v8.x (pattern-based secrets)
 - **Semgrep**: v1.x (SAST with 2000+ rules)
 - **Trivy**: v0.x (CVE scanning)
+- **TruffleHog**: v3.x (verified secret detection)
 - **Checkov**: v3.x (IaC security)
 
 ### Infrastructure
@@ -193,11 +192,10 @@ graph TB
 4. Estimate cost (if using paid AI)
 
 ### 2. Parallel Scanning
-1. Run 5 scanners in parallel:
-   - TruffleHog: Verified secrets
-   - Gitleaks: Pattern secrets
+1. Run 4 scanners in parallel:
    - Semgrep: SAST rules
    - Trivy: CVE scanning
+   - TruffleHog: Verified secrets
    - Checkov: IaC security
 2. Each scanner outputs findings in normalized format
 
@@ -207,7 +205,7 @@ graph TB
 3. Normalize to common format
 
 ### 4. AI Triage
-1. Send findings to AI (Foundation-Sec or Claude)
+1. Send findings to AI (Claude, OpenAI, or Ollama)
 2. AI assesses each finding:
    - Is it a real issue or false positive?
    - What's the severity?
@@ -246,7 +244,7 @@ graph TB
 
 ### Internal Dependencies
 - **Python Libraries**: anthropic, openai, tenacity
-- **Security Tools**: trufflehog, gitleaks, semgrep, trivy, checkov, syft
+- **Security Tools**: semgrep, trivy, trufflehog, checkov, syft
 - **Policy Engine**: Open Policy Agent (OPA)
 
 ## Operations
@@ -272,7 +270,7 @@ graph TB
 | Metric | Value | Notes |
 |--------|-------|-------|
 | **Runtime** | <5 minutes (p95) | Parallel scanning |
-| **Cost** | $0.00 (Foundation-Sec) or $0.20-0.50 (Claude) | Depends on findings count |
+| **Cost** | $0.00 (Ollama) or $0.35 (Claude) or $0.90 (OpenAI) | Depends on findings count |
 | **Noise Reduction** | 60-70% | ML-powered false positive suppression |
 | **Scalability** | Linear with repo size | Parallelized scanning |
 | **Accuracy** | 90%+ | Verified secrets, high-confidence SAST |
