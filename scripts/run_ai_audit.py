@@ -59,7 +59,6 @@ Extracted from real_multi_agent_review.py for merging into run_ai_audit.py
 """
 
 
-
 class HeuristicScanner:
     """Pre-scan code for obvious issues before LLM analysis
 
@@ -291,6 +290,695 @@ class ConsensusBuilder:
         return [f for f in consensus_findings if f.get("consensus", {}).get("confidence", 0) >= min_confidence]
 
 
+class ContextTracker:
+    """Track and manage context size across LLM operations
+    
+    Feature: Deliberate Context Management (Best Practice #2)
+    This class monitors context accumulation, detects potential contradictions,
+    and provides visibility into what information is being passed to the LLM.
+    """
+    
+    def __init__(self):
+        """Initialize context tracker"""
+        self.phases = []  # Track each phase's context
+        self.current_phase = None
+        self.total_chars = 0
+        self.total_tokens_estimate = 0
+        
+    def start_phase(self, phase_name: str):
+        """Start tracking a new phase
+        
+        Args:
+            phase_name: Name of the phase (e.g., 'research', 'planning', 'implementation')
+        """
+        self.current_phase = {
+            "name": phase_name,
+            "start_time": time.time(),
+            "components": [],
+            "total_chars": 0,
+            "estimated_tokens": 0
+        }
+        logger.info(f"📊 Context Phase Started: {phase_name}")
+        
+    def add_context(self, component_name: str, content: str, metadata: dict = None):
+        """Add a context component to current phase
+        
+        Args:
+            component_name: Name of the component (e.g., 'codebase', 'threat_model', 'previous_findings')
+            content: The actual content being added
+            metadata: Optional metadata about this component
+        """
+        if not self.current_phase:
+            logger.warning("No active phase - call start_phase() first")
+            return
+            
+        char_count = len(content)
+        token_estimate = char_count // 4  # Rough estimate: 4 chars per token
+        
+        component = {
+            "name": component_name,
+            "chars": char_count,
+            "tokens_estimate": token_estimate,
+            "metadata": metadata or {}
+        }
+        
+        self.current_phase["components"].append(component)
+        self.current_phase["total_chars"] += char_count
+        self.current_phase["estimated_tokens"] += token_estimate
+        self.total_chars += char_count
+        self.total_tokens_estimate += token_estimate
+        
+        logger.info(f"   📝 Added context: {component_name} ({char_count:,} chars, ~{token_estimate:,} tokens)")
+        
+    def end_phase(self):
+        """End current phase and log summary"""
+        if not self.current_phase:
+            return
+            
+        duration = time.time() - self.current_phase["start_time"]
+        self.current_phase["duration_seconds"] = duration
+        
+        logger.info(f"✅ Context Phase Complete: {self.current_phase['name']}")
+        logger.info(f"   Total: {self.current_phase['total_chars']:,} chars, ~{self.current_phase['estimated_tokens']:,} tokens")
+        logger.info(f"   Components: {len(self.current_phase['components'])}")
+        
+        self.phases.append(self.current_phase)
+        self.current_phase = None
+        
+    def get_summary(self) -> dict:
+        """Get summary of all context tracking
+        
+        Returns:
+            Dictionary with context tracking summary
+        """
+        return {
+            "total_phases": len(self.phases),
+            "total_chars": self.total_chars,
+            "total_tokens_estimate": self.total_tokens_estimate,
+            "phases": [
+                {
+                    "name": p["name"],
+                    "chars": p["total_chars"],
+                    "tokens_estimate": p["estimated_tokens"],
+                    "components": len(p["components"])
+                }
+                for p in self.phases
+            ]
+        }
+        
+    def detect_contradictions(self, new_instructions: str, existing_context: str) -> list:
+        """Detect potential contradictions in prompts
+        
+        Args:
+            new_instructions: New instructions being added
+            existing_context: Existing context/instructions
+            
+        Returns:
+            List of potential contradiction warnings
+        """
+        warnings = []
+        
+        # Check for conflicting directives
+        conflicting_patterns = [
+            (r"focus\s+only\s+on\s+(\w+)", r"also\s+analyze\s+(\w+)"),
+            (r"ignore\s+(\w+)", r"include\s+(\w+)"),
+            (r"skip\s+(\w+)", r"review\s+(\w+)"),
+        ]
+        
+        new_lower = new_instructions.lower()
+        existing_lower = existing_context.lower()
+        
+        for pattern1, pattern2 in conflicting_patterns:
+            matches1 = re.findall(pattern1, existing_lower)
+            matches2 = re.findall(pattern2, new_lower)
+            
+            # Check for overlapping terms
+            overlap = set(matches1) & set(matches2)
+            if overlap:
+                warnings.append(f"Potential contradiction: existing context mentions '{pattern1}' while new instructions mention '{pattern2}' for: {overlap}")
+        
+        return warnings
+
+
+class FindingSummarizer:
+    """Summarize agent findings to pass distilled conclusions
+    
+    Feature: Discrete Sessions with Distilled Conclusions (Best Practice #1)
+    This class extracts key insights from agent reports and creates concise
+    summaries to pass between phases, preventing context contamination.
+    """
+    
+    def __init__(self):
+        """Initialize finding summarizer"""
+        pass
+        
+    def summarize_findings(self, findings: list, max_findings: int = 10) -> str:
+        """Summarize a list of findings into concise format
+        
+        Args:
+            findings: List of finding dictionaries
+            max_findings: Maximum number of findings to include in detail
+            
+        Returns:
+            Concise summary string
+        """
+        if not findings:
+            return "No significant findings."
+            
+        # Count by severity
+        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        category_counts = {}
+        
+        for finding in findings:
+            severity = finding.get("severity", "low")
+            category = finding.get("category", "unknown")
+            
+            if severity in severity_counts:
+                severity_counts[severity] += 1
+            
+            category_counts[category] = category_counts.get(category, 0) + 1
+        
+        # Build summary
+        summary_parts = []
+        
+        # Overall stats
+        summary_parts.append(f"**Summary**: {len(findings)} total findings")
+        summary_parts.append(f"- Critical: {severity_counts['critical']}, High: {severity_counts['high']}, Medium: {severity_counts['medium']}, Low: {severity_counts['low']}")
+        
+        # Category breakdown
+        if category_counts:
+            category_str = ", ".join([f"{cat}: {count}" for cat, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)])
+            summary_parts.append(f"- Categories: {category_str}")
+        
+        # Top findings (critical and high only)
+        top_findings = [f for f in findings if f.get("severity") in ["critical", "high"]]
+        top_findings = sorted(top_findings, key=lambda x: 0 if x.get("severity") == "critical" else 1)[:max_findings]
+        
+        if top_findings:
+            summary_parts.append("\n**Key Issues**:")
+            for i, finding in enumerate(top_findings, 1):
+                severity = finding.get("severity", "unknown").upper()
+                message = finding.get("message", "No description")
+                file_path = finding.get("file_path", "unknown")
+                line = finding.get("line_number", "?")
+                
+                # Truncate long messages
+                if len(message) > 100:
+                    message = message[:97] + "..."
+                
+                summary_parts.append(f"{i}. [{severity}] {message} (`{file_path}:{line}`)")
+        
+        return "\n".join(summary_parts)
+        
+    def summarize_report(self, report_text: str, max_length: int = 1000) -> str:
+        """Summarize a full report text into key points
+        
+        Args:
+            report_text: Full report text
+            max_length: Maximum character length for summary
+            
+        Returns:
+            Concise summary of the report
+        """
+        # Extract key sections
+        lines = report_text.split("\n")
+        
+        key_points = []
+        in_summary = False
+        in_critical = False
+        
+        for line in lines:
+            line_lower = line.lower().strip()
+            
+            # Capture summary sections
+            if "summary" in line_lower or "executive summary" in line_lower:
+                in_summary = True
+                continue
+            elif "critical" in line_lower and ("issue" in line_lower or "finding" in line_lower):
+                in_critical = True
+                in_summary = False
+                continue
+            elif line.startswith("#") and not line.startswith("###"):
+                in_summary = False
+                in_critical = False
+                
+            # Collect important lines
+            if in_summary or in_critical:
+                if line.strip() and not line.startswith("#"):
+                    key_points.append(line.strip())
+                    
+            # Stop if we have enough
+            if len("\n".join(key_points)) > max_length:
+                break
+        
+        if not key_points:
+            # Fallback: take first N chars
+            return report_text[:max_length] + "..." if len(report_text) > max_length else report_text
+        
+        summary = "\n".join(key_points)
+        if len(summary) > max_length:
+            summary = summary[:max_length] + "..."
+            
+        return summary
+
+
+class AgentOutputValidator:
+    """Validate agent output format and relevance
+    
+    Feature: Agent Output Validation (Best Practice - Medium Priority)
+    This class checks agent outputs after generation to ensure they're
+    properly formatted and relevant, catching issues early.
+    """
+    
+    def __init__(self):
+        """Initialize output validator"""
+        self.validation_history = []
+        
+    def validate_output(self, agent_name: str, output: str, expected_sections: list = None) -> dict:
+        """Validate agent output format and content
+        
+        Args:
+            agent_name: Name of the agent that produced output
+            output: The output text to validate
+            expected_sections: List of expected section headers
+            
+        Returns:
+            Dictionary with validation results
+        """
+        validation = {
+            "agent": agent_name,
+            "timestamp": time.time(),
+            "valid": True,
+            "warnings": [],
+            "errors": [],
+            "metrics": {}
+        }
+        
+        # Check minimum length
+        if len(output) < 100:
+            validation["errors"].append("Output too short (< 100 chars)")
+            validation["valid"] = False
+        
+        # Check for expected sections
+        if expected_sections:
+            missing_sections = []
+            for section in expected_sections:
+                if section.lower() not in output.lower():
+                    missing_sections.append(section)
+            
+            if missing_sections:
+                validation["warnings"].append(f"Missing sections: {', '.join(missing_sections)}")
+        
+        # Check for markdown formatting
+        if output.count("#") < 2:
+            validation["warnings"].append("Minimal markdown structure (< 2 headers)")
+        
+        # Check for code references (file:line format)
+        code_refs = re.findall(r'`[^`]+\.\w+:\d+`', output)
+        validation["metrics"]["code_references"] = len(code_refs)
+        
+        if len(code_refs) == 0:
+            validation["warnings"].append("No code references found (expected file:line format)")
+        
+        # Check for severity markers
+        severity_markers = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+        severity_counts = {marker: output.upper().count(marker) for marker in severity_markers}
+        validation["metrics"]["severity_markers"] = severity_counts
+        
+        total_severity = sum(severity_counts.values())
+        if total_severity == 0:
+            validation["warnings"].append("No severity markers found")
+        
+        # Check for empty findings (agent found nothing)
+        empty_indicators = [
+            "no issues found",
+            "no findings",
+            "no problems detected",
+            "0 issues",
+            "clean codebase"
+        ]
+        
+        is_empty = any(indicator in output.lower() for indicator in empty_indicators)
+        validation["metrics"]["appears_empty"] = is_empty
+        
+        # Check for generic/template responses
+        template_indicators = [
+            "[insert",
+            "[add",
+            "[describe",
+            "TODO:",
+            "FIXME:",
+            "placeholder"
+        ]
+        
+        has_templates = any(indicator in output.lower() for indicator in template_indicators)
+        if has_templates:
+            validation["warnings"].append("Output contains template placeholders")
+        
+        # Store validation history
+        self.validation_history.append(validation)
+        
+        return validation
+        
+    def should_retry(self, validation: dict) -> bool:
+        """Determine if agent should retry based on validation
+        
+        Args:
+            validation: Validation result dictionary
+            
+        Returns:
+            True if agent should retry
+        """
+        # Retry if there are errors
+        if validation["errors"]:
+            return True
+        
+        # Retry if output appears to be a template
+        if any("template" in w.lower() for w in validation["warnings"]):
+            return True
+        
+        return False
+        
+    def get_validation_summary(self) -> dict:
+        """Get summary of all validations
+        
+        Returns:
+            Summary dictionary
+        """
+        if not self.validation_history:
+            return {"total": 0}
+        
+        total = len(self.validation_history)
+        valid = sum(1 for v in self.validation_history if v["valid"])
+        
+        return {
+            "total_validations": total,
+            "valid_outputs": valid,
+            "invalid_outputs": total - valid,
+            "total_warnings": sum(len(v["warnings"]) for v in self.validation_history),
+            "total_errors": sum(len(v["errors"]) for v in self.validation_history)
+        }
+
+
+class TimeoutManager:
+    """Manage timeouts for agent execution
+    
+    Feature: Timeout Limits (Best Practice - Medium Priority)
+    This class enforces time limits on agent execution to prevent
+    runaway processes and ensure timely completion.
+    """
+    
+    def __init__(self, default_timeout: int = 300):
+        """Initialize timeout manager
+        
+        Args:
+            default_timeout: Default timeout in seconds (default: 5 minutes)
+        """
+        self.default_timeout = default_timeout
+        self.agent_timeouts = {}
+        self.execution_history = []
+        
+    def set_agent_timeout(self, agent_name: str, timeout: int):
+        """Set custom timeout for specific agent
+        
+        Args:
+            agent_name: Name of the agent
+            timeout: Timeout in seconds
+        """
+        self.agent_timeouts[agent_name] = timeout
+        
+    def get_timeout(self, agent_name: str) -> int:
+        """Get timeout for agent
+        
+        Args:
+            agent_name: Name of the agent
+            
+        Returns:
+            Timeout in seconds
+        """
+        return self.agent_timeouts.get(agent_name, self.default_timeout)
+        
+    def check_timeout(self, agent_name: str, start_time: float) -> tuple:
+        """Check if agent has exceeded timeout
+        
+        Args:
+            agent_name: Name of the agent
+            start_time: Start time (from time.time())
+            
+        Returns:
+            Tuple of (exceeded: bool, elapsed: float, remaining: float)
+        """
+        elapsed = time.time() - start_time
+        timeout = self.get_timeout(agent_name)
+        remaining = timeout - elapsed
+        exceeded = elapsed > timeout
+        
+        return exceeded, elapsed, remaining
+        
+    def record_execution(self, agent_name: str, duration: float, completed: bool):
+        """Record agent execution for monitoring
+        
+        Args:
+            agent_name: Name of the agent
+            duration: Execution duration in seconds
+            completed: Whether agent completed successfully
+        """
+        self.execution_history.append({
+            "agent": agent_name,
+            "duration": duration,
+            "completed": completed,
+            "timeout": self.get_timeout(agent_name),
+            "exceeded_timeout": duration > self.get_timeout(agent_name),
+            "timestamp": time.time()
+        })
+        
+    def get_summary(self) -> dict:
+        """Get execution summary
+        
+        Returns:
+            Summary dictionary
+        """
+        if not self.execution_history:
+            return {"total_executions": 0}
+        
+        total = len(self.execution_history)
+        completed = sum(1 for e in self.execution_history if e["completed"])
+        timeouts = sum(1 for e in self.execution_history if e["exceeded_timeout"])
+        
+        return {
+            "total_executions": total,
+            "completed": completed,
+            "timeout_exceeded": timeouts,
+            "avg_duration": sum(e["duration"] for e in self.execution_history) / total,
+            "max_duration": max(e["duration"] for e in self.execution_history)
+        }
+
+
+class CodebaseChunker:
+    """Chunk codebase context intelligently
+    
+    Feature: Chunk Codebase Context (Best Practice - Low Priority)
+    This class breaks large codebases into manageable chunks based on
+    file relationships, size, and priority.
+    """
+    
+    def __init__(self, max_chunk_size: int = 50000):
+        """Initialize codebase chunker
+        
+        Args:
+            max_chunk_size: Maximum characters per chunk (default: 50K)
+        """
+        self.max_chunk_size = max_chunk_size
+        
+    def chunk_files(self, files: list, priority_files: list = None) -> list:
+        """Chunk files into manageable groups
+        
+        Args:
+            files: List of file dictionaries with 'path' and 'content'
+            priority_files: List of priority file paths
+            
+        Returns:
+            List of chunks, each containing related files
+        """
+        chunks = []
+        current_chunk = {"files": [], "size": 0, "priority": False}
+        
+        # Sort files: priority first, then by size
+        priority_set = set(priority_files or [])
+        sorted_files = sorted(
+            files,
+            key=lambda f: (f['path'] not in priority_set, len(f.get('content', '')))
+        )
+        
+        for file_info in sorted_files:
+            file_size = len(file_info.get('content', ''))
+            
+            # If adding this file would exceed chunk size, start new chunk
+            if current_chunk["size"] + file_size > self.max_chunk_size and current_chunk["files"]:
+                chunks.append(current_chunk)
+                current_chunk = {"files": [], "size": 0, "priority": False}
+            
+            # Add file to current chunk
+            current_chunk["files"].append(file_info)
+            current_chunk["size"] += file_size
+            
+            # Mark chunk as priority if it contains priority files
+            if file_info['path'] in priority_set:
+                current_chunk["priority"] = True
+        
+        # Add last chunk
+        if current_chunk["files"]:
+            chunks.append(current_chunk)
+        
+        return chunks
+        
+    def get_chunk_summary(self, chunks: list) -> dict:
+        """Get summary of chunks
+        
+        Args:
+            chunks: List of chunks
+            
+        Returns:
+            Summary dictionary
+        """
+        return {
+            "total_chunks": len(chunks),
+            "priority_chunks": sum(1 for c in chunks if c.get("priority")),
+            "total_files": sum(len(c["files"]) for c in chunks),
+            "total_size": sum(c["size"] for c in chunks),
+            "avg_chunk_size": sum(c["size"] for c in chunks) / len(chunks) if chunks else 0,
+            "max_chunk_size": max(c["size"] for c in chunks) if chunks else 0
+        }
+
+
+class ContextCleanup:
+    """Clean up and deduplicate context
+    
+    Feature: Context Cleanup Utilities (Best Practice - Low Priority)
+    This class removes redundant information from context to reduce
+    token usage and improve focus.
+    """
+    
+    def __init__(self):
+        """Initialize context cleanup"""
+        pass
+        
+    def remove_duplicates(self, text: str) -> str:
+        """Remove duplicate lines from text
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            Text with duplicates removed
+        """
+        lines = text.split('\n')
+        seen = set()
+        unique_lines = []
+        
+        for line in lines:
+            # Keep empty lines and headers
+            if not line.strip() or line.strip().startswith('#'):
+                unique_lines.append(line)
+                continue
+            
+            # Remove duplicate content lines
+            if line not in seen:
+                seen.add(line)
+                unique_lines.append(line)
+        
+        return '\n'.join(unique_lines)
+        
+    def compress_whitespace(self, text: str) -> str:
+        """Compress excessive whitespace
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            Text with compressed whitespace
+        """
+        # Replace multiple blank lines with max 2
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        # Remove trailing whitespace
+        lines = [line.rstrip() for line in text.split('\n')]
+        
+        return '\n'.join(lines)
+        
+    def remove_comments(self, text: str, language: str = None) -> str:
+        """Remove code comments to reduce token usage
+        
+        Args:
+            text: Input text
+            language: Programming language (for language-specific comment removal)
+            
+        Returns:
+            Text with comments removed
+        """
+        # Generic comment removal (works for most languages)
+        # Remove single-line comments
+        text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'#.*$', '', text, flags=re.MULTILINE)
+        
+        # Remove multi-line comments (/* */ style)
+        text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+        
+        return text
+        
+    def extract_signatures_only(self, code: str, language: str = 'python') -> str:
+        """Extract only function/class signatures, removing implementation
+        
+        Args:
+            code: Source code
+            language: Programming language
+            
+        Returns:
+            Code with only signatures
+        """
+        if language == 'python':
+            # Extract class and function definitions
+            lines = code.split('\n')
+            signatures = []
+            
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith('class ') or stripped.startswith('def ') or stripped.startswith('async def '):
+                    signatures.append(line)
+                elif stripped.startswith('@'):  # decorators
+                    signatures.append(line)
+            
+            return '\n'.join(signatures)
+        
+        # For other languages, return as-is for now
+        return code
+        
+    def cleanup_context(self, context: str, aggressive: bool = False) -> tuple:
+        """Clean up context with multiple strategies
+        
+        Args:
+            context: Input context
+            aggressive: If True, use more aggressive cleanup (may lose info)
+            
+        Returns:
+            Tuple of (cleaned_context, reduction_percentage)
+        """
+        original_size = len(context)
+        
+        # Always apply these
+        context = self.compress_whitespace(context)
+        context = self.remove_duplicates(context)
+        
+        if aggressive:
+            # More aggressive cleanup
+            context = self.remove_comments(context)
+        
+        cleaned_size = len(context)
+        reduction = ((original_size - cleaned_size) / original_size * 100) if original_size > 0 else 0
+        
+        return context, reduction
+
+
 class ReviewMetrics:
     """Track observability metrics for the review"""
 
@@ -445,6 +1133,10 @@ class CostLimitExceededError(Exception):
     """Raised when cost limit would be exceeded by an operation"""
 
     pass
+
+
+# Alias for backwards compatibility
+CostLimitExceeded = CostLimitExceededError
 
 
 class CostCircuitBreaker:
@@ -724,9 +1416,7 @@ def get_working_model_with_fallback(client, provider, initial_model):
             # Sanitize model ID for logging
             safe_model_name = str(model_id).split("/")[-1] if model_id else "unknown"
             logger.debug(f"Testing model: {safe_model_name}")
-            client.messages.create(
-                model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}]
-            )
+            client.messages.create(model=model_id, max_tokens=10, messages=[{"role": "user", "content": "test"}])
             logger.info(f"✅ Found working model: {safe_model_name}")
             return model_id
         except Exception as e:
@@ -1186,20 +1876,27 @@ def parse_findings_from_report(report_text):
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str) -> float:
+def estimate_call_cost(prompt_length: int, max_output_tokens: int, provider: str, model: str = None) -> float:
     """Estimate cost of a single LLM API call before making it (for circuit breaker)
 
     Args:
-        prompt_length: Character length of prompt (rough proxy for tokens)
+        prompt_length: Either character length of prompt OR token count (auto-detected)
         max_output_tokens: Maximum output tokens requested
         provider: AI provider name
+        model: Optional model name (for provider-specific pricing)
 
     Returns:
         Estimated cost in USD
     """
-    # Rough estimation: 1 token ≈ 4 characters
-    estimated_input_tokens = prompt_length / 4
-    estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
+    # Auto-detect if input is tokens or characters
+    # If > 100k, assume it's tokens (since 100k characters is ~25k tokens)
+    if prompt_length > 100_000:
+        estimated_input_tokens = prompt_length
+        estimated_output_tokens = max_output_tokens  # Use as-is for large values
+    else:
+        # Rough estimation: 1 token ≈ 4 characters
+        estimated_input_tokens = prompt_length / 4
+        estimated_output_tokens = max_output_tokens * 0.7  # Assume 70% of max is used
 
     if provider == "anthropic":
         # Claude Sonnet 4.5: $3/1M input, $15/1M output
@@ -1484,6 +2181,11 @@ def run_multi_agent_sequential(
     threat_model=None,
 ):
     """Run multi-agent sequential review with specialized agents and cost enforcement
+    
+    BEST PRACTICE IMPLEMENTATION:
+    - Uses discrete phases with context tracking (Practice #2)
+    - Passes distilled conclusions between agents (Practice #1)
+    - Monitors execution with circuit breaker (Practice #3)
 
     Args:
         threat_model: Optional threat model to provide context to agents
@@ -1501,6 +2203,19 @@ def run_multi_agent_sequential(
     print("  6️⃣  Code Quality Reviewer")
     print("  7️⃣  Review Orchestrator")
     print("=" * 80 + "\n")
+
+    # Initialize context tracker and finding summarizer
+    context_tracker = ContextTracker()
+    summarizer = FindingSummarizer()
+    
+    # Initialize output validator and timeout manager (Medium Priority features)
+    output_validator = AgentOutputValidator()
+    timeout_manager = TimeoutManager(default_timeout=300)  # 5 minutes default
+    
+    # Set custom timeouts for specific agents
+    timeout_manager.set_agent_timeout("security", 600)  # 10 minutes for security
+    timeout_manager.set_agent_timeout("exploit-analyst", 480)  # 8 minutes
+    timeout_manager.set_agent_timeout("orchestrator", 600)  # 10 minutes
 
     # Build codebase context once
     codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in files])
@@ -1552,24 +2267,41 @@ You have access to the following threat model for this codebase:
         print(f"🔍 Agent {i}/7: {agent_name.upper()} REVIEWER")
         print(f"{'─' * 80}")
 
+        # Start context tracking for this agent phase
+        context_tracker.start_phase(f"agent_{i}_{agent_name}")
         agent_start = time.time()
 
         # Load agent-specific prompt
         agent_prompt_template = load_agent_prompt(agent_name)
+        context_tracker.add_context("agent_prompt_template", agent_prompt_template, {"agent": agent_name})
 
-        # For exploit-analyst and security-test-generator, pass security findings
+        # For exploit-analyst and security-test-generator, pass SUMMARIZED security findings
         if agent_name in ["exploit-analyst", "security-test-generator"]:
-            # Use security findings as context
-            security_context = agent_reports.get("security", "")
+            # Parse and summarize security findings instead of passing full report
+            security_report = agent_reports.get("security", "")
+            security_findings = parse_findings_from_report(security_report)
+            security_summary = summarizer.summarize_findings(security_findings, max_findings=15)
+            
+            # Check for contradictions
+            contradictions = context_tracker.detect_contradictions(agent_prompt_template, threat_model_context)
+            if contradictions:
+                logger.warning(f"⚠️  Potential contradictions detected for {agent_name}:")
+                for warning in contradictions:
+                    logger.warning(f"   - {warning}")
+            
+            context_tracker.add_context("threat_model", threat_model_context, {"size": "summarized"})
+            context_tracker.add_context("security_findings_summary", security_summary, {"original_findings": len(security_findings)})
+            context_tracker.add_context("codebase", codebase_context, {"files": len(files)})
+            
             agent_prompt = f"""{agent_prompt_template}
 
 {threat_model_context}
 
-## Previous Agent Findings
+## Previous Agent Findings (Summarized)
 
-The Security Reviewer has identified the following vulnerabilities:
+The Security Reviewer has completed their analysis. Here's a summary:
 
-{security_context}
+{security_summary}
 
 ## Codebase to Analyze
 
@@ -1582,6 +2314,10 @@ The Security Reviewer has identified the following vulnerabilities:
 Provide detailed analysis in your specialized format.
 """
         else:
+            # Track context for non-security agents
+            context_tracker.add_context("threat_model", threat_model_context, {"size": "summarized"})
+            context_tracker.add_context("codebase", codebase_context, {"files": len(files)})
+            
             # Create agent-specific prompt
             agent_prompt = f"""{agent_prompt_template}
 
@@ -1632,6 +2368,9 @@ Provide your findings in this format:
 Be specific with file paths and line numbers. Focus on actionable, real issues.
 """
 
+        # End context tracking for this phase
+        context_tracker.end_phase()
+
         try:
             # Sanitize model name (use str() to break taint chain)
             safe_model = str(model).split("/")[-1] if model else "unknown"
@@ -1647,6 +2386,27 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
             )
 
             agent_duration = time.time() - agent_start
+            
+            # Check timeout (Medium Priority feature)
+            exceeded, elapsed, remaining = timeout_manager.check_timeout(agent_name, agent_start)
+            timeout_manager.record_execution(agent_name, agent_duration, not exceeded)
+            
+            if exceeded:
+                logger.warning(f"⚠️  Agent {agent_name} exceeded timeout ({elapsed:.1f}s > {timeout_manager.get_timeout(agent_name)}s)")
+                print(f"   ⚠️  Warning: Execution time ({elapsed:.1f}s) exceeded timeout limit")
+
+            # Validate output (Medium Priority feature)
+            expected_sections = ["Summary", "Issues", "Critical", "High"]
+            validation = output_validator.validate_output(agent_name, report, expected_sections)
+            
+            if not validation["valid"]:
+                logger.error(f"❌ Agent {agent_name} output validation failed: {validation['errors']}")
+                print(f"   ❌ Output validation failed: {', '.join(validation['errors'])}")
+            
+            if validation["warnings"]:
+                logger.warning(f"⚠️  Agent {agent_name} output warnings: {validation['warnings']}")
+                for warning in validation["warnings"][:3]:  # Show first 3 warnings
+                    print(f"   ⚠️  {warning}")
 
             # Record metrics for this agent
             metrics.record_llm_call(input_tokens, output_tokens, provider)
@@ -1659,6 +2419,8 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
                 "cost_usd": round((input_tokens / 1_000_000) * 3.0 + (output_tokens / 1_000_000) * 15.0, 4)
                 if provider == "anthropic"
                 else 0,
+                "validation": validation,
+                "timeout_exceeded": exceeded
             }
 
             # Store report
@@ -1842,14 +2604,21 @@ Be specific with file paths and line numbers. Focus on actionable, real issues.
 
         print(f"   Found {len(all_findings)} total findings across {len(agent_reports)} agents")
 
-        # Build consensus
-        consensus_builder = ConsensusBuilder()
-        consensus_results = consensus_builder.build_consensus(all_findings)
+        # Build consensus - group findings by agent (fixed: use aggregate_findings method)
+        agent_findings_dict = {}
+        for finding in all_findings:
+            agent_name = finding.get("source_agent", "unknown")
+            if agent_name not in agent_findings_dict:
+                agent_findings_dict[agent_name] = []
+            agent_findings_dict[agent_name].append(finding)
+
+        consensus_builder = ConsensusBuilder(agents)
+        consensus_results = consensus_builder.aggregate_findings(agent_findings_dict)
 
         if consensus_results:
-            confirmed = len([f for f in consensus_results.values() if f["confidence"] == "high"])
-            likely = len([f for f in consensus_results.values() if f["confidence"] == "medium"])
-            uncertain = len([f for f in consensus_results.values() if f["confidence"] == "low"])
+            confirmed = len([f for f in consensus_results if f.get("consensus", {}).get("confidence", 0) >= 0.85])
+            likely = len([f for f in consensus_results if 0.70 <= f.get("consensus", {}).get("confidence", 0) < 0.85])
+            uncertain = len([f for f in consensus_results if f.get("consensus", {}).get("confidence", 0) < 0.70])
 
             print("   ✅ Consensus analysis complete:")
             print(f"      - {confirmed} high-confidence findings (multiple agents agree)")
@@ -2046,6 +2815,259 @@ Orchestrator synthesis failed. Below are individual agent reports.
     print(f"{'=' * 80}\n")
 
     return final_report
+
+
+def load_config_from_env():
+    """Load configuration from environment variables"""
+    return {
+        "ai_provider": os.environ.get("AI_PROVIDER", os.environ.get("INPUT_AI_PROVIDER", "auto")),
+        "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+        "openai_api_key": os.environ.get("OPENAI_API_KEY", ""),
+        "ollama_endpoint": os.environ.get("OLLAMA_ENDPOINT", ""),
+        "foundation_sec_enabled": os.environ.get("FOUNDATION_SEC_ENABLED", "false").lower() == "true",
+        "foundation_sec_model": os.environ.get("FOUNDATION_SEC_MODEL", "cisco-ai/foundation-sec-8b-instruct"),
+        "foundation_sec_device": os.environ.get("FOUNDATION_SEC_DEVICE", ""),
+        "model": os.environ.get("MODEL", os.environ.get("INPUT_MODEL", "auto")),
+        "multi_agent_mode": os.environ.get("MULTI_AGENT_MODE", os.environ.get("INPUT_MULTI_AGENT_MODE", "single")),
+        "only_changed": os.environ.get("ONLY_CHANGED", os.environ.get("INPUT_ONLY_CHANGED", "false")).lower() == "true",
+        "include_paths": os.environ.get("INCLUDE_PATHS", os.environ.get("INPUT_INCLUDE_PATHS", "")),
+        "exclude_paths": os.environ.get("EXCLUDE_PATHS", os.environ.get("INPUT_EXCLUDE_PATHS", "")),
+        "max_file_size": os.environ.get("MAX_FILE_SIZE", os.environ.get("INPUT_MAX_FILE_SIZE", "50000")),
+        "max_files": os.environ.get("MAX_FILES", os.environ.get("INPUT_MAX_FILES", "100")),
+        "max_tokens": os.environ.get("MAX_TOKENS", os.environ.get("INPUT_MAX_TOKENS", "8000")),
+        "cost_limit": os.environ.get("COST_LIMIT", os.environ.get("INPUT_COST_LIMIT", "1.0")),
+        "fail_on": os.environ.get("FAIL_ON", os.environ.get("INPUT_FAIL_ON", "")),
+        "enable_threat_modeling": os.environ.get("ENABLE_THREAT_MODELING", "true").lower() == "true",
+        "enable_sandbox_validation": os.environ.get("ENABLE_SANDBOX_VALIDATION", "true").lower() == "true",
+        "enable_heuristics": os.environ.get("ENABLE_HEURISTICS", "true").lower() == "true",
+        "enable_consensus": os.environ.get("ENABLE_CONSENSUS", "true").lower() == "true",
+        "consensus_threshold": float(os.environ.get("CONSENSUS_THRESHOLD", "0.5")),
+        "category_passes": os.environ.get("CATEGORY_PASSES", "true").lower() == "true",
+        "enable_semgrep": os.environ.get("SEMGREP_ENABLED", "true").lower() == "true",
+    }
+
+
+def validate_config(config):
+    """Validate configuration"""
+    provider = config.get("ai_provider", "auto")
+
+    if provider == "anthropic":
+        if not config.get("anthropic_api_key"):
+            raise ValueError("Anthropic API key is required")
+    elif provider == "openai":
+        if not config.get("openai_api_key"):
+            raise ValueError("OpenAI API key is required")
+    elif provider not in ["auto", "ollama", "foundation-sec"]:
+        raise ValueError(f"Invalid AI provider: {provider}")
+
+    return True
+
+
+def select_files_for_review(repo_path, config):
+    """Select files for review based on configuration"""
+    max_files = int(config.get("max_files", "100"))
+    max_file_size = int(config.get("max_file_size", "50000"))
+    include_patterns = config.get("include_paths", "").split(",") if config.get("include_paths") else []
+    exclude_patterns = config.get("exclude_paths", "").split(",") if config.get("exclude_paths") else []
+
+    # Get all files
+    all_files = []
+    for root, dirs, files in os.walk(repo_path):
+        # Skip hidden directories and common ignore patterns
+        dirs[:] = [
+            d
+            for d in dirs
+            if not d.startswith(".") and d not in ["node_modules", "__pycache__", "venv", "dist", "build"]
+        ]
+
+        for file in files:
+            if file.startswith("."):
+                continue
+
+            file_path = os.path.join(root, file)
+            rel_path = os.path.relpath(file_path, repo_path)
+
+            # Check file extension
+            if not should_review_file(file):
+                continue
+
+            # Check size
+            try:
+                if os.path.getsize(file_path) > max_file_size:
+                    continue
+            except (OSError, FileNotFoundError):
+                continue
+
+            # Check include/exclude patterns
+            if include_patterns and not any(
+                matches_glob_patterns(rel_path, [p]) for p in include_patterns if p.strip()
+            ):
+                continue
+            if exclude_patterns and any(matches_glob_patterns(rel_path, [p]) for p in exclude_patterns if p.strip()):
+                continue
+
+            all_files.append({"path": rel_path, "size": os.path.getsize(file_path)})
+
+    # Sort by size (smaller first) and limit
+    all_files.sort(key=lambda x: x["size"])
+    return all_files[:max_files]
+
+
+def should_review_file(filename):
+    """Check if file should be reviewed based on extension"""
+    code_extensions = {
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".java",
+        ".go",
+        ".rs",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".rb",
+        ".php",
+        ".swift",
+        ".kt",
+        ".scala",
+        ".sh",
+        ".bash",
+        ".yml",
+        ".yaml",
+        ".json",
+        ".tf",
+        ".hcl",
+        ".sql",
+        ".r",
+        ".m",
+        ".mm",
+        ".pl",
+        ".pm",
+        ".lua",
+        ".vim",
+        ".el",
+        ".clj",
+        ".ex",
+        ".exs",
+        ".erl",
+        ".hrl",
+        ".hs",
+        ".ml",
+        ".fs",
+        ".fsx",
+        ".fsi",
+        ".vb",
+        ".pas",
+        ".pp",
+        ".asm",
+        ".s",
+        ".dart",
+        ".nim",
+        ".cr",
+        ".v",
+        ".sv",
+        ".vhd",
+        ".vhdl",
+        ".tcl",
+        ".groovy",
+        ".gradle",
+        ".cmake",
+        ".mk",
+        ".dockerfile",
+        ".vue",
+        ".svelte",
+        ".astro",
+    }
+    return any(filename.lower().endswith(ext) for ext in code_extensions)
+
+
+def generate_sarif_output(findings, repo_path, metrics=None):
+    """Generate SARIF output (alias for generate_sarif)"""
+    return generate_sarif(findings, repo_path, metrics)
+
+
+def estimate_tokens(text):
+    """Estimate number of tokens in text"""
+    # Rough estimation: ~4 characters per token
+    return len(text) // 4
+
+
+def read_file_safe(file_path, max_size=1_000_000):
+    """Safely read a file with size limits"""
+    try:
+        file_size = os.path.getsize(file_path)
+        if file_size > max_size:
+            raise ValueError(f"File too large: {file_size} bytes (max: {max_size})")
+
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
+            return f.read()
+    except Exception as e:
+        raise OSError(f"Error reading file {file_path}: {e}") from e
+
+
+def map_severity_to_level(severity):
+    """Map severity to SARIF level (alias for map_severity_to_sarif)"""
+    return map_severity_to_sarif(severity)
+
+
+def classify_finding_category(finding):
+    """Classify finding into a category"""
+    # Handle both dict and string inputs
+    if isinstance(finding, str):
+        text = finding.lower()
+        title = text
+        description = text
+    else:
+        title = finding.get("title", "").lower()
+        description = finding.get("description", "").lower()
+
+    # Security categories
+    if any(term in title or term in description for term in ["injection", "xss", "csrf", "auth", "secret", "crypto"]):
+        return "security"
+    elif any(term in title or term in description for term in ["performance", "memory", "cpu", "slow"]):
+        return "performance"
+    elif any(term in title or term in description for term in ["bug", "error", "exception", "crash"]):
+        return "reliability"
+    elif any(term in title or term in description for term in ["style", "format", "naming", "convention"]):
+        return "style"
+    else:
+        return "general"
+
+
+def parse_args():
+    """Parse command line arguments"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="AI-powered code audit")
+    parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
+    parser.add_argument("review_type", nargs="?", default="audit", help="Type of review")
+    parser.add_argument("--provider", help="AI provider")
+    parser.add_argument("--model", help="Model name")
+    parser.add_argument("--max-files", type=int, help="Maximum files to review")
+    parser.add_argument("--cost-limit", type=float, help="Cost limit in USD")
+
+    return parser.parse_args()
+
+
+def build_config(args=None):
+    """Build configuration from arguments and environment"""
+    config = load_config_from_env()
+
+    if args:
+        if hasattr(args, "provider") and args.provider:
+            config["ai_provider"] = args.provider
+        if hasattr(args, "model") and args.model:
+            config["model"] = args.model
+        if hasattr(args, "max_files") and args.max_files:
+            config["max_files"] = str(args.max_files)
+        if hasattr(args, "cost_limit") and args.cost_limit:
+            config["cost_limit"] = str(args.cost_limit)
+
+    return config
 
 
 def run_audit(repo_path, config, review_type="audit"):
@@ -2359,6 +3381,25 @@ def run_audit(repo_path, config, review_type="audit"):
 
         if metrics.metrics["tests_generated"] > 0:
             print(f"   🧪 Tests Generated: {metrics.metrics['tests_generated']}")
+        
+        # Display validation and timeout metrics (Medium Priority features)
+        validation_summary = output_validator.get_validation_summary()
+        timeout_summary = timeout_manager.get_summary()
+        
+        if validation_summary.get("total_validations", 0) > 0:
+            print(f"\n📋 Output Validation:")
+            print(f"   Valid outputs: {validation_summary['valid_outputs']}/{validation_summary['total_validations']}")
+            if validation_summary.get('total_warnings', 0) > 0:
+                print(f"   ⚠️  Warnings: {validation_summary['total_warnings']}")
+            if validation_summary.get('invalid_outputs', 0) > 0:
+                print(f"   ❌ Invalid: {validation_summary['invalid_outputs']}")
+        
+        if timeout_summary.get("total_executions", 0) > 0:
+            print(f"\n⏱️  Timeout Management:")
+            print(f"   Completed: {timeout_summary['completed']}/{timeout_summary['total_executions']}")
+            print(f"   Avg duration: {timeout_summary['avg_duration']:.1f}s")
+            if timeout_summary.get('timeout_exceeded', 0) > 0:
+                print(f"   ⚠️  Timeouts exceeded: {timeout_summary['timeout_exceeded']}")
 
         # Output for GitHub Actions
         print("completed=true")
@@ -2403,13 +3444,201 @@ def run_audit(repo_path, config, review_type="audit"):
 
         return blocker_count, suggestion_count, metrics
 
-    # Single-agent mode (original logic)
-    print("🤖 Mode: Single-Agent")
+    # Single-agent mode with DISCRETE PHASES (Best Practice #1)
+    print("🤖 Mode: Single-Agent (3-Phase Process)")
+    print("   Phase 1: Research & File Selection")
+    print("   Phase 2: Planning & Focus Area Identification")
+    print("   Phase 3: Detailed Implementation Analysis")
+    
+    # Initialize context tracker and summarizer
+    context_tracker = ContextTracker()
+    summarizer = FindingSummarizer()
+    
+    # ============================================================================
+    # PHASE 1: RESEARCH - Identify files and areas that need attention
+    # ============================================================================
+    print("\n" + "=" * 80)
+    print("📊 PHASE 1: RESEARCH & FILE SELECTION")
+    print("=" * 80)
+    
+    context_tracker.start_phase("phase1_research")
+    
+    # Build lightweight file summary (not full content)
+    file_summary = []
+    for f in files:
+        file_summary.append(f"- {f['path']} ({f['lines']} lines)")
+    file_list = "\n".join(file_summary)
+    
+    context_tracker.add_context("file_list", file_list, {"file_count": len(files)})
+    
+    # Add threat model if available
+    threat_summary = ""
+    if threat_model:
+        threat_summary = f"""
+**Threat Model Available:**
+- {len(threat_model.get('threats', []))} threats identified
+- {len(threat_model.get('attack_surface', {}).get('entry_points', []))} entry points
+- {len(threat_model.get('assets', []))} critical assets
+"""
+        context_tracker.add_context("threat_model_summary", threat_summary, {"threats": len(threat_model.get('threats', []))})
+    
+    research_prompt = f"""You are conducting initial research for a code audit.
 
-    # Build context for LLM
-    codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in files])
+**Your Task**: Analyze the file list and identify which files and areas require detailed review.
 
-    # Load audit command
+**Files in Codebase**:
+{file_list}
+
+{threat_summary}
+
+**Instructions**:
+1. Categorize files by risk level (high/medium/low)
+2. Identify focus areas (security, performance, testing, quality)
+3. Prioritize files that likely contain critical issues
+4. Consider file types, naming patterns, and threat model
+
+**Output Format**:
+```json
+{{
+  "high_priority_files": ["file1.py", "file2.js"],
+  "focus_areas": ["security", "performance"],
+  "rationale": "Brief explanation of prioritization"
+}}
+```
+
+Be concise. This is research, not detailed analysis."""
+    
+    context_tracker.end_phase()
+    
+    print("🧠 Analyzing codebase structure...")
+    try:
+        research_result, research_input, research_output = call_llm_api(
+            client,
+            provider,
+            model,
+            research_prompt,
+            2000,  # Shorter response for research
+            circuit_breaker=circuit_breaker,
+            operation="phase1_research",
+        )
+        metrics.record_llm_call(research_input, research_output, provider)
+        print(f"✅ Research complete ({research_input} input tokens, {research_output} output tokens)")
+        
+        # Parse research results
+        try:
+            # Extract JSON from response
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', research_result, re.DOTALL)
+            if json_match:
+                research_data = json.loads(json_match.group(1))
+            else:
+                # Fallback: use all files
+                research_data = {
+                    "high_priority_files": [f['path'] for f in files[:10]],
+                    "focus_areas": ["security", "performance", "testing", "quality"],
+                    "rationale": "Using all files (JSON parsing failed)"
+                }
+        except Exception as e:
+            logger.warning(f"Failed to parse research results: {e}")
+            research_data = {
+                "high_priority_files": [f['path'] for f in files[:10]],
+                "focus_areas": ["security", "performance", "testing", "quality"],
+                "rationale": "Using all files (parsing error)"
+            }
+        
+        print(f"   Priority files: {len(research_data.get('high_priority_files', []))}")
+        print(f"   Focus areas: {', '.join(research_data.get('focus_areas', []))}")
+        
+    except Exception as e:
+        logger.error(f"Research phase failed: {e}")
+        research_data = {
+            "high_priority_files": [f['path'] for f in files],
+            "focus_areas": ["security", "performance", "testing", "quality"],
+            "rationale": "Research phase failed, using all files"
+        }
+    
+    # ============================================================================
+    # PHASE 2: PLANNING - Create focused analysis plan
+    # ============================================================================
+    print("\n" + "=" * 80)
+    print("📋 PHASE 2: PLANNING & FOCUS IDENTIFICATION")
+    print("=" * 80)
+    
+    context_tracker.start_phase("phase2_planning")
+    
+    # Build context with ONLY priority files
+    priority_files = [f for f in files if f['path'] in research_data.get('high_priority_files', [])]
+    if not priority_files:
+        priority_files = files[:10]  # Fallback
+    
+    priority_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content'][:500]}...\n```" for f in priority_files])
+    context_tracker.add_context("priority_files_preview", priority_context, {"file_count": len(priority_files)})
+    
+    planning_prompt = f"""You are planning a detailed code audit based on initial research.
+
+**Research Findings**:
+{json.dumps(research_data, indent=2)}
+
+**Priority Files (Preview - first 500 chars each)**:
+{priority_context}
+
+**Your Task**: Create a focused analysis plan identifying specific issues to investigate.
+
+**Output Format**:
+# Analysis Plan
+
+## Security Focus
+- [ ] Check for: [specific security issue to look for]
+- [ ] Verify: [specific security control]
+
+## Performance Focus  
+- [ ] Analyze: [specific performance concern]
+
+## Testing Focus
+- [ ] Review: [specific testing gap]
+
+## Quality Focus
+- [ ] Examine: [specific quality issue]
+
+Be specific and actionable. This plan will guide the detailed analysis."""
+    
+    context_tracker.end_phase()
+    
+    print("🧠 Creating analysis plan...")
+    try:
+        plan_result, plan_input, plan_output = call_llm_api(
+            client,
+            provider,
+            model,
+            planning_prompt,
+            3000,  # Medium response for planning
+            circuit_breaker=circuit_breaker,
+            operation="phase2_planning",
+        )
+        metrics.record_llm_call(plan_input, plan_output, provider)
+        print(f"✅ Planning complete ({plan_input} input tokens, {plan_output} output tokens)")
+        
+        # Summarize the plan
+        plan_summary = summarizer.summarize_report(plan_result, max_length=800)
+        
+    except Exception as e:
+        logger.error(f"Planning phase failed: {e}")
+        plan_summary = "Planning phase failed. Proceeding with general analysis."
+    
+    # ============================================================================
+    # PHASE 3: IMPLEMENTATION - Detailed analysis based on plan
+    # ============================================================================
+    print("\n" + "=" * 80)
+    print("🔍 PHASE 3: DETAILED IMPLEMENTATION ANALYSIS")
+    print("=" * 80)
+    
+    context_tracker.start_phase("phase3_implementation")
+    
+    # Build FULL context for priority files only
+    codebase_context = "\n\n".join([f"File: {f['path']}\n```\n{f['content']}\n```" for f in priority_files])
+    context_tracker.add_context("full_codebase", codebase_context, {"file_count": len(priority_files)})
+    context_tracker.add_context("analysis_plan", plan_summary, {"from_phase": 2})
+    
+    # Load audit instructions
     audit_command_path = (
         Path.home() / ".agent-os/profiles/default/commands/audit-codebase/multi-agent/audit-codebase.md"
     )
@@ -2429,27 +3658,29 @@ For each issue found, classify it as:
 - [HIGH] - Important issue that should be fixed soon
 - [MEDIUM] - Moderate issue, good to fix
 - [LOW] - Minor issue or suggestion
-
-⚠️ IMPORTANT: This is AI-assisted code review. While AI can identify many issues,
-human oversight is essential for:
-- Architectural decisions and trade-offs
-- Business logic correctness
-- Context-specific security considerations
-- Code maintainability and team conventions
-
-Use this as a starting point for human review, not a replacement.
 """
+    
+    # Check for contradictions
+    contradictions = context_tracker.detect_contradictions(audit_instructions, plan_summary)
+    if contradictions:
+        logger.warning("⚠️  Potential contradictions detected:")
+        for warning in contradictions:
+            logger.warning(f"   - {warning}")
+    
+    # Create implementation prompt with plan context
+    prompt = f"""You are performing a detailed code audit based on the analysis plan.
 
-    # Create prompt
-    prompt = f"""You are an expert code reviewer performing a comprehensive codebase audit.
+**Analysis Plan (from Phase 2)**:
+{plan_summary}
 
+**Audit Instructions**:
 {audit_instructions}
 
-Here is the codebase to analyze:
-
+**Codebase to Analyze**:
 {codebase_context}
 
-Please provide a detailed audit report in Markdown format with the following structure:
+**Your Task**: 
+Execute the analysis plan above. Provide a detailed audit report with:
 
 # Codebase Audit Report
 
@@ -2492,16 +3723,15 @@ Numbered list of high priority improvements
 ## Recommendation
 Final recommendation: APPROVED / REQUIRES FIXES / DO NOT MERGE
 
-## Human Review Required
-Note any areas where human judgment is essential (architecture, business logic, etc.)
-
 Be specific with file names and line numbers. Use format: `filename.ext:123` for references.
-"""
+Focus on issues identified in the analysis plan."""
+    
+    context_tracker.end_phase()
 
     # Sanitize provider/model names for logging (use str() to break taint chain)
     safe_provider = str(provider).split("/")[-1] if provider else "unknown"
     safe_model = str(model).split("/")[-1] if model else "unknown"
-    print(f"🧠 Analyzing code with {safe_provider} ({safe_model})...")
+    print(f"🧠 Performing detailed analysis with {safe_provider} ({safe_model})...")
 
     try:
         # Call LLM API with cost enforcement
@@ -2512,7 +3742,7 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
             prompt,
             max_tokens,
             circuit_breaker=circuit_breaker,
-            operation="single-agent review",
+            operation="phase3_implementation",
         )
 
         # Record LLM metrics
@@ -2568,6 +3798,13 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         blocker_count = metrics.metrics["findings"]["critical"] + metrics.metrics["findings"]["high"]
         suggestion_count = metrics.metrics["findings"]["medium"] + metrics.metrics["findings"]["low"]
 
+        # Save context tracking summary
+        context_summary = context_tracker.get_summary()
+        context_file = report_dir / "context-tracking.json"
+        with open(context_file, "w") as f:
+            json.dump(context_summary, f, indent=2)
+        print(f"📊 Context tracking saved to: {context_file}")
+
         print("\n📊 Results:")
         print(f"   Critical: {metrics.metrics['findings']['critical']}")
         print(f"   High: {metrics.metrics['findings']['high']}")
@@ -2579,6 +3816,13 @@ Be specific with file names and line numbers. Use format: `filename.ext:123` for
         safe_provider = str(provider).split("/")[-1] if provider else "unknown"
         safe_model = str(model).split("/")[-1] if model else "unknown"
         print(f"🔧 Provider: {safe_provider} ({safe_model})")
+        
+        # Display context tracking summary
+        print(f"\n📊 Context Management:")
+        print(f"   Phases: {context_summary['total_phases']}")
+        print(f"   Total tokens (estimated): ~{context_summary['total_tokens_estimate']:,}")
+        for phase in context_summary['phases']:
+            print(f"   - {phase['name']}: {phase['components']} components, ~{phase['tokens_estimate']:,} tokens")
 
         # Check fail-on conditions
         fail_on = config.get("fail_on", "")

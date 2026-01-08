@@ -1,6 +1,5 @@
 """Checkov IaC normalizer"""
 
-
 from .base import Finding, Normalizer
 
 

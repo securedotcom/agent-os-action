@@ -1,6 +1,5 @@
 """Trivy normalizer"""
 
-
 from .base import Finding, Normalizer
 
 

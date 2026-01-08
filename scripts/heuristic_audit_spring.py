@@ -97,15 +97,19 @@ class HeuristicAuditor:
             )
 
         # Input validation
-        if re.search(r'request\.(args|form|json)\.get\(["\']', content) and "validate" not in content.lower() and "sanitize" not in content.lower():
-                findings.append(
-                    {
-                        "type": "missing-input-validation",
-                        "severity": "MEDIUM",
-                        "line": self._find_line(content, r"request\."),
-                        "description": "User input accessed without visible validation",
-                    }
-                )
+        if (
+            re.search(r'request\.(args|form|json)\.get\(["\']', content)
+            and "validate" not in content.lower()
+            and "sanitize" not in content.lower()
+        ):
+            findings.append(
+                {
+                    "type": "missing-input-validation",
+                    "severity": "MEDIUM",
+                    "line": self._find_line(content, r"request\."),
+                    "description": "User input accessed without visible validation",
+                }
+            )
 
         # SSRF risks
         if re.search(r"requests\.(get|post|put)\([^)]*\+", content):
