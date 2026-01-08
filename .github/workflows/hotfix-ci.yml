@@ -151,7 +151,7 @@ jobs:
   build-hotfix-artifacts:
     name: Build Hotfix Artifacts
     runs-on: ubuntu-latest
-    needs: [validate-hotfix, critical-tests, security-check]
+    needs: [validate-hotfix, critical-tests, security-check, regression-test]
     
     steps:
       - name: Checkout code
@@ -167,7 +167,7 @@ jobs:
           echo "✅ Hotfix SBOM generated"
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: hotfix-artifacts
           path: |

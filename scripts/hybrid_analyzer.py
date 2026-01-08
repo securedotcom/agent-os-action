@@ -5,14 +5,16 @@ Combines multiple security scanning tools for comprehensive analysis:
 
 1. Semgrep - Fast SAST (static analysis)
 2. Trivy - CVE/dependency scanning
-3. AI-powered security analysis & CWE mapping (Claude/OpenAI)
-4. Existing Agent-OS multi-agent system
+3. Checkov - IaC security scanning (Terraform, K8s, Dockerfile, etc.)
+4. AI-powered security analysis & CWE mapping (Claude/OpenAI)
+5. Existing Agent-OS multi-agent system
 
 Architecture:
 ┌─────────────────────────────────────────────────────────────────┐
 │  PHASE 1: Fast Deterministic Scanning (30-60 sec)               │
 │  ├─ Semgrep (SAST)                                              │
-│  └─ Trivy (CVE/Dependencies)                                    │
+│  ├─ Trivy (CVE/Dependencies)                                    │
+│  └─ Checkov (IaC)                                               │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHASE 2: AI Enrichment (2-5 min)                               │
 │  ├─ Claude/OpenAI (Security analysis, CWE mapping)              │
@@ -55,7 +57,7 @@ class HybridFinding:
     """Unified finding from multiple security tools"""
 
     finding_id: str
-    source_tool: str  # 'semgrep', 'trivy', 'agent-os'
+    source_tool: str  # 'semgrep', 'trivy', 'checkov', 'agent-os'
     severity: str  # 'critical', 'high', 'medium', 'low'
     category: str  # 'security', 'quality', 'performance'
     title: str
@@ -98,7 +100,7 @@ class HybridSecurityAnalyzer:
     """
     Hybrid Security Analyzer
 
-    Combines deterministic tools (Semgrep, Trivy) with AI analysis
+    Combines deterministic tools (Semgrep, Trivy, Checkov) with AI analysis
     (Claude, OpenAI, Agent-OS agents)
     """
 
@@ -106,6 +108,7 @@ class HybridSecurityAnalyzer:
         self,
         enable_semgrep: bool = True,
         enable_trivy: bool = True,
+        enable_checkov: bool = True,
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
@@ -118,6 +121,7 @@ class HybridSecurityAnalyzer:
         Args:
             enable_semgrep: Run Semgrep SAST
             enable_trivy: Run Trivy CVE scanning
+            enable_checkov: Run Checkov IaC scanning
             enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
@@ -126,6 +130,7 @@ class HybridSecurityAnalyzer:
         """
         self.enable_semgrep = enable_semgrep
         self.enable_trivy = enable_trivy
+        self.enable_checkov = enable_checkov
         self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
@@ -135,6 +140,7 @@ class HybridSecurityAnalyzer:
         # Initialize scanners
         self.semgrep_scanner = None
         self.trivy_scanner = None
+        self.checkov_scanner = None
         self.sandbox_validator = None
         self.ai_client = None
 
@@ -178,6 +184,16 @@ class HybridSecurityAnalyzer:
                 logger.warning(f"⚠️  Trivy scanner not available: {e}")
                 self.enable_trivy = False
 
+        if self.enable_checkov:
+            try:
+                from checkov_scanner import CheckovScanner
+
+                self.checkov_scanner = CheckovScanner()
+                logger.info("✅ Checkov scanner initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Checkov scanner not available: {e}")
+                self.enable_checkov = False
+
         # Initialize sandbox validator if enabled
         if self.enable_sandbox:
             try:
@@ -190,10 +206,10 @@ class HybridSecurityAnalyzer:
                 self.enable_sandbox = False
 
         # Validation: At least one scanner or AI enrichment must be enabled
-        if not self.enable_semgrep and not self.enable_trivy and not self.enable_ai_enrichment:
+        if not self.enable_semgrep and not self.enable_trivy and not self.enable_checkov and not self.enable_ai_enrichment:
             raise ValueError(
                 "❌ ERROR: At least one tool must be enabled!\n"
-                "   Enable: --enable-semgrep, --enable-trivy, or --enable-ai-enrichment"
+                "   Enable: --enable-semgrep, --enable-trivy, --enable-checkov, or --enable-ai-enrichment"
             )
 
     def analyze(
@@ -254,6 +270,17 @@ class HybridSecurityAnalyzer:
                 logger.info(f"   ✅ Trivy: {len(trivy_findings)} CVEs")
             except Exception as e:
                 logger.error(f"   ❌ Trivy scan failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run Checkov
+        if self.enable_checkov and self.checkov_scanner:
+            try:
+                logger.info("   🔍 Running Checkov IaC scanner...")
+                checkov_findings = self._run_checkov(target_path)
+                all_findings.extend(checkov_findings)
+                logger.info(f"   ✅ Checkov: {len(checkov_findings)} IaC misconfigurations")
+            except Exception as e:
+                logger.error(f"   ❌ Checkov scan failed: {e}")
                 logger.info("   💡 Continuing with other scanners...")
 
         phase_timings["phase1_static_analysis"] = time.time() - phase1_start
@@ -432,6 +459,42 @@ class HybridSecurityAnalyzer:
 
         except Exception as e:
             logger.error(f"❌ Trivy scan failed: {e}")
+
+        return findings
+
+    def _run_checkov(self, target_path: str) -> list[HybridFinding]:
+        """Run Checkov IaC scan and convert to HybridFinding format"""
+        findings = []
+
+        try:
+            # Run Checkov scanner
+            checkov_result = self.checkov_scanner.scan(target_path)
+
+            # Convert to HybridFinding format
+            for checkov_finding in checkov_result.findings:
+                # Build line number from line range
+                line_number = None
+                if checkov_finding.file_line_range and len(checkov_finding.file_line_range) > 0:
+                    line_number = checkov_finding.file_line_range[0]
+
+                finding = HybridFinding(
+                    finding_id=f"checkov-{checkov_finding.check_id}",
+                    source_tool="checkov",
+                    severity=self._normalize_severity(checkov_finding.severity),
+                    category="security",
+                    title=f"{checkov_finding.check_name} ({checkov_finding.framework})",
+                    description=checkov_finding.description,
+                    file_path=checkov_finding.file_path,
+                    line_number=line_number,
+                    recommendation=checkov_finding.guideline,
+                    references=[checkov_finding.guideline] if checkov_finding.guideline else [],
+                    confidence=0.9,  # Checkov has low false positive rate for IaC
+                    llm_enriched=False,  # Will be enriched in Phase 2 if AI is enabled
+                )
+                findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ Checkov scan failed: {e}")
 
         return findings
 
@@ -819,6 +882,8 @@ Respond with JSON only:"""
             tools.append("Semgrep")
         if self.enable_trivy:
             tools.append("Trivy")
+        if self.enable_checkov:
+            tools.append("Checkov")
         if self.enable_ai_enrichment and self.ai_client:
             tools.append(f"AI-Enrichment ({self.ai_client.provider})")
         if self.enable_agent_os:
@@ -1006,7 +1071,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Hybrid Security Analyzer - Combines Semgrep, Trivy, and AI enrichment (Claude/OpenAI)"
+        description="Hybrid Security Analyzer - Combines Semgrep, Trivy, Checkov, and AI enrichment (Claude/OpenAI)"
     )
     parser.add_argument("target", help="Target path to analyze (repository or directory)")
     parser.add_argument(
@@ -1016,6 +1081,7 @@ def main():
     )
     parser.add_argument("--enable-semgrep", action="store_true", default=True, help="Enable Semgrep SAST")
     parser.add_argument("--enable-trivy", action="store_true", default=True, help="Enable Trivy CVE scanning")
+    parser.add_argument("--enable-checkov", action="store_true", default=True, help="Enable Checkov IaC scanning")
     parser.add_argument(
         "--enable-ai-enrichment",
         action="store_true",
@@ -1039,6 +1105,7 @@ def main():
     analyzer = HybridSecurityAnalyzer(
         enable_semgrep=args.enable_semgrep,
         enable_trivy=args.enable_trivy,
+        enable_checkov=args.enable_checkov,
         enable_ai_enrichment=args.enable_ai_enrichment,
         ai_provider=args.ai_provider,
         config=config,
