@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Correlation Engine - Phase 2.1
-Groups related findings across attack surfaces using Foundation-Sec-8B
+Groups related findings across attack surfaces using Claude AI (Anthropic)
 """
 
 import hashlib
@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from normalizer.base import Finding
-from providers.sagemaker_foundation_sec import SageMakerFoundationSecProvider
+from providers.anthropic_provider import AnthropicProvider
 
 
 @dataclass
@@ -37,16 +37,16 @@ class Correlator:
     2. Same attack surface (vulns in related code/endpoints)
     3. Related vulnerabilities (similar root causes)
 
-    Uses Foundation-Sec-8B for intelligent correlation
+    Uses Claude AI (Anthropic) for intelligent correlation
     """
 
     def __init__(self):
-        self.foundation_sec = None
+        self.llm = None
 
-        # Initialize Foundation-Sec if available
+        # Initialize Claude AI if available
         try:
-            self.foundation_sec = SageMakerFoundationSecProvider()
-            print("✅ Foundation-Sec-8B initialized for correlation analysis")
+            self.llm = AnthropicProvider()
+            print("✅ Claude AI (Anthropic) initialized for correlation analysis")
         except Exception as e:
             print(f"⚠️  Foundation-Sec not available, using heuristics only: {e}")
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 LLM Secret Detector - Phase 2.9
-Uses Foundation-Sec-8B for semantic secret detection (inspired by FuzzForge's 84% recall)
+Uses Claude (Anthropic) for semantic secret detection (inspired by FuzzForge's 84% recall)
 Cross-validates with Gitleaks/TruffleHog - only verified secrets can block PRs
 """
 
@@ -14,12 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from normalizer.base import Finding
-from providers.sagemaker_foundation_sec import SageMakerFoundationSecProvider
+from providers.anthropic_provider import AnthropicProvider
 
 
 class LLMSecretDetector:
     """
-    Semantic secret detection using Foundation-Sec-8B
+    Semantic secret detection using Claude AI (Anthropic)
 
     Finds obfuscated and hidden secrets that pattern-based tools miss:
     - Base64 encoded credentials
@@ -32,8 +32,8 @@ class LLMSecretDetector:
     """
 
     def __init__(self):
-        self.foundation_sec = SageMakerFoundationSecProvider()
-        print("✅ Foundation-Sec-8B initialized for LLM secret detection")
+        self.llm = AnthropicProvider()
+        print("✅ Claude AI (Anthropic) initialized for LLM secret detection")
 
         # Patterns for quick pre-filtering
         self.suspicious_patterns = [
@@ -165,15 +165,16 @@ class LLMSecretDetector:
         return chunks
 
     def _detect_secrets_in_chunk(self, chunk: tuple[str, int], file_path: str, chunk_idx: int) -> list[Finding]:
-        """Use Foundation-Sec to detect secrets in a chunk"""
+        """Use Claude AI to detect secrets in a chunk"""
         chunk_content, start_line = chunk
 
         try:
-            # Build prompt for Foundation-Sec
+            # Build prompt for Claude
             prompt = self._build_secret_detection_prompt(chunk_content, file_path)
 
-            # Get detection from Foundation-Sec
-            response = self.foundation_sec.analyze_code(code=chunk_content, context=prompt, focus="secret_detection")
+            # Get detection from Claude AI
+            system_prompt = "You are a security expert specializing in secret detection. Analyze code for hardcoded credentials, API keys, and sensitive data."
+            response = self.llm.generate(prompt, system_prompt)
 
             # Parse response
             secrets = self._parse_secret_detection(response, chunk_content, start_line)

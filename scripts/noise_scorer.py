@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Noise Scoring Engine - Phase 1.2
-Uses Foundation-Sec-8B for ML-based noise detection and historical analysis
+Uses Claude AI (Anthropic) for ML-based noise detection and historical analysis
 """
 
 import json
@@ -13,33 +13,33 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from normalizer.base import Finding
-from providers.sagemaker_foundation_sec import SageMakerFoundationSecProvider
+from providers.anthropic_provider import AnthropicProvider
 
 
 class NoiseScorer:
     """
     Calculates noise scores for findings using:
     1. Historical fix rate analysis
-    2. Foundation-Sec-8B ML-based FP prediction
+    2. Claude AI ML-based FP prediction
     3. Pattern-based noise detection
     """
 
     def __init__(self, history_file: str = ".agent-os/finding_history.jsonl"):
         self.history_file = Path(history_file)
         self.history: list[dict] = []
-        self.foundation_sec = None
+        self.llm = None
 
         # Load historical data
         if self.history_file.exists():
             with open(self.history_file) as f:
                 self.history = [json.loads(line) for line in f]
 
-        # Initialize Foundation-Sec if available
+        # Initialize Claude AI if available
         try:
-            self.foundation_sec = SageMakerFoundationSecProvider()
-            print("✅ Foundation-Sec-8B initialized for noise scoring")
+            self.llm = AnthropicProvider()
+            print("✅ Claude AI (Anthropic) initialized for noise scoring")
         except Exception as e:
-            print(f"⚠️  Foundation-Sec not available, using heuristics only: {e}")
+            print(f"⚠️  Claude AI not available, using heuristics only: {e}")
 
     def score_findings(self, findings: list[Finding]) -> list[Finding]:
         """
