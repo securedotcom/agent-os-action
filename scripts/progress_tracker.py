@@ -231,6 +231,12 @@ class ProgressTracker:
             advance: Increment completed count by this amount
             message: Optional status message to display
         """
+        # Update stats regardless of rich mode
+        if completed is not None:
+            self.stats["files_scanned"] = completed
+        else:
+            self.stats["files_scanned"] += advance
+
         if not self.use_rich:
             if message:
                 logger.info(f"[{task_id}] {message}")
@@ -244,10 +250,8 @@ class ProgressTracker:
 
         if completed is not None:
             self.progress.update(task, completed=completed)
-            self.stats["files_scanned"] = completed
         else:
             self.progress.advance(task, advance)
-            self.stats["files_scanned"] += advance
 
         if message:
             # Update description with message
@@ -322,6 +326,10 @@ class ProgressTracker:
         """
         op_id = operation_name.lower().replace(" ", "_")
 
+        # Track LLM calls regardless of rich mode
+        if "llm" in op_id.lower():
+            self.stats["llm_calls"] += 1
+
         if not self.use_rich:
             logger.info(f"Starting operation: {operation_name}...")
             self.operation_spinners[op_id] = op_id
@@ -335,9 +343,6 @@ class ProgressTracker:
 
         task = self.progress.add_task(desc, total=None)
         self.operation_spinners[op_id] = task
-
-        if "llm" in op_id.lower():
-            self.stats["llm_calls"] += 1
 
         logger.debug(f"Started operation {operation_name} (op_id={op_id})")
         return op_id

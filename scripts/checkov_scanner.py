@@ -327,10 +327,18 @@ class CheckovScanner:
                 # Normalize severity to standard levels
                 severity = self._normalize_severity(severity)
 
+                # Extract framework from check_class (e.g., "checkov.terraform.checks.aws" -> "terraform")
+                check_class = check.get("check_class", "")
+                framework = ""
+                if check_class:
+                    parts = check_class.split(".")
+                    # Framework is typically the second part: checkov.<framework>.checks...
+                    framework = parts[1].lower() if len(parts) > 1 else ""
+
                 finding = CheckovFinding(
                     check_id=check.get("check_id", "UNKNOWN"),
                     check_name=check.get("check_name", "IaC Security Check"),
-                    check_class=check.get("check_class", ""),
+                    check_class=check_class,
                     severity=severity,
                     file_path=check.get("file_path", "unknown"),
                     resource=check.get("resource", ""),
@@ -340,7 +348,7 @@ class CheckovScanner:
                     description=check.get("description", ""),
                     code_block=check.get("code_block", []),
                     check_result=check_result,
-                    framework=check.get("check_class", "").split(".")[0].lower() if check.get("check_class") else "",
+                    framework=framework,
                 )
 
                 findings.append(finding)
@@ -364,8 +372,11 @@ class CheckovScanner:
         """
         cmd = ["checkov"]
 
-        # Target type
-        if Path(target_path).is_file():
+        # Target type - detect if file by existence or extension
+        path = Path(target_path)
+        # Check if it's an existing file, or if non-existent, check if it has a file extension
+        is_file = path.is_file() or (not path.exists() and path.suffix)
+        if is_file:
             cmd.extend(["--file", target_path])
         else:
             cmd.extend(["--directory", target_path])
@@ -435,6 +446,10 @@ class CheckovScanner:
                 pass
             return "kubernetes"  # Default YAML to k8s
 
+        # ARM templates - check before CloudFormation
+        if suffix == ".json" and "azure" in name:
+            return "arm"
+
         # CloudFormation
         if suffix == ".json":
             try:
@@ -445,10 +460,6 @@ class CheckovScanner:
             except Exception:
                 pass
             return "cloudformation"
-
-        # ARM templates
-        if suffix == ".json" and "azure" in name:
-            return "arm"
 
         # Default
         return "terraform"

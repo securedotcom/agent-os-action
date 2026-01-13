@@ -159,6 +159,9 @@ class TruffleHogScanner:
         if not self._check_trufflehog_installed():
             logger.error("❌ TruffleHog not installed")
             return {
+                "tool": "trufflehog",
+                "scan_type": scan_type,
+                "findings_count": 0,
                 "error": "trufflehog_not_installed",
                 "findings": [],
                 "message": "Run install_trufflehog() for installation instructions",
@@ -167,7 +170,13 @@ class TruffleHogScanner:
         target_path = Path(target_path).resolve()
         if not target_path.exists():
             logger.error(f"❌ Target path does not exist: {target_path}")
-            return {"error": "path_not_found", "findings": []}
+            return {
+                "tool": "trufflehog",
+                "scan_type": scan_type,
+                "findings_count": 0,
+                "error": "path_not_found",
+                "findings": [],
+            }
 
         # Build trufflehog command
         cmd = ["trufflehog"]
@@ -211,6 +220,9 @@ class TruffleHogScanner:
             if result.returncode not in [0, 183]:
                 logger.error(f"❌ TruffleHog scan failed: {result.stderr}")
                 return {
+                    "tool": "trufflehog",
+                    "scan_type": scan_type,
+                    "findings_count": 0,
                     "error": "trufflehog_failed",
                     "findings": [],
                     "stderr": result.stderr,
@@ -250,10 +262,22 @@ class TruffleHogScanner:
 
         except subprocess.TimeoutExpired:
             logger.error("❌ TruffleHog scan timed out after 10 minutes")
-            return {"error": "timeout", "findings": []}
+            return {
+                "tool": "trufflehog",
+                "scan_type": scan_type,
+                "findings_count": 0,
+                "error": "timeout",
+                "findings": [],
+            }
         except Exception as e:
             logger.error(f"❌ TruffleHog scan error: {e}")
-            return {"error": str(e), "findings": []}
+            return {
+                "tool": "trufflehog",
+                "scan_type": scan_type,
+                "findings_count": 0,
+                "error": str(e),
+                "findings": [],
+            }
 
     def scan_file(self, file_path: str) -> dict[str, Any]:
         """
@@ -270,11 +294,23 @@ class TruffleHogScanner:
         file_path = Path(file_path).resolve()
         if not file_path.exists():
             logger.error(f"❌ File does not exist: {file_path}")
-            return {"error": "file_not_found", "findings": []}
+            return {
+                "tool": "trufflehog",
+                "scan_type": "filesystem",
+                "findings_count": 0,
+                "error": "file_not_found",
+                "findings": [],
+            }
 
         if not file_path.is_file():
             logger.error(f"❌ Path is not a file: {file_path}")
-            return {"error": "not_a_file", "findings": []}
+            return {
+                "tool": "trufflehog",
+                "scan_type": "filesystem",
+                "findings_count": 0,
+                "error": "not_a_file",
+                "findings": [],
+            }
 
         # Scan the parent directory, then filter to just this file
         parent_dir = file_path.parent
@@ -459,6 +495,7 @@ class TruffleHogScanner:
 def main():
     """CLI interface for standalone usage"""
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(
         description="TruffleHog v3 Secret Scanner",
