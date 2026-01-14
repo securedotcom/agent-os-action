@@ -240,10 +240,13 @@ Temperature: 0.2 (for consistency and deterministic reasoning)
 
         codex_output_file = self.output_dir / "codex_validation.txt"
 
+        # Codex review accepts prompt as positional argument or stdin
+        # Use config to set temperature (model behavior)
         cmd = [
             "codex",
             "review",
-            "--temperature", "0.2",
+            "--config", "temperature=0.2",
+            "--uncommitted",  # Review current codebase state
             codex_prompt
         ]
 
@@ -253,7 +256,7 @@ Temperature: 0.2 (for consistency and deterministic reasoning)
                 cwd=self.target_repo,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=600  # Increased timeout for thorough review
             )
 
             # Save Codex output
