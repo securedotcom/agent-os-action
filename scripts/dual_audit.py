@@ -240,14 +240,13 @@ Temperature: 0.2 (for consistency and deterministic reasoning)
 
         codex_output_file = self.output_dir / "codex_validation.txt"
 
-        # Codex review accepts prompt as positional argument or stdin
-        # Use config to set temperature (model behavior)
+        # Codex review: --uncommitted reviews working directory changes
+        # Prompt passed as positional argument (no --uncommitted with prompt)
         cmd = [
             "codex",
             "review",
             "--config", "temperature=0.2",
-            "--uncommitted",  # Review current codebase state
-            codex_prompt
+            codex_prompt  # Prompt as positional argument
         ]
 
         try:
