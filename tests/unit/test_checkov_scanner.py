@@ -209,7 +209,8 @@ class TestCheckovScanner:
     @patch("subprocess.run")
     def test_install_checkov_success(self, mock_run, mock_check):
         """Test successful Checkov installation"""
-        mock_check.side_effect = [False, True]  # Not installed, then installed
+        # Three calls: __init__ check, install_checkov check (before pip), check after pip install
+        mock_check.side_effect = [False, False, True]
         mock_run.return_value = Mock(returncode=0, stderr="")
 
         scanner = CheckovScanner()

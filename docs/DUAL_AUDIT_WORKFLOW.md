@@ -427,6 +427,339 @@ timeout=1200  # 20 minutes instead of 10
 
 ---
 
+## LLM-as-a-Judge Methodology
+
+This section documents the advanced evaluation methodology used to assess LLM performance and maintain quality standards in the dual-audit workflow.
+
+### Methodology Overview
+
+The LLM-as-a-Judge approach evaluates security finding quality through systematic comparison of independent AI analysis. This methodology is inspired by [Evidently AI's research](https://www.evidentlyai.com/) on Large Language Model evaluation and ensures:
+
+- **Objectivity**: Consensus-based rather than single-model dependent
+- **Reproducibility**: Deterministic scoring and classification
+- **Interpretability**: Clear reasoning chains for each judgment
+- **Alignment**: Findings aligned with human security expert judgment
+
+### 5-Point Scoring Rubric
+
+Each finding is evaluated across five dimensions:
+
+#### 1. **Accuracy (0-1.0)**
+- Does the finding correctly identify a real vulnerability?
+- Is the severity level appropriate?
+- Are false positives eliminated?
+
+**Scoring:**
+- 1.0: Finding is factually correct, confirmed by both agents
+- 0.8: Finding is mostly correct with minor severity misclassification
+- 0.6: Finding is partially correct but misses nuance
+- 0.4: Finding has significant issues but some validity
+- 0.0: Finding is incorrect or completely false positive
+
+#### 2. **Completeness (0-1.0)**
+- Does the finding include all necessary context?
+- Are affected files/functions clearly identified?
+- Is the impact explained?
+
+**Scoring:**
+- 1.0: Complete information provided by both agents
+- 0.8: Mostly complete, minor details missing
+- 0.6: Contains core information but lacks context
+- 0.4: Vague or poorly explained
+- 0.0: Incomplete or unusable
+
+#### 3. **Actionability (0-1.0)**
+- Can a developer fix this issue based on the finding?
+- Are remediation steps clear and practical?
+- Is the fix feasible?
+
+**Scoring:**
+- 1.0: Clear steps to remediate, both agents provide guidance
+- 0.8: Generally clear with minor ambiguity
+- 0.6: Developer must do some research
+- 0.4: Vague guidance
+- 0.0: Not actionable
+
+#### 4. **Risk Assessment (0-1.0)**
+- Is the severity level accurate?
+- Is business impact explained?
+- Is exploitability realistic?
+
+**Scoring:**
+- 1.0: Severity accurate, impact clear, exploit chain realistic
+- 0.8: Mostly accurate assessment
+- 0.6: Reasonable but may over/understate risk
+- 0.4: Significant risk assessment errors
+- 0.0: Completely inaccurate
+
+#### 5. **Confidence (0-1.0)**
+- How confident are both agents in this finding?
+- Is uncertainty acknowledged?
+- Has the finding been validated by both tools?
+
+**Scoring:**
+- 1.0: Both agents unanimous (100% agreement)
+- 0.85: Strong agreement (67%+ consensus)
+- 0.70: Majority agreement (50%+ consensus)
+- 0.50: Weak agreement (<50% consensus)
+- 0.0: Complete disagreement or one agent only
+
+### Overall Quality Score
+
+```
+Quality Score = (Accuracy + Completeness + Actionability + Risk Assessment + Confidence) / 5
+```
+
+**Interpretation:**
+- **0.9-1.0**: Excellent - Immediate remediation recommended
+- **0.7-0.89**: Good - High confidence, schedule remediation
+- **0.5-0.69**: Fair - Medium confidence, requires validation
+- **0.3-0.49**: Poor - Low confidence, likely false positive
+- **0.0-0.29**: Reject - Very likely false positive
+
+### Chain-of-Thought Reasoning
+
+Both Agent-OS and Codex provide explicit reasoning for each judgment:
+
+**Agent-OS (Claude) Analysis Process:**
+1. Threat modeling identifies attack vectors
+2. Code review traces vulnerability paths
+3. Impact assessment evaluates risk
+4. Recommendation synthesis provides fixes
+
+**Codex (OpenAI) Validation Process:**
+1. Independent vulnerability identification
+2. Cross-reference with Agent-OS findings
+3. Agreement/disagreement assessment
+4. Additional issues identification
+
+**Combined Chain-of-Thought Output:**
+Each finding includes:
+```json
+{
+  "finding": "SQL Injection in user_search.py:42",
+  "severity": "critical",
+  "reasoning": {
+    "agent_os": "User input from search_query parameter is directly interpolated into SQL query without parameterization, allowing attacker to execute arbitrary SQL commands",
+    "codex": "Confirmed: Line 42 builds SQL with f-string concatenation of untrusted user input. Attack surface: search functionality is publicly exposed",
+    "consensus": "Both agents identified identical vulnerability with consistent severity assessment"
+  },
+  "evidence": [
+    "Line 42: query = f\"SELECT * FROM users WHERE name = '{search_query}'\"",
+    "No parameterized queries used",
+    "Input validation absent"
+  ],
+  "remediation": "Use parameterized queries with database driver's prepared statement API"
+}
+```
+
+### Agreement Metrics
+
+#### Cohen's Kappa (Concordance)
+
+Measures agreement between two raters (Agent-OS and Codex):
+
+```
+κ = (p_o - p_e) / (1 - p_e)
+
+where:
+p_o = observed agreement probability
+p_e = expected agreement by chance
+```
+
+**Interpretation:**
+- **κ = 1.0**: Perfect agreement
+- **κ = 0.81-1.0**: Almost perfect agreement
+- **κ = 0.61-0.80**: Substantial agreement
+- **κ = 0.41-0.60**: Moderate agreement
+- **κ = 0.21-0.40**: Fair agreement
+- **κ < 0.20**: Slight/poor agreement
+
+**Example Calculation:**
+```
+Agent-OS findings: 18 total
+Codex findings: 20 total
+Agreements (both found same issue): 15
+Expected by chance: ~10
+
+κ = (15 - 10) / (1 - 10/18) ≈ 0.74 (Substantial agreement)
+```
+
+#### Precision and Recall
+
+**Precision** (False Positive Rate):
+```
+Precision = True Positives / (True Positives + False Positives)
+
+Example: 15 real issues found, 3 false positives
+Precision = 15 / (15 + 3) = 0.833 (83.3% accurate)
+```
+
+**Recall** (Detection Rate):
+```
+Recall = True Positives / (True Positives + False Negatives)
+
+Example: 15 real issues found, 2 missed
+Recall = 15 / (15 + 2) = 0.882 (88.2% coverage)
+```
+
+**F1 Score** (Harmonic Mean):
+```
+F1 = 2 * (Precision * Recall) / (Precision + Recall)
+
+Example: F1 = 2 * (0.833 * 0.882) / (0.833 + 0.882) = 0.857
+```
+
+### Pairwise Comparison Mode
+
+For detailed analysis, the system can run in pairwise comparison mode:
+
+```bash
+python scripts/dual_audit.py /path/to/repo \
+  --comparison-mode pairwise \
+  --detailed-metrics
+```
+
+**Output includes:**
+1. Finding-by-finding comparison matrix
+2. Agreement score for each severity level
+3. Category-wise coverage analysis
+4. Confidence distribution charts
+
+**Example Output:**
+```
+PAIRWISE COMPARISON ANALYSIS
+================================================================================
+
+Finding Comparison Matrix:
+ID  Type              Agent-OS  Codex    Agreement  Quality Score
+--- ---------------   --------  --------  ---------- --------
+1   SQL Injection      Critical  Critical  ✅ 100%    0.95
+2   XSS Vulnerability  High      High      ✅ 100%    0.92
+3   Race Condition     Medium    High      ⚠️ 80%     0.75
+4   Hardcoded Secret   Critical  Critical  ✅ 100%    0.98
+5   Weak Crypto       High      Medium    ⚠️ 70%     0.68
+6   Type Confusion     Medium    Low       ❌ 60%     0.52
+
+AGREEMENT METRICS:
+- Cohen's Kappa: 0.85 (Almost perfect agreement)
+- Precision: 0.92 (92% of findings accurate)
+- Recall: 0.89 (89% of real issues found)
+- F1 Score: 0.90 (Excellent overall performance)
+
+SEVERITY BREAKDOWN:
+Critical: 100% agreement (3/3 findings match)
+High:     83% agreement (5/6 findings match)
+Medium:   67% agreement (2/3 findings match)
+Low:      100% agreement (2/2 findings match)
+```
+
+### Monitoring and Drift Detection
+
+The system continuously monitors LLM quality metrics to detect performance degradation:
+
+#### Quality Drift Detection
+
+```python
+# Track finding quality over time
+quality_history = [
+    {"date": "2026-01-01", "accuracy": 0.93, "precision": 0.91, "recall": 0.88},
+    {"date": "2026-01-08", "accuracy": 0.89, "precision": 0.87, "recall": 0.85},  # ⚠️ Drift detected
+    {"date": "2026-01-14", "accuracy": 0.86, "precision": 0.84, "recall": 0.82},  # ⚠️ Worsening
+]
+
+# Trigger alert if:
+# - Accuracy drops >5% week-over-week
+# - Precision drops below 0.85
+# - F1 score drops >0.10
+```
+
+#### Metrics Tracked
+
+| Metric | Target | Alert Threshold |
+|--------|--------|-----------------|
+| Accuracy | 0.90+ | < 0.85 |
+| Precision | 0.90+ | < 0.85 |
+| Recall | 0.85+ | < 0.80 |
+| Cohen's Kappa | 0.80+ | < 0.70 |
+| F1 Score | 0.87+ | < 0.80 |
+| False Positive Rate | < 10% | > 15% |
+| Consensus Rate | > 80% | < 70% |
+
+#### Automated Actions on Drift
+
+When drift is detected:
+1. **Log Alert**: Write to monitoring dashboard
+2. **Notify Team**: Send alert to security team
+3. **Fallback Model**: Switch to more conservative model
+4. **Manual Review**: Flag findings for human validation
+5. **Root Cause Analysis**: Determine drift cause
+
+---
+
+## Usage Examples
+
+### Basic Dual-Audit with Metrics
+
+```bash
+python scripts/dual_audit.py /path/to/repo \
+  --project-type backend-api \
+  --detailed-metrics \
+  --output-format full
+```
+
+**Output:**
+```
+DUAL-AUDIT REPORT
+Generated: 2026-01-14 12:00:00
+Target: /path/to/repo
+
+METHODOLOGICAL SUMMARY
+- Audit Type: Dual-Audit with LLM-as-a-Judge evaluation
+- Primary Model: Claude Sonnet 4.5 (Anthropic)
+- Validation Model: GPT-5.2-codex (OpenAI)
+- Total Findings: 18 (Agent-OS: 18, Codex: 20)
+- Consensus Findings: 15 (83% agreement)
+
+QUALITY METRICS
+- Cohen's Kappa: 0.85 (Almost perfect agreement)
+- Precision: 0.92 (92% accurate)
+- Recall: 0.89 (89% complete coverage)
+- F1 Score: 0.90 (Excellent overall quality)
+- Average Quality Score: 0.88
+
+FINDING BREAKDOWN BY QUALITY
+Excellent (0.9-1.0): 8 findings (44%)
+Good (0.7-0.89): 5 findings (28%)
+Fair (0.5-0.69): 3 findings (17%)
+Poor (0.3-0.49): 2 findings (11%)
+
+RECOMMENDED ACTIONS
+1. Address all "Excellent" quality findings immediately
+2. Validate "Fair" quality findings with security team
+3. Investigate "Poor" quality findings for false positives
+```
+
+### Pairwise Comparison Mode
+
+```bash
+python scripts/dual_audit.py /path/to/repo \
+  --comparison-mode pairwise \
+  --generate-comparison-matrix
+```
+
+### Continuous Monitoring
+
+```bash
+# Run weekly audits and track metrics
+0 2 * * 1 python scripts/dual_audit.py . \
+  --save-metrics metrics/$(date +\%Y\%m\%d).json \
+  --check-drift \
+  --alert-on-threshold 0.85
+```
+
+---
+
 ## Support
 
 - **Documentation**: [docs/](../docs/)

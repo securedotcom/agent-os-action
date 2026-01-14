@@ -235,7 +235,11 @@ class TestTruffleHogScanner:
     @patch("subprocess.run")
     def test_get_trufflehog_version_error(self, mock_run):
         """Test getting TruffleHog version with error"""
-        mock_run.side_effect = Exception("Command failed")
+        # First call from __init__, second from _get_trufflehog_version
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Exception("Command failed")  # _get_trufflehog_version call
+        ]
 
         scanner = TruffleHogScanner()
         version = scanner._get_trufflehog_version()
@@ -458,22 +462,27 @@ class TestTruffleHogScanner:
         assert findings1[0].detector_type == findings2[0].detector_type
 
     @patch("subprocess.run")
-    def test_scan_filesystem_verified_only(self, mock_run):
+    def test_scan_filesystem_verified_only(self, mock_run, tmp_path):
         """Test filesystem scan with verified_only flag"""
-        mock_run.return_value = Mock(
-            returncode=183,  # TruffleHog returns 183 when secrets found
-            stdout=json.dumps({
-                "SourceMetadata": {"Data": {"Filesystem": {"file": "/app/test.py", "line": 5}}},
-                "DetectorType": "AWS",
-                "DetectorName": "AWS Key",
-                "Raw": "AKIAIOSFODNN7EXAMPLE",
-                "Verified": True
-            }),
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=183,  # TruffleHog returns 183 when secrets found
+                stdout=json.dumps({
+                    "SourceMetadata": {"Data": {"Filesystem": {"file": str(tmp_path / "test.py"), "line": 5}}},
+                    "DetectorType": "AWS",
+                    "DetectorName": "AWS Key",
+                    "Raw": "AKIAIOSFODNN7EXAMPLE",
+                    "Verified": True
+                }),
+                stderr=""
+            )
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app", scan_type="filesystem")
+        results = scanner.scan(str(tmp_path), scan_type="filesystem")
 
         assert results["tool"] == "trufflehog"
         assert results["scan_type"] == "filesystem"
@@ -483,25 +492,35 @@ class TestTruffleHogScanner:
         assert len(results["findings"]) == 1
 
         # Verify command construction - no shell=True
-        call_args = mock_run.call_args
-        assert call_args[0][0] == ["trufflehog", "filesystem", "/app", "--json", "--only-verified"]
+        call_args = mock_run.call_args_list[2]  # Get third call (actual scan)
+        cmd = call_args[0][0]
+        assert cmd[0] == "trufflehog"
+        assert cmd[1] == "filesystem"
+        assert cmd[2] == str(tmp_path)
+        assert "--json" in cmd
+        assert "--only-verified" in cmd
         assert "shell" not in call_args[1] or call_args[1]["shell"] is False
 
     @patch("subprocess.run")
-    def test_scan_git_with_depth(self, mock_run):
+    def test_scan_git_with_depth(self, mock_run, tmp_path):
         """Test git scan with depth limit"""
-        mock_run.return_value = Mock(
-            returncode=0,  # No secrets found
-            stdout="",
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=0,  # No secrets found
+                stdout="",
+                stderr=""
+            )
+        ]
 
         config = {"scan_depth": 100}
         scanner = TruffleHogScanner(config)
-        results = scanner.scan("/repo", scan_type="git")
+        results = scanner.scan(str(tmp_path), scan_type="git")
 
         # Verify command includes depth
-        call_args = mock_run.call_args
+        call_args = mock_run.call_args_list[2]  # Get third call (actual scan)
         cmd = call_args[0][0]
         assert "trufflehog" in cmd
         assert "git" in cmd
@@ -509,45 +528,56 @@ class TestTruffleHogScanner:
         assert "100" in cmd
 
     @patch("subprocess.run")
-    def test_scan_include_unverified(self, mock_run):
+    def test_scan_include_unverified(self, mock_run, tmp_path):
         """Test scan including unverified secrets"""
         verified_finding = json.dumps({
-            "SourceMetadata": {"Data": {"Filesystem": {"file": "file1.py", "line": 5}}},
+            "SourceMetadata": {"Data": {"Filesystem": {"file": str(tmp_path / "file1.py"), "line": 5}}},
             "DetectorType": "AWS",
             "DetectorName": "AWS",
             "Raw": "secret1",
             "Verified": True
         })
         unverified_finding = json.dumps({
-            "SourceMetadata": {"Data": {"Filesystem": {"file": "file2.py", "line": 10}}},
+            "SourceMetadata": {"Data": {"Filesystem": {"file": str(tmp_path / "file2.py"), "line": 10}}},
             "DetectorType": "GitHub",
             "DetectorName": "GitHub",
             "Raw": "secret2",
             "Verified": False
         })
 
-        mock_run.return_value = Mock(
-            returncode=183,
-            stdout=f"{verified_finding}\n{unverified_finding}",
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=183,
+                stdout=f"{verified_finding}\n{unverified_finding}",
+                stderr=""
+            )
+        ]
 
         config = {"verified_only": False, "include_unverified": True}
         scanner = TruffleHogScanner(config)
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         assert results["findings_count"] == 2
         assert results["verified_count"] == 1
         assert results["unverified_count"] == 1
 
         # Verify --only-verified NOT in command
-        call_args = mock_run.call_args
+        call_args = mock_run.call_args_list[2]  # Get third call (actual scan)
         cmd = call_args[0][0]
         assert "--only-verified" not in cmd
 
     @patch("subprocess.run")
     def test_scan_path_not_found(self, mock_run):
         """Test scan with non-existent path"""
+        # Two calls: __init__ check, scan() check (no actual scan since path doesn't exist)
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr="")   # scan() check
+        ]
+
         scanner = TruffleHogScanner()
         results = scanner.scan("/nonexistent/path")
 
@@ -567,16 +597,21 @@ class TestTruffleHogScanner:
         assert results["error"] == "trufflehog_not_installed"
 
     @patch("subprocess.run")
-    def test_scan_trufflehog_failure(self, mock_run):
+    def test_scan_trufflehog_failure(self, mock_run, tmp_path):
         """Test scan when TruffleHog fails with unexpected exit code"""
-        mock_run.return_value = Mock(
-            returncode=2,  # Unexpected error code
-            stdout="",
-            stderr="Error: Something went wrong"
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=2,  # Unexpected error code
+                stdout="",
+                stderr="Error: Something went wrong"
+            )
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         assert "error" in results
         assert results["error"] == "trufflehog_failed"
@@ -584,53 +619,68 @@ class TestTruffleHogScanner:
         assert "stderr" in results
 
     @patch("subprocess.run")
-    def test_scan_timeout(self, mock_run):
+    def test_scan_timeout(self, mock_run, tmp_path):
         """Test scan timeout handling"""
-        mock_run.side_effect = subprocess.TimeoutExpired("trufflehog", 600)
+        # Three calls: __init__ check, scan() check, and actual scan (timeout)
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            subprocess.TimeoutExpired("trufflehog", 600)  # actual scan call
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         assert "error" in results
         assert results["error"] == "timeout"
 
     @patch("subprocess.run")
-    def test_scan_exception_handling(self, mock_run):
+    def test_scan_exception_handling(self, mock_run, tmp_path):
         """Test generic exception handling during scan"""
-        mock_run.side_effect = Exception("Unexpected error")
+        # Three calls: __init__ check, scan() check, and actual scan (exception)
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Exception("Unexpected error")  # actual scan call
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         assert "error" in results
         assert "Unexpected error" in results["error"]
 
     @patch("subprocess.run")
-    def test_scan_verified_only_filtering(self, mock_run):
+    def test_scan_verified_only_filtering(self, mock_run, tmp_path):
         """Test that verified_only config filters results correctly"""
         verified_finding = json.dumps({
-            "SourceMetadata": {"Data": {"Filesystem": {"file": "file1.py", "line": 5}}},
+            "SourceMetadata": {"Data": {"Filesystem": {"file": str(tmp_path / "file1.py"), "line": 5}}},
             "DetectorType": "AWS",
             "DetectorName": "AWS",
             "Raw": "secret1",
             "Verified": True
         })
         unverified_finding = json.dumps({
-            "SourceMetadata": {"Data": {"Filesystem": {"file": "file2.py", "line": 10}}},
+            "SourceMetadata": {"Data": {"Filesystem": {"file": str(tmp_path / "file2.py"), "line": 10}}},
             "DetectorType": "GitHub",
             "DetectorName": "GitHub",
             "Raw": "secret2",
             "Verified": False
         })
 
-        mock_run.return_value = Mock(
-            returncode=183,
-            stdout=f"{verified_finding}\n{unverified_finding}",
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=183,
+                stdout=f"{verified_finding}\n{unverified_finding}",
+                stderr=""
+            )
+        ]
 
         scanner = TruffleHogScanner({"verified_only": True})
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         # Should only include verified finding
         assert results["findings_count"] == 1
@@ -638,16 +688,21 @@ class TestTruffleHogScanner:
         assert results["findings"][0]["verified"] is True
 
     @patch("subprocess.run")
-    def test_scan_no_secrets_found(self, mock_run):
+    def test_scan_no_secrets_found(self, mock_run, tmp_path):
         """Test scan when no secrets are found"""
-        mock_run.return_value = Mock(
-            returncode=0,  # Exit code 0 means no secrets
-            stdout="",
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=0,  # Exit code 0 means no secrets
+                stdout="",
+                stderr=""
+            )
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app")
+        results = scanner.scan(str(tmp_path))
 
         assert results["tool"] == "trufflehog"
         assert results["findings_count"] == 0
@@ -655,49 +710,61 @@ class TestTruffleHogScanner:
         assert results["findings"] == []
 
     @patch("subprocess.run")
-    def test_scan_subprocess_security(self, mock_run):
+    def test_scan_subprocess_security(self, mock_run, tmp_path):
         """Test that scan never uses shell=True for security"""
-        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(returncode=0, stdout="", stderr="")  # actual scan call
+        ]
 
         scanner = TruffleHogScanner()
-        scanner.scan("/app")
+        scanner.scan(str(tmp_path))
 
-        # Verify subprocess.run was called without shell=True
-        call_args = mock_run.call_args
+        # Verify subprocess.run was called without shell=True (check third call)
+        call_args = mock_run.call_args_list[2]
         assert "shell" not in call_args[1] or call_args[1]["shell"] is False
 
         # Verify command is a list (array), not a string
         assert isinstance(call_args[0][0], list)
 
+    @patch("subprocess.run")
     @patch.object(TruffleHogScanner, "scan")
-    def test_scan_file_success(self, mock_scan):
+    def test_scan_file_success(self, mock_scan, mock_run):
         """Test scanning individual file"""
-        mock_scan.return_value = {
-            "tool": "trufflehog",
-            "findings": [
-                {"file_path": "/app/secrets.txt", "verified": True},
-                {"file_path": "/app/other.txt", "verified": False}
-            ],
-            "findings_count": 2,
-            "verified_count": 1
-        }
-
-        scanner = TruffleHogScanner()
+        mock_run.return_value = Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr="")
 
         # Create a temporary test file
         import tempfile
+        import os
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
             test_file = f.name
             f.write("test content")
 
         try:
+            # Normalize path to handle macOS /private/var
+            normalized_path = os.path.realpath(test_file)
+            parent_dir = os.path.dirname(normalized_path)
+
+            mock_scan.return_value = {
+                "tool": "trufflehog",
+                "findings": [
+                    {"file_path": normalized_path, "verified": True},
+                    {"file_path": os.path.join(parent_dir, "other.txt"), "verified": False}
+                ],
+                "findings_count": 2,
+                "verified_count": 1
+            }
+
+            scanner = TruffleHogScanner()
             results = scanner.scan_file(test_file)
 
             # Should have called scan on parent directory
             mock_scan.assert_called_once()
 
             # Results should be filtered to just this file
-            assert results["target"] == test_file
+            assert results["target"] == normalized_path
             assert results["findings_count"] == 1
         finally:
             Path(test_file).unlink()
@@ -826,7 +893,7 @@ class TestTruffleHogIntegration:
     """Integration-style tests (mocked but realistic scenarios)"""
 
     @patch("subprocess.run")
-    def test_end_to_end_git_scan(self, mock_run):
+    def test_end_to_end_git_scan(self, mock_run, tmp_path):
         """Test complete git scan workflow"""
         # Mock TruffleHog output with multiple findings
         finding1 = json.dumps({
@@ -869,14 +936,19 @@ class TestTruffleHogIntegration:
             "Verified": False
         })
 
-        mock_run.return_value = Mock(
-            returncode=183,
-            stdout=f"{finding1}\n{finding2}",
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=183,
+                stdout=f"{finding1}\n{finding2}",
+                stderr=""
+            )
+        ]
 
         scanner = TruffleHogScanner({"verified_only": False})
-        results = scanner.scan("/repo", scan_type="git")
+        results = scanner.scan(str(tmp_path), scan_type="git")
 
         assert results["tool"] == "trufflehog"
         assert results["scan_type"] == "git"
@@ -892,13 +964,13 @@ class TestTruffleHogIntegration:
         assert findings[1]["verified"] is False
 
     @patch("subprocess.run")
-    def test_end_to_end_filesystem_scan(self, mock_run):
+    def test_end_to_end_filesystem_scan(self, mock_run, tmp_path):
         """Test complete filesystem scan workflow"""
         finding = json.dumps({
             "SourceMetadata": {
                 "Data": {
                     "Filesystem": {
-                        "file": "/app/credentials.json",
+                        "file": str(tmp_path / "credentials.json"),
                         "line": 3
                     }
                 }
@@ -910,18 +982,23 @@ class TestTruffleHogIntegration:
             "Verified": True
         })
 
-        mock_run.return_value = Mock(
-            returncode=183,
-            stdout=finding,
-            stderr=""
-        )
+        # Three calls: __init__ check, scan() check, and actual scan
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # __init__ check
+            Mock(returncode=0, stdout="trufflehog v3.63.0\n", stderr=""),  # scan() check
+            Mock(
+                returncode=183,
+                stdout=finding,
+                stderr=""
+            )
+        ]
 
         scanner = TruffleHogScanner()
-        results = scanner.scan("/app", scan_type="filesystem")
+        results = scanner.scan(str(tmp_path), scan_type="filesystem")
 
         assert results["scan_type"] == "filesystem"
         assert results["verified_count"] == 1
-        assert results["findings"][0]["file_path"] == "/app/credentials.json"
+        assert results["findings"][0]["file_path"] == str(tmp_path / "credentials.json")
 
 
 if __name__ == "__main__":
