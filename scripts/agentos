@@ -84,13 +84,13 @@ def cmd_gate(args):
     """Evaluate policy gate"""
     from gate import PolicyGate
     import json
-    
+
     # Load findings
     with open(args.input) as f:
         data = json.load(f)
-    
+
     findings = data if isinstance(data, list) else data.get('findings', [])
-    
+
     # Prepare metadata
     metadata = None
     if args.stage == 'release':
@@ -99,16 +99,57 @@ def cmd_gate(args):
             'signature_verified': args.signature_verified,
             'provenance_present': args.provenance_present
         }
-    
+
     # Evaluate
     gate = PolicyGate()
     decision = gate.evaluate(args.stage, findings, metadata)
-    
+
     # Print
     gate.print_decision(decision)
-    
+
     # Exit
     sys.exit(0 if decision['decision'] == 'pass' else 1)
+
+
+def cmd_feedback(args):
+    """Record or view user feedback on findings"""
+    from feedback_collector import FeedbackCollector
+
+    collector = FeedbackCollector()
+
+    if args.action == 'record':
+        # Record feedback
+        success = collector.record_feedback(
+            finding_id=args.finding_id,
+            feedback=args.mark,
+            reason=args.reason
+        )
+
+        if success:
+            print(f"✅ Recorded feedback: {args.mark.upper()} for finding {args.finding_id}")
+        else:
+            print("❌ Failed to record feedback")
+            sys.exit(1)
+
+    elif args.action == 'stats':
+        # Show stats
+        stats = collector.get_feedback_stats()
+
+        print("\n" + "=" * 60)
+        print("FEEDBACK STATISTICS")
+        print("=" * 60)
+        print(f"Total Feedback:     {stats.get('total_feedback', 0)}")
+        print(f"True Positives:     {stats.get('true_positives', 0)} ({stats.get('tp_rate', 0):.1f}%)")
+        print(f"False Positives:    {stats.get('false_positives', 0)} ({stats.get('fp_rate', 0):.1f}%)")
+
+        if stats.get("by_scanner"):
+            print(f"\nBy Scanner:")
+            for scanner, scanner_stats in stats["by_scanner"].items():
+                fp_rate = (scanner_stats["fp"] / scanner_stats["total"] * 100) if scanner_stats["total"] > 0 else 0
+                print(f"  {scanner:20s}: {scanner_stats['total']:3d} total, "
+                      f"{scanner_stats['fp']:3d} FP ({fp_rate:.0f}%)")
+
+        print("=" * 60 + "\n")
 
 
 def main():
@@ -119,12 +160,18 @@ def main():
 Examples:
   # Normalize scanner outputs
   agentos normalize --inputs semgrep.sarif trivy.json --output findings.json
-  
+
   # Evaluate PR gate
   agentos gate --stage pr --input findings.json
-  
+
   # Evaluate release gate
   agentos gate --stage release --input findings.json --sbom-present --signature-verified
+
+  # Record feedback on finding
+  agentos feedback record finding-123 --mark fp --reason "Test fixture file"
+
+  # Show feedback statistics
+  agentos feedback stats
 """
     )
     
@@ -144,7 +191,23 @@ Examples:
     parser_gate.add_argument('--signature-verified', action='store_true', help='Signature verified')
     parser_gate.add_argument('--provenance-present', action='store_true', help='Provenance present')
     parser_gate.set_defaults(func=cmd_gate)
-    
+
+    # Feedback command
+    parser_feedback = subparsers.add_parser('feedback', help='Manage user feedback on findings')
+    feedback_subparsers = parser_feedback.add_subparsers(dest='action', help='Feedback action')
+
+    # Record feedback
+    record_feedback = feedback_subparsers.add_parser('record', help='Record feedback for a finding')
+    record_feedback.add_argument('finding_id', help='Finding ID')
+    record_feedback.add_argument('--mark', choices=['tp', 'fp'], required=True,
+                                 help='Mark as true positive (tp) or false positive (fp)')
+    record_feedback.add_argument('--reason', required=True, help='Reason for feedback')
+
+    # Show feedback stats
+    feedback_subparsers.add_parser('stats', help='Show feedback statistics')
+
+    parser_feedback.set_defaults(func=cmd_feedback)
+
     args = parser.parse_args()
     
     if not hasattr(args, 'func'):
