@@ -152,6 +152,36 @@ def cmd_feedback(args):
         print("=" * 60 + "\n")
 
 
+def cmd_dashboard(args):
+    """Launch observability dashboard"""
+    import subprocess
+
+    dashboard_path = Path(__file__).parent / 'dashboard' / 'observability_dashboard.py'
+
+    if not dashboard_path.exists():
+        print(f"❌ Dashboard not found: {dashboard_path}")
+        sys.exit(1)
+
+    print("🚀 Launching Agent-OS Observability Dashboard...")
+    print(f"📊 Opening at http://localhost:8501")
+    print("\n💡 Tip: Press Ctrl+C to stop the dashboard\n")
+
+    try:
+        # Launch Streamlit
+        subprocess.run([
+            "streamlit", "run",
+            str(dashboard_path),
+            "--server.port", "8501",
+            "--server.headless", "true"
+        ])
+    except KeyboardInterrupt:
+        print("\n\n✅ Dashboard stopped")
+    except FileNotFoundError:
+        print("\n❌ Streamlit not installed. Install with:")
+        print("   pip install streamlit plotly pandas")
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agent-OS Security Control Plane",
@@ -172,6 +202,9 @@ Examples:
 
   # Show feedback statistics
   agentos feedback stats
+
+  # Launch observability dashboard
+  agentos dashboard
 """
     )
     
@@ -207,6 +240,10 @@ Examples:
     feedback_subparsers.add_parser('stats', help='Show feedback statistics')
 
     parser_feedback.set_defaults(func=cmd_feedback)
+
+    # Dashboard command
+    parser_dashboard = subparsers.add_parser('dashboard', help='Launch observability dashboard')
+    parser_dashboard.set_defaults(func=cmd_dashboard)
 
     args = parser.parse_args()
     

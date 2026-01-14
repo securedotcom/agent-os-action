@@ -20,6 +20,29 @@
 - **Intelligent Caching**: 10-100x faster repeat scans with smart caching
 - **Real-Time Progress**: Live progress bars for all scanning operations
 
+### 🚀 **NEW: Agent-Native Development**
+
+Agent-OS now includes **continuous learning** and **self-observation** capabilities:
+
+- **📊 Observability Dashboard**: Real-time visualization of AI decision quality and system metrics
+- **📝 Feedback Collection**: Mark findings as TP/FP to improve AI accuracy over time
+- **🤖 Decision Telemetry**: Every AI decision logged with reasoning and confidence scores
+- **🔍 Pattern Discovery**: Automatically identify trends in AI decisions
+- **🔌 Plugin Architecture**: Dynamically load custom security scanners
+- **💡 Improvement Suggestions**: System recommends new heuristics based on patterns
+
+**Try it now:**
+```bash
+# Launch observability dashboard
+./scripts/agentos dashboard
+
+# Record feedback on findings
+./scripts/agentos feedback record finding-123 --mark fp --reason "Test file"
+
+# Analyze AI decision quality
+python scripts/decision_analyzer.py --days 30
+```
+
 ---
 
 ## Quick Start (3 minutes)
