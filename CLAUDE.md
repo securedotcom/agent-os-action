@@ -275,6 +275,204 @@ docker build -t agent-os .
 docker run -v $(pwd):/workspace agent-os
 ```
 
+## Agent Interaction Patterns
+
+### Overview for AI Agents
+
+This section provides concrete examples of how AI agents should interact with Agent-OS compositionally. The system is designed for **tool composition** rather than hard-coded workflows, enabling emergent capabilities through primitive combination.
+
+### 1. Discovering Available Capabilities
+
+When asked "What security checks can you run for SQL injection?":
+
+```bash
+# Discover scanners with SQL injection detection
+./scripts/agentos list-scanners --capability sql-injection
+# Output: semgrep (cwe-89, cwe-564)
+
+# Get details on specific scanner rules
+python scripts/run_ai_audit.py --list-semgrep-rules | grep -i sql
+# Output: 47 rules matching SQL injection patterns
+```
+
+### 2. Composing Custom Security Workflows
+
+When asked "Check all user input handlers for injection vulnerabilities":
+
+```bash
+# Step 1: Find files with user input handling (example for Python/Django)
+FILES=$(grep -rl 'request\.GET\|request\.POST' app/)
+
+# Step 2: Run targeted SAST scan
+python scripts/run_ai_audit.py \
+  --project-type backend-api \
+  --semgrep-enabled \
+  --only-changed $FILES \
+  --output-file injection-findings.json
+
+# Step 3: Apply AI triage with custom context
+# (Built into run_ai_audit.py when AI provider is configured)
+
+# Step 4: Apply policy gate
+./scripts/agentos gate --stage pr --input injection-findings.json
+```
+
+### 3. Using Feedback for Continuous Improvement
+
+When user says "This finding is wrong - test files should be ignored":
+
+```bash
+# Record feedback to improve future scans
+./scripts/agentos feedback record finding-abc123 \
+  --mark fp \
+  --reason "Test fixture file in tests/ directory"
+
+# View feedback statistics to track improvements
+./scripts/agentos feedback stats
+# Output: Shows FP rate by scanner, finding type, recent feedback
+
+# AI triage automatically incorporates past feedback as few-shot examples
+# on subsequent scans (when feedback system is integrated)
+```
+
+### 4. Analyzing AI Decision Quality
+
+When investigating "Why are so many findings suppressed?":
+
+```bash
+# Analyze AI triage decisions
+python scripts/decision_analyzer.py --log-file .agent-os-cache/decisions.jsonl
+
+# Output includes:
+# - Suppression/escalation rates
+# - Confidence distributions
+# - Patterns (e.g., "always suppresses test files")
+# - Improvement suggestions
+
+# Filter by scanner
+python scripts/decision_analyzer.py --scanner semgrep --days 7
+
+# Export analysis as JSON for further processing
+python scripts/decision_analyzer.py --format json > analysis.json
+```
+
+### 5. Explaining Specific Decisions
+
+When asked "Why was finding xyz-789 suppressed?":
+
+```bash
+# Decision logs contain reasoning for every AI triage decision
+cat .agent-os-cache/decisions.jsonl | grep "xyz-789"
+
+# Output shows:
+# - Finding ID and type
+# - Decision (suppress/escalate)
+# - AI's reasoning
+# - Confidence score
+# - Noise score from heuristics
+# - Model used
+```
+
+### Key Principles for Agents
+
+1. **Discover, don't assume:** Agent-OS capabilities evolve. Use discovery commands to find available scanners and rules
+2. **Compose primitives:** Chain commands (scan → normalize → triage → gate) for custom workflows
+3. **Use feedback loops:** Mark findings as TP/FP to improve future scans
+4. **Provide context:** Use `--project-type` and custom prompts to give AI domain-specific info
+5. **Verify decisions:** Use decision analyzer to understand why AI made specific choices
+6. **Iterate:** Start with quick scans, refine based on feedback and analysis
+
+### Emergent Capabilities
+
+By composing primitives, agents can create workflows without hard-coding:
+
+- **Incremental scanning:** Scan only changed files in PR using `--only-changed`
+- **Targeted audits:** Focus on specific CWEs or OWASP categories with Semgrep rule filters
+- **Custom policies:** Combine scanner outputs with Rego logic for domain-specific gates
+- **Compliance reports:** Filter findings by compliance framework (PCI-DSS, SOC2) using custom Rego policies
+- **Trend analysis:** Track decision quality over time with historical log analysis
+
+### Available CLI Tools
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `run_ai_audit.py` | Full security audit with AI triage | `python scripts/run_ai_audit.py --project-type backend-api` |
+| `agentos normalize` | Normalize scanner outputs to unified format | `agentos normalize --inputs semgrep.sarif --output findings.json` |
+| `agentos gate` | Apply policy gates (PR/release) | `agentos gate --stage pr --input findings.json` |
+| `agentos feedback record` | Record finding feedback (TP/FP) | `agentos feedback record abc-123 --mark fp --reason "test file"` |
+| `agentos feedback stats` | View feedback statistics | `agentos feedback stats` |
+| `decision_analyzer.py` | Analyze AI decision quality | `python scripts/decision_analyzer.py --days 7` |
+| `feedback_collector.py` | Manage feedback data | `python scripts/feedback_collector.py stats` |
+
+### Integration with External Systems
+
+Agents can integrate Agent-OS into larger workflows:
+
+```bash
+# Example: GitHub Actions integration with feedback collection
+# 1. Run security scan
+python scripts/run_ai_audit.py --output-file findings.json
+
+# 2. Parse findings and collect feedback from PR comments
+# (Custom script parses PR comments like "Finding abc-123 is FP: test file")
+
+# 3. Record feedback
+cat pr-feedback.txt | while read finding_id feedback reason; do
+  ./scripts/agentos feedback record $finding_id --mark $feedback --reason "$reason"
+done
+
+# 4. Re-run scan with improved AI using feedback
+python scripts/run_ai_audit.py --output-file improved-findings.json
+```
+
+### Performance Optimization
+
+For large repos, agents should:
+
+1. **Use caching:** Intelligent caching speeds up repeat scans 10-100x
+   ```bash
+   # Cache is automatic in .agent-os-cache/
+   # View cache stats
+   python scripts/cache_manager.py stats
+   ```
+
+2. **Scan incrementally:** Focus on changed files
+   ```bash
+   CHANGED_FILES=$(git diff --name-only origin/main...)
+   python scripts/run_ai_audit.py --only-changed $CHANGED_FILES
+   ```
+
+3. **Use cost limits:** Prevent budget overruns
+   ```bash
+   python scripts/run_ai_audit.py --cost-limit 1.0  # Max $1.00 USD
+   ```
+
+4. **Filter by file type:** Skip non-code files
+   ```bash
+   python scripts/run_ai_audit.py --file-extensions .py,.js,.go
+   ```
+
+### Debugging and Troubleshooting
+
+When things go wrong:
+
+```bash
+# Enable debug logging
+python scripts/run_ai_audit.py --debug
+
+# Check decision logs for low-confidence decisions
+python scripts/decision_analyzer.py --format json | \
+  jq '.analysis.low_confidence_decisions[]'
+
+# Validate scanner configurations
+semgrep --validate
+trivy --version
+trufflehog --version
+
+# Clear caches if results seem stale
+python scripts/cache_manager.py clear
+```
+
 ## Important Notes
 
 ### Architecture Highlights

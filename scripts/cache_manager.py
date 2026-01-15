@@ -77,6 +77,9 @@ class CacheManager:
             "total_size_bytes": 0
         }
 
+        # Decision log path
+        self.decision_log_path = self.cache_dir / "decisions.jsonl"
+
         # Initialize cache directory
         self._initialize_cache()
 
@@ -607,6 +610,101 @@ class CacheManager:
 
         except Exception:
             return "unknown"
+
+    def log_decision(self, decision_entry: Dict[str, Any]) -> bool:
+        """
+        Log AI triage decision for analysis and improvement
+
+        Args:
+            decision_entry: Dictionary containing decision details:
+                - finding_id: Unique finding identifier
+                - finding_type: Type of finding (e.g., "secret", "vulnerability")
+                - scanner: Scanner that generated the finding
+                - decision: "suppress" or "escalate"
+                - reasoning: AI's explanation for the decision
+                - confidence: Confidence score (0.0-1.0)
+                - noise_score: Noise score from heuristic filters
+                - model: AI model used (e.g., "claude-sonnet-4-5")
+                - timestamp: ISO 8601 timestamp
+
+        Returns:
+            True if logged successfully, False otherwise
+        """
+        try:
+            with self._lock:
+                # Ensure cache directory exists
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+                # Append to decisions log (JSONL format)
+                with open(self.decision_log_path, "a") as f:
+                    f.write(json.dumps(decision_entry) + "\n")
+
+                logger.debug(
+                    f"Logged decision: {decision_entry.get('decision')} "
+                    f"for {decision_entry.get('finding_type')} "
+                    f"(confidence: {decision_entry.get('confidence', 0):.2f})"
+                )
+
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to log decision: {e}")
+            with self._lock:
+                self._stats["errors"] += 1
+            return False
+
+    def get_decision_log(self, limit: Optional[int] = None) -> list:
+        """
+        Retrieve logged decisions
+
+        Args:
+            limit: Maximum number of recent decisions to retrieve (None = all)
+
+        Returns:
+            List of decision entries (most recent first)
+        """
+        try:
+            if not self.decision_log_path.exists():
+                return []
+
+            decisions = []
+            with open(self.decision_log_path, "r") as f:
+                for line in f:
+                    try:
+                        decisions.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        logger.debug(f"Skipping corrupt decision log line: {line[:50]}")
+                        continue
+
+            # Return most recent first
+            decisions.reverse()
+
+            if limit:
+                return decisions[:limit]
+
+            return decisions
+
+        except Exception as e:
+            logger.error(f"Failed to read decision log: {e}")
+            return []
+
+    def clear_decision_log(self) -> bool:
+        """
+        Clear all logged decisions
+
+        Returns:
+            True if cleared successfully, False otherwise
+        """
+        try:
+            if self.decision_log_path.exists():
+                self.decision_log_path.unlink()
+                logger.info("Cleared decision log")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to clear decision log: {e}")
+            return False
 
     def __enter__(self):
         """Context manager entry"""

@@ -84,13 +84,13 @@ def cmd_gate(args):
     """Evaluate policy gate"""
     from gate import PolicyGate
     import json
-    
+
     # Load findings
     with open(args.input) as f:
         data = json.load(f)
-    
+
     findings = data if isinstance(data, list) else data.get('findings', [])
-    
+
     # Prepare metadata
     metadata = None
     if args.stage == 'release':
@@ -99,16 +99,382 @@ def cmd_gate(args):
             'signature_verified': args.signature_verified,
             'provenance_present': args.provenance_present
         }
-    
+
     # Evaluate
     gate = PolicyGate()
     decision = gate.evaluate(args.stage, findings, metadata)
-    
+
     # Print
     gate.print_decision(decision)
-    
+
     # Exit
     sys.exit(0 if decision['decision'] == 'pass' else 1)
+
+
+def cmd_feedback(args):
+    """Record or view user feedback on findings"""
+    from feedback_collector import FeedbackCollector
+
+    collector = FeedbackCollector()
+
+    if args.action == 'record':
+        # Record feedback
+        success = collector.record_feedback(
+            finding_id=args.finding_id,
+            feedback=args.mark,
+            reason=args.reason
+        )
+
+        if success:
+            print(f"✅ Recorded feedback: {args.mark.upper()} for finding {args.finding_id}")
+        else:
+            print("❌ Failed to record feedback")
+            sys.exit(1)
+
+    elif args.action == 'stats':
+        # Show stats
+        stats = collector.get_feedback_stats()
+
+        print("\n" + "=" * 60)
+        print("FEEDBACK STATISTICS")
+        print("=" * 60)
+        print(f"Total Feedback:     {stats.get('total_feedback', 0)}")
+        print(f"True Positives:     {stats.get('true_positives', 0)} ({stats.get('tp_rate', 0):.1f}%)")
+        print(f"False Positives:    {stats.get('false_positives', 0)} ({stats.get('fp_rate', 0):.1f}%)")
+
+        if stats.get("by_scanner"):
+            print(f"\nBy Scanner:")
+            for scanner, scanner_stats in stats["by_scanner"].items():
+                fp_rate = (scanner_stats["fp"] / scanner_stats["total"] * 100) if scanner_stats["total"] > 0 else 0
+                print(f"  {scanner:20s}: {scanner_stats['total']:3d} total, "
+                      f"{scanner_stats['fp']:3d} FP ({fp_rate:.0f}%)")
+
+        print("=" * 60 + "\n")
+
+
+def cmd_dashboard(args):
+    """Launch observability dashboard"""
+    import subprocess
+
+    dashboard_path = Path(__file__).parent / 'dashboard' / 'observability_dashboard.py'
+
+    if not dashboard_path.exists():
+        print(f"❌ Dashboard not found: {dashboard_path}")
+        sys.exit(1)
+
+    print("🚀 Launching Agent-OS Observability Dashboard...")
+    print(f"📊 Opening at http://localhost:8501")
+    print("\n💡 Tip: Press Ctrl+C to stop the dashboard\n")
+
+    try:
+        # Launch Streamlit
+        subprocess.run([
+            "streamlit", "run",
+            str(dashboard_path),
+            "--server.port", "8501",
+            "--server.headless", "true"
+        ])
+    except KeyboardInterrupt:
+        print("\n\n✅ Dashboard stopped")
+    except FileNotFoundError:
+        print("\n❌ Streamlit not installed. Install with:")
+        print("   pip install streamlit plotly pandas")
+        sys.exit(1)
+
+
+def cmd_api_security(args):
+    """Run API security testing"""
+    from api_security_scanner import APISecurityScanner
+
+    scanner = APISecurityScanner(repo_path=args.path or ".")
+    findings = scanner.scan()
+
+    # Print summary
+    print(f"\n🛡️ API Security Scan Results:")
+    print(f"   Endpoints discovered: {len(scanner.endpoints)}")
+    print(f"   Vulnerabilities found: {len(findings)}")
+
+    # Group by severity
+    by_severity = {}
+    for f in findings:
+        severity = f.get("severity", "UNKNOWN")
+        by_severity[severity] = by_severity.get(severity, 0) + 1
+
+    for sev, count in sorted(by_severity.items()):
+        print(f"   {sev}: {count}")
+
+
+def cmd_dast(args):
+    """Run DAST scan"""
+    from dast_scanner import DASTScanner
+
+    if not args.target:
+        print("❌ Error: --target URL required")
+        sys.exit(1)
+
+    scanner = DASTScanner(
+        target_url=args.target,
+        openapi_spec=args.openapi
+    )
+
+    config = {
+        "severity": args.severity or "critical,high,medium",
+        "timeout": args.timeout or 300
+    }
+
+    findings = scanner.scan(config)
+
+    print(f"\n🔍 DAST Scan Results:")
+    print(f"   Target: {args.target}")
+    print(f"   Vulnerabilities: {len(findings)}")
+
+
+def cmd_correlate(args):
+    """Correlate SAST and DAST findings"""
+    from sast_dast_correlator import SASTDASTCorrelator
+    import json
+
+    # Load findings
+    with open(args.sast) as f:
+        sast_findings = json.load(f)
+    with open(args.dast) as f:
+        dast_findings = json.load(f)
+
+    correlator = SASTDASTCorrelator()
+    results = correlator.correlate(sast_findings, dast_findings)
+
+    # Print results
+    print(f"\n🔗 SAST-DAST Correlation Results:")
+    confirmed = sum(1 for r in results if r.status.value == "confirmed")
+    print(f"   Confirmed exploitable: {confirmed}")
+    print(f"   Total analyzed: {len(results)}")
+
+
+def cmd_generate_tests(args):
+    """Generate security test suite"""
+    from security_test_generator import SecurityTestGenerator
+    import json
+
+    with open(args.findings) as f:
+        findings = json.load(f)
+
+    generator = SecurityTestGenerator()
+    suite = generator.generate_test_suite(findings, args.output or "tests/security/")
+
+    print(f"\n🧪 Generated Security Tests:")
+    print(f"   Language: {suite.language}")
+    print(f"   Framework: {suite.framework}")
+    print(f"   Tests: {len(suite.tests)}")
+
+
+def cmd_supply_chain(args):
+    """Run supply chain attack detection"""
+    from supply_chain_analyzer import SupplyChainAnalyzer
+
+    analyzer = SupplyChainAnalyzer(repo_path=args.path or ".")
+
+    if args.action == "diff":
+        # Analyze dependency changes
+        assessments = analyzer.analyze_dependency_diff(args.base or "main", args.head or "HEAD")
+
+        print(f"\n🔗 Supply Chain Analysis:")
+        print(f"   Total changes: {len(assessments)}")
+
+        threats = [a for a in assessments if a.risk_level in ["high", "critical"]]
+        print(f"   High-risk threats: {len(threats)}")
+
+        for threat in threats:
+            print(f"\n   ⚠️  {threat.dependency.package_name} ({threat.risk_level.upper()})")
+            for rec in threat.recommendations:
+                print(f"      - {rec}")
+
+    elif args.action == "check":
+        # Check specific package
+        if not args.package or not args.ecosystem:
+            print("❌ Error: --package and --ecosystem required for check")
+            sys.exit(1)
+
+        alert = analyzer.check_typosquatting(args.package, args.ecosystem)
+        if alert:
+            print(f"\n⚠️  TYPOSQUATTING ALERT:")
+            print(f"   Suspicious: {alert.suspicious_package}")
+            print(f"   Legitimate: {alert.legitimate_package}")
+            print(f"   Similarity: {alert.similarity_score*100:.0f}%")
+            print(f"   Severity: {alert.severity}")
+        else:
+            print(f"✅ No typosquatting detected for '{args.package}'")
+
+
+def cmd_fuzz(args):
+    """Run intelligent fuzzing"""
+    from fuzzing_engine import FuzzingEngine
+
+    engine = FuzzingEngine(ai_provider=args.ai_provider)
+
+    if args.action == "api":
+        if not args.spec:
+            print("❌ Error: --spec required for API fuzzing")
+            sys.exit(1)
+
+        result = engine.fuzz_api(args.spec, duration_minutes=args.duration or 60)
+
+    elif args.action == "function":
+        if not args.target or not args.function:
+            print("❌ Error: --target and --function required for function fuzzing")
+            sys.exit(1)
+
+        result = engine.fuzz_function(args.target, args.function, duration_minutes=args.duration or 30)
+
+    elif args.action == "ci":
+        result = engine.fuzz_ci(budget_minutes=args.budget or 5)
+
+    print(f"\n🎯 Fuzzing Results:")
+    print(f"   Duration: {result.duration_seconds:.1f}s")
+    print(f"   Test cases: {result.test_cases_executed}")
+    print(f"   Crashes: {len(result.unique_crashes)}")
+
+    if result.unique_crashes:
+        print(f"\n   Unique crashes:")
+        for crash in result.unique_crashes:
+            print(f"   - {crash.crash_type} ({crash.severity})")
+
+
+def cmd_threat_intel(args):
+    """Enrich findings with threat intelligence"""
+    from threat_intel_enricher import ThreatIntelEnricher
+    import json
+
+    if args.action == "enrich":
+        if not args.findings:
+            print("❌ Error: --findings required")
+            sys.exit(1)
+
+        # Load findings
+        with open(args.findings) as f:
+            findings_data = json.load(f)
+
+        enricher = ThreatIntelEnricher()
+
+        # Enrich findings with threat intel
+        enriched_count = 0
+        for finding in findings_data.get("findings", []):
+            if finding.get("cve_id"):
+                threat_context = enricher.enrich_cve(finding["cve_id"])
+                if threat_context:
+                    finding["threat_context"] = threat_context
+                    enriched_count += 1
+
+        # Save enriched findings
+        with open(args.output or args.findings, 'w') as f:
+            json.dump(findings_data, f, indent=2)
+
+        print(f"\n🌐 Threat Intelligence Enrichment:")
+        print(f"   Total findings: {len(findings_data.get('findings', []))}")
+        print(f"   Enriched: {enriched_count}")
+        print(f"   Output: {args.output or args.findings}")
+
+
+def cmd_remediate(args):
+    """Generate AI-powered remediation suggestions"""
+    from remediation_engine import RemediationEngine
+    import json
+
+    if not args.findings:
+        print("❌ Error: --findings required")
+        sys.exit(1)
+
+    # Load findings
+    with open(args.findings) as f:
+        findings_data = json.load(f)
+
+    engine = RemediationEngine(ai_provider=args.ai_provider)
+
+    # Generate remediation suggestions
+    remediations = []
+    for finding in findings_data.get("findings", []):
+        suggestion = engine.suggest_fix(finding)
+        if suggestion:
+            remediations.append({
+                "finding_id": finding.get("finding_id"),
+                "title": finding.get("title"),
+                "fix": suggestion
+            })
+
+    # Output remediations
+    output = args.output or "remediations.md"
+    with open(output, 'w') as f:
+        f.write("# Security Remediation Suggestions\n\n")
+        for rem in remediations:
+            f.write(f"## {rem['title']}\n\n")
+            f.write(f"**Finding ID:** {rem['finding_id']}\n\n")
+            f.write(f"**Fix:**\n{rem['fix'].get('fix_explanation', 'No fix available')}\n\n")
+            if rem['fix'].get('code_patch'):
+                f.write(f"**Code Patch:**\n```\n{rem['fix']['code_patch']}\n```\n\n")
+            f.write("---\n\n")
+
+    print(f"\n🔧 Remediation Suggestions:")
+    print(f"   Total findings: {len(findings_data.get('findings', []))}")
+    print(f"   Remediation suggestions: {len(remediations)}")
+    print(f"   Output: {output}")
+
+
+def cmd_runtime_security(args):
+    """Monitor container runtime security"""
+    from runtime_security_monitor import RuntimeSecurityMonitor
+
+    if args.action == "monitor":
+        monitor = RuntimeSecurityMonitor(duration_seconds=args.duration or 60)
+
+        print(f"\n🐳 Runtime Security Monitoring:")
+        print(f"   Duration: {args.duration or 60}s")
+        print(f"   Starting monitor...")
+
+        findings = monitor.monitor(args.path or ".")
+
+        print(f"\n   Threats detected: {len(findings)}")
+
+        if findings:
+            print("\n   Runtime threats:")
+            for finding in findings:
+                print(f"   - {finding.get('severity', 'UNKNOWN').upper()}: {finding.get('title', 'Unknown threat')}")
+
+
+def cmd_regression_test(args):
+    """Generate and run security regression tests"""
+    from regression_tester import SecurityRegressionTester
+
+    tester = SecurityRegressionTester()
+
+    if args.action == "generate":
+        if not args.fixed_findings:
+            print("❌ Error: --fixed-findings required")
+            sys.exit(1)
+
+        import json
+        with open(args.fixed_findings) as f:
+            fixed_findings = json.load(f)
+
+        # Generate regression test suite
+        test_cases = tester.generate_regression_tests(fixed_findings.get("findings", []))
+
+        print(f"\n🧪 Regression Test Generation:")
+        print(f"   Fixed findings: {len(fixed_findings.get('findings', []))}")
+        print(f"   Test cases generated: {len(test_cases)}")
+
+    elif args.action == "run":
+        # Run regression tests
+        regressions = tester.detect_regression(
+            current_findings=[],
+            target_path=args.path or "."
+        )
+
+        print(f"\n🧪 Regression Test Results:")
+        print(f"   Regressions detected: {len(regressions)}")
+
+        if regressions:
+            print("\n   Regressions:")
+            for regression in regressions:
+                print(f"   - {regression.get('title', 'Unknown regression')}")
 
 
 def main():
@@ -119,12 +485,55 @@ def main():
 Examples:
   # Normalize scanner outputs
   agentos normalize --inputs semgrep.sarif trivy.json --output findings.json
-  
+
   # Evaluate PR gate
   agentos gate --stage pr --input findings.json
-  
+
   # Evaluate release gate
   agentos gate --stage release --input findings.json --sbom-present --signature-verified
+
+  # Record feedback on finding
+  agentos feedback record finding-123 --mark fp --reason "Test fixture file"
+
+  # Show feedback statistics
+  agentos feedback stats
+
+  # Launch observability dashboard
+  agentos dashboard
+
+  # Run API security scan
+  agentos api-security --path /path/to/repo
+
+  # Run DAST scan
+  agentos dast --target https://api.example.com --openapi openapi.yaml
+
+  # Correlate SAST and DAST findings
+  agentos correlate --sast sast-findings.json --dast dast-findings.json
+
+  # Generate security tests
+  agentos generate-tests --findings findings.json --output tests/security/
+
+  # Supply chain attack detection
+  agentos supply-chain diff --base main --head feature-branch
+  agentos supply-chain check --package lodash --ecosystem npm
+
+  # Intelligent fuzzing
+  agentos fuzz api --spec openapi.yaml --duration 60
+  agentos fuzz function --target src/parser.py --function parse_xml --duration 30
+  agentos fuzz ci --budget 5
+
+  # Threat intelligence enrichment
+  agentos threat-intel enrich --findings findings.json --output enriched.json
+
+  # Automated remediation
+  agentos remediate --findings findings.json --output fixes.md
+
+  # Runtime security monitoring
+  agentos runtime-security monitor --duration 60 --path /path/to/app
+
+  # Security regression testing
+  agentos regression-test generate --fixed-findings fixed.json
+  agentos regression-test run --path /path/to/repo
 """
     )
     
@@ -144,7 +553,136 @@ Examples:
     parser_gate.add_argument('--signature-verified', action='store_true', help='Signature verified')
     parser_gate.add_argument('--provenance-present', action='store_true', help='Provenance present')
     parser_gate.set_defaults(func=cmd_gate)
-    
+
+    # Feedback command
+    parser_feedback = subparsers.add_parser('feedback', help='Manage user feedback on findings')
+    feedback_subparsers = parser_feedback.add_subparsers(dest='action', help='Feedback action')
+
+    # Record feedback
+    record_feedback = feedback_subparsers.add_parser('record', help='Record feedback for a finding')
+    record_feedback.add_argument('finding_id', help='Finding ID')
+    record_feedback.add_argument('--mark', choices=['tp', 'fp'], required=True,
+                                 help='Mark as true positive (tp) or false positive (fp)')
+    record_feedback.add_argument('--reason', required=True, help='Reason for feedback')
+
+    # Show feedback stats
+    feedback_subparsers.add_parser('stats', help='Show feedback statistics')
+
+    parser_feedback.set_defaults(func=cmd_feedback)
+
+    # Dashboard command
+    parser_dashboard = subparsers.add_parser('dashboard', help='Launch observability dashboard')
+    parser_dashboard.set_defaults(func=cmd_dashboard)
+
+    # API Security command
+    parser_api = subparsers.add_parser('api-security', help='Run API security testing')
+    parser_api.add_argument('--path', help='Repository path (default: current directory)')
+    parser_api.set_defaults(func=cmd_api_security)
+
+    # DAST command
+    parser_dast = subparsers.add_parser('dast', help='Run DAST scan')
+    parser_dast.add_argument('--target', required=True, help='Target URL')
+    parser_dast.add_argument('--openapi', help='OpenAPI spec path')
+    parser_dast.add_argument('--severity', help='Severity levels (default: critical,high,medium)')
+    parser_dast.add_argument('--timeout', type=int, help='Scan timeout in seconds (default: 300)')
+    parser_dast.set_defaults(func=cmd_dast)
+
+    # Correlate command
+    parser_correlate = subparsers.add_parser('correlate', help='Correlate SAST and DAST findings')
+    parser_correlate.add_argument('--sast', required=True, help='SAST findings JSON file')
+    parser_correlate.add_argument('--dast', required=True, help='DAST findings JSON file')
+    parser_correlate.set_defaults(func=cmd_correlate)
+
+    # Generate tests command
+    parser_gentests = subparsers.add_parser('generate-tests', help='Generate security test suite')
+    parser_gentests.add_argument('--findings', required=True, help='Findings JSON file')
+    parser_gentests.add_argument('--output', help='Output directory (default: tests/security/)')
+    parser_gentests.set_defaults(func=cmd_generate_tests)
+
+    # Supply chain command
+    parser_supply = subparsers.add_parser('supply-chain', help='Supply chain attack detection')
+    supply_subparsers = parser_supply.add_subparsers(dest='action', help='Supply chain action')
+
+    # Supply chain diff
+    supply_diff = supply_subparsers.add_parser('diff', help='Analyze dependency changes')
+    supply_diff.add_argument('--base', help='Base git reference (default: main)')
+    supply_diff.add_argument('--head', help='Head git reference (default: HEAD)')
+    supply_diff.add_argument('--path', help='Repository path (default: current directory)')
+
+    # Supply chain check
+    supply_check = supply_subparsers.add_parser('check', help='Check specific package')
+    supply_check.add_argument('--package', required=True, help='Package name to check')
+    supply_check.add_argument('--ecosystem', required=True, choices=['pypi', 'npm', 'maven', 'go'], help='Package ecosystem')
+
+    parser_supply.set_defaults(func=cmd_supply_chain)
+
+    # Fuzzing command
+    parser_fuzz = subparsers.add_parser('fuzz', help='Intelligent fuzzing')
+    fuzz_subparsers = parser_fuzz.add_subparsers(dest='action', help='Fuzzing action')
+
+    # Fuzz API
+    fuzz_api = fuzz_subparsers.add_parser('api', help='Fuzz API endpoints')
+    fuzz_api.add_argument('--spec', required=True, help='OpenAPI spec path')
+    fuzz_api.add_argument('--duration', type=int, help='Fuzzing duration in minutes (default: 60)')
+    fuzz_api.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    # Fuzz function
+    fuzz_func = fuzz_subparsers.add_parser('function', help='Fuzz specific function')
+    fuzz_func.add_argument('--target', required=True, help='Target file path')
+    fuzz_func.add_argument('--function', required=True, help='Function name to fuzz')
+    fuzz_func.add_argument('--duration', type=int, help='Fuzzing duration in minutes (default: 30)')
+    fuzz_func.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    # Fuzz CI
+    fuzz_ci = fuzz_subparsers.add_parser('ci', help='Fast fuzzing for CI')
+    fuzz_ci.add_argument('--budget', type=int, help='Time budget in minutes (default: 5)')
+    fuzz_ci.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    parser_fuzz.set_defaults(func=cmd_fuzz)
+
+    # Threat Intelligence command
+    parser_threat_intel = subparsers.add_parser('threat-intel', help='Threat intelligence enrichment')
+    threat_intel_subparsers = parser_threat_intel.add_subparsers(dest='action', help='Threat intel action')
+
+    # Threat intel enrich
+    threat_intel_enrich = threat_intel_subparsers.add_parser('enrich', help='Enrich findings with threat intel')
+    threat_intel_enrich.add_argument('--findings', required=True, help='Findings JSON file')
+    threat_intel_enrich.add_argument('--output', help='Output file (default: overwrites input)')
+
+    parser_threat_intel.set_defaults(func=cmd_threat_intel)
+
+    # Remediation command
+    parser_remediate = subparsers.add_parser('remediate', help='Generate remediation suggestions')
+    parser_remediate.add_argument('--findings', required=True, help='Findings JSON file')
+    parser_remediate.add_argument('--output', help='Output markdown file (default: remediations.md)')
+    parser_remediate.add_argument('--ai-provider', help='AI provider for remediation generation')
+    parser_remediate.set_defaults(func=cmd_remediate)
+
+    # Runtime Security command
+    parser_runtime = subparsers.add_parser('runtime-security', help='Container runtime security monitoring')
+    runtime_subparsers = parser_runtime.add_subparsers(dest='action', help='Runtime security action')
+
+    # Runtime security monitor
+    runtime_monitor = runtime_subparsers.add_parser('monitor', help='Monitor runtime security')
+    runtime_monitor.add_argument('--duration', type=int, help='Monitoring duration in seconds (default: 60)')
+    runtime_monitor.add_argument('--path', help='Path to monitor (default: current directory)')
+
+    parser_runtime.set_defaults(func=cmd_runtime_security)
+
+    # Regression Testing command
+    parser_regression = subparsers.add_parser('regression-test', help='Security regression testing')
+    regression_subparsers = parser_regression.add_subparsers(dest='action', help='Regression test action')
+
+    # Regression test generate
+    regression_generate = regression_subparsers.add_parser('generate', help='Generate regression test suite')
+    regression_generate.add_argument('--fixed-findings', required=True, help='Fixed findings JSON file')
+
+    # Regression test run
+    regression_run = regression_subparsers.add_parser('run', help='Run regression tests')
+    regression_run.add_argument('--path', help='Repository path (default: current directory)')
+
+    parser_regression.set_defaults(func=cmd_regression_test)
+
     args = parser.parse_args()
     
     if not hasattr(args, 'func'):

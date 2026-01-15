@@ -325,6 +325,30 @@ class LLMManager:
         self.provider = None
         self.model = None
 
+        # Initialize feedback collector and cache manager for decision logging
+        self.feedback_collector = None
+        self.cache_manager = None
+
+        try:
+            # Import modules - allow graceful failure
+            import sys
+            from pathlib import Path
+
+            # Add scripts dir to path if not already there
+            scripts_dir = Path(__file__).parent.parent
+            if str(scripts_dir) not in sys.path:
+                sys.path.insert(0, str(scripts_dir))
+
+            from feedback_collector import FeedbackCollector
+            from cache_manager import CacheManager
+
+            self.feedback_collector = FeedbackCollector()
+            self.cache_manager = CacheManager()
+            logger.debug("Feedback collector and cache manager initialized")
+        except Exception as e:
+            logger.debug(f"Could not initialize feedback/cache systems: {e}")
+            # Continue without these features
+
     def detect_provider(self) -> str:
         """Auto-detect which AI provider to use based on available keys
 
@@ -563,6 +587,85 @@ class LLMManager:
 
         return input_cost + output_cost
 
+    def generate_few_shot_examples(
+        self,
+        finding_type: str,
+        scanner: str,
+        max_examples: int = 3
+    ) -> str:
+        """
+        Generate few-shot examples from historical feedback
+
+        Args:
+            finding_type: Type of finding (e.g., "secret", "vulnerability")
+            scanner: Scanner name (e.g., "semgrep", "trufflehog")
+            max_examples: Maximum number of examples to include
+
+        Returns:
+            Formatted few-shot examples string (empty if no feedback available)
+        """
+        if not self.feedback_collector:
+            return ""
+
+        try:
+            return self.feedback_collector.generate_few_shot_examples(
+                finding_type=finding_type,
+                scanner=scanner,
+                max_examples=max_examples
+            )
+        except Exception as e:
+            logger.debug(f"Could not generate few-shot examples: {e}")
+            return ""
+
+    def log_ai_decision(
+        self,
+        finding_id: str,
+        finding_type: str,
+        scanner: str,
+        decision: str,
+        reasoning: str,
+        confidence: float,
+        noise_score: float = 0.0
+    ) -> bool:
+        """
+        Log AI triage decision for analysis
+
+        Args:
+            finding_id: Unique finding identifier
+            finding_type: Type of finding
+            scanner: Scanner that generated finding
+            decision: "suppress" or "escalate"
+            reasoning: AI's explanation
+            confidence: Confidence score (0.0-1.0)
+            noise_score: Noise score from heuristics
+
+        Returns:
+            True if logged successfully, False otherwise
+        """
+        if not self.cache_manager:
+            return False
+
+        try:
+            from datetime import datetime
+
+            decision_entry = {
+                "finding_id": finding_id,
+                "finding_type": finding_type,
+                "scanner": scanner,
+                "decision": decision,
+                "reasoning": reasoning,
+                "confidence": confidence,
+                "noise_score": noise_score,
+                "model": self.model,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            return self.cache_manager.log_decision(decision_entry)
+
+        except Exception as e:
+            logger.debug(f"Could not log decision: {e}")
+            return False
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -571,15 +674,21 @@ class LLMManager:
         reraise=True,
     )
     def call_llm_api(
-        self, prompt: str, max_tokens: int, circuit_breaker: "CostCircuitBreaker" = None, operation: str = "LLM call"
+        self,
+        prompt: str,
+        max_tokens: int,
+        circuit_breaker: "CostCircuitBreaker" = None,
+        operation: str = "LLM call",
+        few_shot_prefix: str = ""
     ) -> tuple:
-        """Call LLM API with retry logic and cost enforcement
+        """Call LLM API with retry logic, cost enforcement, and few-shot learning
 
         Args:
             prompt: Prompt text
             max_tokens: Maximum output tokens
             circuit_breaker: Optional CostCircuitBreaker for cost enforcement
             operation: Description of operation for logging
+            few_shot_prefix: Few-shot examples to prepend to prompt
 
         Returns:
             Tuple of (response_text, input_tokens, output_tokens)
@@ -591,9 +700,12 @@ class LLMManager:
         if self.client is None or self.provider is None:
             raise LLMException("LLM Manager not initialized. Call initialize() first.")
 
+        # Prepend few-shot examples if provided
+        full_prompt = f"{few_shot_prefix}\n\n{prompt}" if few_shot_prefix else prompt
+
         # Estimate cost and check circuit breaker before making call
         if circuit_breaker:
-            estimated_cost = self.estimate_call_cost(len(prompt), max_tokens, self.provider)
+            estimated_cost = self.estimate_call_cost(len(full_prompt), max_tokens, self.provider)
             circuit_breaker.check_before_call(estimated_cost, self.provider, operation)
 
         try:
@@ -601,7 +713,7 @@ class LLMManager:
                 message = self.client.messages.create(
                     model=self.model,
                     max_tokens=max_tokens,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "user", "content": full_prompt}],
                     timeout=300.0,  # 5 minute timeout
                 )
                 response_text = message.content[0].text
@@ -611,7 +723,7 @@ class LLMManager:
             elif self.provider in ["openai", "ollama"]:
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "user", "content": full_prompt}],
                     max_tokens=max_tokens,
                     timeout=300.0,  # 5 minute timeout
                 )

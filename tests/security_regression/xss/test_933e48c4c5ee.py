@@ -1,0 +1,30 @@
+
+import pytest
+from app.templates import render_user_input
+
+def test_xss_regression():
+    """Regression test: Ensure XSS is still fixed"""
+    xss_payload = "<script>alert('XSS')</script>"
+
+    result = render_user_input(xss_payload)
+
+    # Output should be escaped
+    assert "<script>" not in result, "XSS vulnerability returned - script tag not escaped!"
+    assert "alert(" not in result or "&lt;" in result, "JavaScript not properly escaped"
+
+    # Check for common XSS evasion techniques
+    evasion_payloads = [
+        "<img src=x onerror=alert(1)>",
+        "javascript:alert(1)",
+        "<svg onload=alert(1)>",
+    ]
+
+    for payload in evasion_payloads:
+        result = render_user_input(payload)
+        assert "onerror=" not in result and "onload=" not in result, f"XSS evasion possible: {payload}"
+
+def test_xss_normal_input():
+    """Ensure fix doesn't break normal functionality"""
+    normal_input = "Hello <b>World</b>"
+    result = render_user_input(normal_input)
+    assert "Hello" in result, "Normal text missing from output"
