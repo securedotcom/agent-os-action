@@ -182,6 +182,91 @@ def cmd_dashboard(args):
         sys.exit(1)
 
 
+def cmd_api_security(args):
+    """Run API security testing"""
+    from api_security_scanner import APISecurityScanner
+
+    scanner = APISecurityScanner(repo_path=args.path or ".")
+    findings = scanner.scan()
+
+    # Print summary
+    print(f"\n🛡️ API Security Scan Results:")
+    print(f"   Endpoints discovered: {len(scanner.endpoints)}")
+    print(f"   Vulnerabilities found: {len(findings)}")
+
+    # Group by severity
+    by_severity = {}
+    for f in findings:
+        severity = f.get("severity", "UNKNOWN")
+        by_severity[severity] = by_severity.get(severity, 0) + 1
+
+    for sev, count in sorted(by_severity.items()):
+        print(f"   {sev}: {count}")
+
+
+def cmd_dast(args):
+    """Run DAST scan"""
+    from dast_scanner import DASTScanner
+
+    if not args.target:
+        print("❌ Error: --target URL required")
+        sys.exit(1)
+
+    scanner = DASTScanner(
+        target_url=args.target,
+        openapi_spec=args.openapi
+    )
+
+    config = {
+        "severity": args.severity or "critical,high,medium",
+        "timeout": args.timeout or 300
+    }
+
+    findings = scanner.scan(config)
+
+    print(f"\n🔍 DAST Scan Results:")
+    print(f"   Target: {args.target}")
+    print(f"   Vulnerabilities: {len(findings)}")
+
+
+def cmd_correlate(args):
+    """Correlate SAST and DAST findings"""
+    from sast_dast_correlator import SASTDASTCorrelator
+    import json
+
+    # Load findings
+    with open(args.sast) as f:
+        sast_findings = json.load(f)
+    with open(args.dast) as f:
+        dast_findings = json.load(f)
+
+    correlator = SASTDASTCorrelator()
+    results = correlator.correlate(sast_findings, dast_findings)
+
+    # Print results
+    print(f"\n🔗 SAST-DAST Correlation Results:")
+    confirmed = sum(1 for r in results if r.status.value == "confirmed")
+    print(f"   Confirmed exploitable: {confirmed}")
+    print(f"   Total analyzed: {len(results)}")
+
+
+def cmd_generate_tests(args):
+    """Generate security test suite"""
+    from security_test_generator import SecurityTestGenerator
+    import json
+
+    with open(args.findings) as f:
+        findings = json.load(f)
+
+    generator = SecurityTestGenerator()
+    suite = generator.generate_test_suite(findings, args.output or "tests/security/")
+
+    print(f"\n🧪 Generated Security Tests:")
+    print(f"   Language: {suite.language}")
+    print(f"   Framework: {suite.framework}")
+    print(f"   Tests: {len(suite.tests)}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agent-OS Security Control Plane",
@@ -205,6 +290,18 @@ Examples:
 
   # Launch observability dashboard
   agentos dashboard
+
+  # Run API security scan
+  agentos api-security --path /path/to/repo
+
+  # Run DAST scan
+  agentos dast --target https://api.example.com --openapi openapi.yaml
+
+  # Correlate SAST and DAST findings
+  agentos correlate --sast sast-findings.json --dast dast-findings.json
+
+  # Generate security tests
+  agentos generate-tests --findings findings.json --output tests/security/
 """
     )
     
@@ -244,6 +341,31 @@ Examples:
     # Dashboard command
     parser_dashboard = subparsers.add_parser('dashboard', help='Launch observability dashboard')
     parser_dashboard.set_defaults(func=cmd_dashboard)
+
+    # API Security command
+    parser_api = subparsers.add_parser('api-security', help='Run API security testing')
+    parser_api.add_argument('--path', help='Repository path (default: current directory)')
+    parser_api.set_defaults(func=cmd_api_security)
+
+    # DAST command
+    parser_dast = subparsers.add_parser('dast', help='Run DAST scan')
+    parser_dast.add_argument('--target', required=True, help='Target URL')
+    parser_dast.add_argument('--openapi', help='OpenAPI spec path')
+    parser_dast.add_argument('--severity', help='Severity levels (default: critical,high,medium)')
+    parser_dast.add_argument('--timeout', type=int, help='Scan timeout in seconds (default: 300)')
+    parser_dast.set_defaults(func=cmd_dast)
+
+    # Correlate command
+    parser_correlate = subparsers.add_parser('correlate', help='Correlate SAST and DAST findings')
+    parser_correlate.add_argument('--sast', required=True, help='SAST findings JSON file')
+    parser_correlate.add_argument('--dast', required=True, help='DAST findings JSON file')
+    parser_correlate.set_defaults(func=cmd_correlate)
+
+    # Generate tests command
+    parser_gentests = subparsers.add_parser('generate-tests', help='Generate security test suite')
+    parser_gentests.add_argument('--findings', required=True, help='Findings JSON file')
+    parser_gentests.add_argument('--output', help='Output directory (default: tests/security/)')
+    parser_gentests.set_defaults(func=cmd_generate_tests)
 
     args = parser.parse_args()
     

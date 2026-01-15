@@ -57,7 +57,7 @@ class HybridFinding:
     """Unified finding from multiple security tools"""
 
     finding_id: str
-    source_tool: str  # 'semgrep', 'trivy', 'checkov', 'agent-os'
+    source_tool: str  # 'semgrep', 'trivy', 'checkov', 'api-security', 'dast', 'agent-os'
     severity: str  # 'critical', 'high', 'medium', 'low'
     category: str  # 'security', 'quality', 'performance'
     title: str
@@ -109,10 +109,13 @@ class HybridSecurityAnalyzer:
         enable_semgrep: bool = True,
         enable_trivy: bool = True,
         enable_checkov: bool = True,
+        enable_api_security: bool = True,
+        enable_dast: bool = False,
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
         ai_provider: Optional[str] = None,
+        dast_target_url: Optional[str] = None,
         config: Optional[dict] = None,
     ):
         """
@@ -122,25 +125,33 @@ class HybridSecurityAnalyzer:
             enable_semgrep: Run Semgrep SAST
             enable_trivy: Run Trivy CVE scanning
             enable_checkov: Run Checkov IaC scanning
+            enable_api_security: Run API Security Scanner
+            enable_dast: Run DAST Scanner
             enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
             ai_provider: AI provider name (anthropic, openai, etc.)
+            dast_target_url: Target URL for DAST scanning
             config: Additional configuration
         """
         self.enable_semgrep = enable_semgrep
         self.enable_trivy = enable_trivy
         self.enable_checkov = enable_checkov
+        self.enable_api_security = enable_api_security
+        self.enable_dast = enable_dast
         self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
         self.ai_provider = ai_provider
+        self.dast_target_url = dast_target_url
         self.config = config or {}
 
         # Initialize scanners
         self.semgrep_scanner = None
         self.trivy_scanner = None
         self.checkov_scanner = None
+        self.api_security_scanner = None
+        self.dast_scanner = None
         self.sandbox_validator = None
         self.ai_client = None
 
@@ -194,6 +205,29 @@ class HybridSecurityAnalyzer:
                 logger.warning(f"⚠️  Checkov scanner not available: {e}")
                 self.enable_checkov = False
 
+        if self.enable_api_security:
+            try:
+                from api_security_scanner import APISecurityScanner
+
+                self.api_security_scanner = APISecurityScanner()
+                logger.info("✅ API Security scanner initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  API Security scanner not available: {e}")
+                self.enable_api_security = False
+
+        if self.enable_dast:
+            try:
+                from dast_scanner import DASTScanner
+
+                self.dast_scanner = DASTScanner(
+                    target_url=self.dast_target_url,
+                    openapi_spec=self.config.get("openapi_spec")
+                )
+                logger.info("✅ DAST scanner initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  DAST scanner not available: {e}")
+                self.enable_dast = False
+
         # Initialize sandbox validator if enabled
         if self.enable_sandbox:
             try:
@@ -206,10 +240,12 @@ class HybridSecurityAnalyzer:
                 self.enable_sandbox = False
 
         # Validation: At least one scanner or AI enrichment must be enabled
-        if not self.enable_semgrep and not self.enable_trivy and not self.enable_checkov and not self.enable_ai_enrichment:
+        if (not self.enable_semgrep and not self.enable_trivy and not self.enable_checkov
+            and not self.enable_api_security and not self.enable_dast and not self.enable_ai_enrichment):
             raise ValueError(
                 "❌ ERROR: At least one tool must be enabled!\n"
-                "   Enable: --enable-semgrep, --enable-trivy, --enable-checkov, or --enable-ai-enrichment"
+                "   Enable: --enable-semgrep, --enable-trivy, --enable-checkov, "
+                "--enable-api-security, --enable-dast, or --enable-ai-enrichment"
             )
 
     def analyze(
@@ -281,6 +317,28 @@ class HybridSecurityAnalyzer:
                 logger.info(f"   ✅ Checkov: {len(checkov_findings)} IaC misconfigurations")
             except Exception as e:
                 logger.error(f"   ❌ Checkov scan failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run API Security Scanner
+        if self.enable_api_security and self.api_security_scanner:
+            try:
+                logger.info("   🔍 Running API Security scanner...")
+                api_findings = self._run_api_security(target_path)
+                all_findings.extend(api_findings)
+                logger.info(f"   ✅ API Security: {len(api_findings)} API vulnerabilities")
+            except Exception as e:
+                logger.error(f"   ❌ API Security scan failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run DAST Scanner
+        if self.enable_dast and self.dast_scanner:
+            try:
+                logger.info("   🔍 Running DAST scanner...")
+                dast_findings = self._run_dast(target_path)
+                all_findings.extend(dast_findings)
+                logger.info(f"   ✅ DAST: {len(dast_findings)} runtime vulnerabilities")
+            except Exception as e:
+                logger.error(f"   ❌ DAST scan failed: {e}")
                 logger.info("   💡 Continuing with other scanners...")
 
         phase_timings["phase1_static_analysis"] = time.time() - phase1_start
@@ -495,6 +553,85 @@ class HybridSecurityAnalyzer:
 
         except Exception as e:
             logger.error(f"❌ Checkov scan failed: {e}")
+
+        return findings
+
+    def _run_api_security(self, target_path: str) -> list[HybridFinding]:
+        """Run API Security Scanner and convert to HybridFinding format"""
+        findings = []
+
+        try:
+            # Run API Security scanner
+            api_result = self.api_security_scanner.scan(target_path)
+
+            # Convert to HybridFinding format
+            # API scanner returns list of findings
+            if isinstance(api_result, list):
+                for api_finding in api_result:
+                    finding = HybridFinding(
+                        finding_id=f"api-security-{api_finding.get('id', 'unknown')}",
+                        source_tool="api-security",
+                        severity=self._normalize_severity(api_finding.get("severity", "medium")),
+                        category="security",
+                        title=api_finding.get("title", "API Security Issue"),
+                        description=api_finding.get("description", ""),
+                        file_path=api_finding.get("file_path", target_path),
+                        line_number=api_finding.get("line_number"),
+                        cwe_id=api_finding.get("cwe_id"),
+                        recommendation=api_finding.get("recommendation", ""),
+                        references=api_finding.get("references", []),
+                        confidence=api_finding.get("confidence", 0.85),
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ API Security scan failed: {e}")
+
+        return findings
+
+    def _run_dast(self, target_path: str) -> list[HybridFinding]:
+        """Run DAST Scanner and convert to HybridFinding format"""
+        findings = []
+
+        # DAST requires a target URL
+        if not self.dast_target_url:
+            logger.info("   ℹ️  DAST: No target URL provided, skipping")
+            return findings
+
+        try:
+            # Run DAST scanner
+            dast_config = {
+                "severity": self.config.get("dast_severity", "critical,high,medium"),
+                "timeout": self.config.get("dast_timeout", 300),
+            }
+            dast_result = self.dast_scanner.scan(dast_config)
+
+            # Convert to HybridFinding format
+            if isinstance(dast_result, list):
+                for dast_finding in dast_result:
+                    finding = HybridFinding(
+                        finding_id=f"dast-{dast_finding.get('id', 'unknown')}",
+                        source_tool="dast",
+                        severity=self._normalize_severity(dast_finding.get("severity", "medium")),
+                        category="security",
+                        title=dast_finding.get("title", "DAST Issue"),
+                        description=dast_finding.get("description", ""),
+                        file_path=dast_finding.get("file_path", target_path),
+                        line_number=dast_finding.get("line_number"),
+                        cwe_id=dast_finding.get("cwe_id"),
+                        cve_id=dast_finding.get("cve_id"),
+                        cvss_score=dast_finding.get("cvss_score"),
+                        exploitability=dast_finding.get("exploitability"),
+                        recommendation=dast_finding.get("recommendation", ""),
+                        references=dast_finding.get("references", []),
+                        confidence=dast_finding.get("confidence", 0.9),
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ DAST scan failed: {e}")
 
         return findings
 
@@ -884,6 +1021,10 @@ Respond with JSON only:"""
             tools.append("Trivy")
         if self.enable_checkov:
             tools.append("Checkov")
+        if self.enable_api_security:
+            tools.append("API-Security")
+        if self.enable_dast:
+            tools.append("DAST")
         if self.enable_ai_enrichment and self.ai_client:
             tools.append(f"AI-Enrichment ({self.ai_client.provider})")
         if self.enable_agent_os:
@@ -1082,6 +1223,8 @@ def main():
     parser.add_argument("--enable-semgrep", action="store_true", default=True, help="Enable Semgrep SAST")
     parser.add_argument("--enable-trivy", action="store_true", default=True, help="Enable Trivy CVE scanning")
     parser.add_argument("--enable-checkov", action="store_true", default=True, help="Enable Checkov IaC scanning")
+    parser.add_argument("--enable-api-security", action="store_true", default=True, help="Enable API Security scanning")
+    parser.add_argument("--enable-dast", action="store_true", default=False, help="Enable DAST scanning")
     parser.add_argument(
         "--enable-ai-enrichment",
         action="store_true",
@@ -1089,6 +1232,7 @@ def main():
         help="Enable AI enrichment with Claude/OpenAI",
     )
     parser.add_argument("--ai-provider", help="AI provider (anthropic, openai, ollama)")
+    parser.add_argument("--dast-target-url", help="Target URL for DAST scanning (required if --enable-dast)")
     parser.add_argument("--severity-filter", help="Comma-separated severity levels to report (e.g., critical,high)")
 
     args = parser.parse_args()
@@ -1106,8 +1250,11 @@ def main():
         enable_semgrep=args.enable_semgrep,
         enable_trivy=args.enable_trivy,
         enable_checkov=args.enable_checkov,
+        enable_api_security=args.enable_api_security,
+        enable_dast=args.enable_dast,
         enable_ai_enrichment=args.enable_ai_enrichment,
         ai_provider=args.ai_provider,
+        dast_target_url=args.dast_target_url,
         config=config,
     )
 

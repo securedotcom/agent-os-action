@@ -32,7 +32,10 @@
 
 ### Core Capabilities
 
-- **🔍 Multi-Scanner**: TruffleHog, Semgrep, Trivy, Checkov (4 scanners in parallel)
+- **🔍 Multi-Scanner**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security (6 scanners in parallel)
+- **🌐 DAST Scanner**: Optional dynamic application security testing with Nuclei (4000+ templates)
+- **🔗 SAST-DAST Correlation**: AI verifies if static findings are exploitable via dynamic tests
+- **🧪 Security Test Generation**: Auto-generate pytest/Jest tests for discovered vulnerabilities
 - **🤖 AI Triage**: Claude/OpenAI for intelligent noise reduction (60-70% FP suppression)
 - **🎯 Smart Blocking**: Only fails on verified secrets, critical CVEs, high-confidence SAST
 - **⚡ Intelligent Caching**: 10-100x faster repeat scans
@@ -42,12 +45,16 @@
 ### Default Behavior
 
 **By default, Agent-OS:**
-- ✅ Runs **all 4 scanners** in parallel (TruffleHog, Semgrep, Trivy, Checkov)
+- ✅ Runs **6 scanners** in parallel (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security)
+- ✅ Tests **OWASP API Top 10** vulnerabilities (BOLA, broken auth, SSRF, misconfigurations, etc.)
 - ✅ **Automatically suppresses** test files, documentation, and low-confidence findings
 - ✅ **Caches results** for 7 days (10-100x speedup on repeat scans)
 - ✅ **Comments on PRs** with actionable findings only
 - ✅ **Blocks PRs** only on verified threats (secrets, critical CVEs, high-confidence SAST)
 - ✅ **Logs all decisions** for analysis and improvement
+- ✅ **Generates security tests** for discovered vulnerabilities (optional)
+
+**Optional: Enable DAST** - Add `--enable-dast --dast-target-url https://your-app.com` for runtime testing
 
 **No configuration required** - just add API key and go! 🎉
 
@@ -193,6 +200,10 @@ Agent-OS includes a powerful CLI for local development and CI/CD integration.
 | `agentos gate` | Apply policy gates (PR/release) | `./scripts/agentos gate --stage pr --input findings.json` |
 | `agentos feedback record` | Record finding feedback (TP/FP) | `./scripts/agentos feedback record abc-123 --mark fp --reason "test file"` |
 | `agentos feedback stats` | View feedback statistics | `./scripts/agentos feedback stats` |
+| `agentos api-security` | Run API security testing (OWASP API Top 10) | `./scripts/agentos api-security --path /path/to/repo` |
+| `agentos dast` | Run DAST scan with Nuclei | `./scripts/agentos dast --target https://api.example.com --openapi spec.yaml` |
+| `agentos correlate` | Correlate SAST and DAST findings | `./scripts/agentos correlate --sast sast.json --dast dast.json` |
+| `agentos generate-tests` | Generate security test suite | `./scripts/agentos generate-tests --findings findings.json --output tests/security/` |
 | `agentos dashboard` | Launch observability dashboard | `./scripts/agentos dashboard` |
 | `decision_analyzer.py` | Analyze AI decision quality | `python scripts/decision_analyzer.py --days 30` |
 | `scanner_registry.py` | Manage scanner plugins | `python scripts/scanner_registry.py list` |
@@ -259,6 +270,60 @@ pip install streamlit plotly pandas
 - Discovered patterns (e.g., "AI always suppresses test files")
 - Improvement suggestions
 - Trends over time
+
+#### 5. API Security Testing
+
+```bash
+# Test for OWASP API Top 10 vulnerabilities
+./scripts/agentos api-security --path /path/to/api
+
+# Output shows:
+# - Discovered endpoints (REST, GraphQL, gRPC)
+# - BOLA/IDOR vulnerabilities
+# - Broken authentication
+# - SSRF risks
+# - Security misconfigurations
+```
+
+#### 6. DAST + SAST Correlation
+
+```bash
+# Step 1: Run SAST (static analysis)
+python scripts/run_ai_audit.py --output-file sast-findings.json
+
+# Step 2: Run DAST (dynamic testing)
+./scripts/agentos dast \
+  --target https://staging.example.com \
+  --openapi api/openapi.yaml \
+  --severity critical,high
+
+# Step 3: Correlate to find confirmed exploitable vulnerabilities
+./scripts/agentos correlate \
+  --sast sast-findings.json \
+  --dast dast-findings.json
+
+# Output shows:
+# - CONFIRMED: DAST verified SAST finding is exploitable
+# - PARTIAL: Similar but not exact match
+# - NOT_VERIFIED: Couldn't verify (likely false positive)
+```
+
+#### 7. Generate Security Tests
+
+```bash
+# Generate pytest/Jest tests from discovered vulnerabilities
+./scripts/agentos generate-tests \
+  --findings findings.json \
+  --output tests/security/
+
+# Run generated tests
+pytest tests/security/test_security_generated.py -v
+
+# Tests ensure:
+# - Vulnerabilities are exploitable (before fix)
+# - Fixes work correctly (after fix)
+# - No regression (vulnerability doesn't return)
+```
 
 ---
 

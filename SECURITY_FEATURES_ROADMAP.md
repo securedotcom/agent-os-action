@@ -8,7 +8,13 @@
 
 ## Executive Summary
 
-Agent-OS already has strong foundations (4 scanners, AI triage, feedback learning, observability). This roadmap outlines **15 game-changing security features** to make it the most powerful open-source security platform, capable of competing with commercial tools like Snyk, Checkmarx, and Veracode.
+Agent-OS already has strong foundations (6 scanners, AI triage, feedback learning, observability). This roadmap outlines **15 game-changing security features** to make it the most powerful open-source security platform, capable of competing with commercial tools like Snyk, Checkmarx, and Veracode.
+
+**✅ COMPLETED (2026-01-15):**
+- API Security Testing (OWASP API Top 10)
+- DAST Scanner (Nuclei integration)
+- SAST-DAST Correlation Engine (AI-powered)
+- Security Test Suite Generator
 
 **Strategic Focus:**
 1. **Shift-Left + Shift-Right** - Cover both pre-commit and runtime security
@@ -21,17 +27,20 @@ Agent-OS already has strong foundations (4 scanners, AI triage, feedback learnin
 
 ## 🎯 Priority 1: High-Impact Core Features (Next 3-6 Months)
 
-### 1. 🔥 **Dynamic Application Security Testing (DAST)**
+### 1. ✅ **Dynamic Application Security Testing (DAST)** - COMPLETED
+
+**Status:** ✅ Implemented (2026-01-15)
+**Location:** `scripts/dast_scanner.py` (982 lines)
 
 **What:** Active security testing of running applications (complement to SAST)
 
 **Why:** SAST finds code issues; DAST finds runtime vulnerabilities (auth bypass, session issues, injection in real contexts)
 
 **Implementation:**
-- Integrate **ZAP (OWASP Zed Attack Proxy)** or **Nuclei** for open-source DAST
-- Auto-detect application endpoints from OpenAPI/Swagger specs
-- Smart crawling with AI-guided test generation
-- Authenticated scanning with credential management
+- ✅ Integrated **Nuclei** for open-source DAST (4000+ templates)
+- ✅ Auto-detect application endpoints from OpenAPI/Swagger specs
+- ✅ Authenticated scanning with custom headers/tokens
+- ✅ Rate limiting and timeout controls
 
 **New Files:**
 ```python
@@ -71,8 +80,15 @@ python scripts/run_ai_audit.py \
 - ✅ Verify SAST findings are exploitable (reduce false positives)
 - ✅ Find runtime-only issues (auth, session, configuration)
 - ✅ Generate PoC exploits automatically
-- **Effort:** 2-3 weeks
+- **Effort:** COMPLETED in 2 days (via parallel agents)
 - **Differentiator:** First open-source tool with SAST+DAST correlation via AI
+
+**Files Created:**
+- `scripts/dast_scanner.py` - Main scanner (982 lines)
+- `scripts/sast_dast_correlator.py` - AI correlation engine (851 lines)
+- `examples/dast_scanner_example.py` - Working examples
+- `docs/references/dast-scanner-reference.md` - Complete docs
+- `tests/unit/test_sast_dast_correlator.py` - 35+ tests
 
 ---
 
@@ -213,7 +229,10 @@ class SupplyChainAnalyzer:
 
 ---
 
-### 4. 🛡️ **API Security Testing (OWASP API Top 10)**
+### 4. ✅ **API Security Testing (OWASP API Top 10)** - COMPLETED
+
+**Status:** ✅ Implemented (2026-01-15)
+**Location:** `scripts/api_security_scanner.py` (1,321 lines)
 
 **What:** Specialized testing for REST/GraphQL/gRPC APIs
 
@@ -280,9 +299,24 @@ class APISecurityScanner:
 **Impact:**
 - ✅ Comprehensive API security coverage (REST, GraphQL, gRPC)
 - ✅ Auto-generate API security tests
-- ✅ Catch OWASP API Top 10 vulnerabilities
-- **Effort:** 2-3 weeks
+- ✅ Catch all 10 OWASP API Top 10 categories
+- **Effort:** COMPLETED in 1 day (via parallel agents)
 - **Differentiator:** AI-generated API security test suites
+
+**Files Created:**
+- `scripts/api_security_scanner.py` - Main scanner (1,321 lines)
+- `scripts/security_test_generator.py` - Test generation (710 lines)
+- `tests/unit/test_security_test_generator.py` - 30+ tests
+- `examples/security_test_generator_example.py` - Working examples
+- `docs/security-test-generator.md` - Complete docs
+
+**Features Implemented:**
+- ✅ 7 framework support (Flask, FastAPI, Django, Express, Spring, Gin, Echo)
+- ✅ 100% OWASP API Top 10 (2023) coverage
+- ✅ GraphQL security tests (introspection, depth limits, batching)
+- ✅ Auto-detection of endpoints with authentication checks
+- ✅ CWE mapping and OWASP references
+- ✅ Confidence scoring and severity classification
 
 ---
 

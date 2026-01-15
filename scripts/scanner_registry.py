@@ -94,6 +94,8 @@ class ScannerRegistry:
                 "trivy": ("trivy_scanner", "TrivyScanner"),
                 "checkov": ("scanners.checkov_scanner", "CheckovScanner"),
                 "gitleaks": ("gitleaks_scanner", "GitleaksScanner"),
+                "api-security": ("api_security_scanner", "APISecurityScanner"),
+                "dast": ("dast_scanner", "DASTScanner"),
             }
 
             for scanner_name, (module_name, class_name) in builtin_scanners.items():
