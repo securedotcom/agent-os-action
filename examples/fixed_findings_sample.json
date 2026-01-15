@@ -1,0 +1,43 @@
+[
+  {
+    "type": "sql-injection",
+    "path": "app/database.py",
+    "function": "get_user_by_id",
+    "cwe": "CWE-89",
+    "cve": "CVE-2024-1234",
+    "severity": "critical",
+    "description": "SQL injection in user lookup function - fixed by using parameterized queries",
+    "date_fixed": "2024-01-15",
+    "fix_commit": "abc123def456"
+  },
+  {
+    "type": "xss",
+    "path": "app/templates.py",
+    "function": "render_user_input",
+    "cwe": "CWE-79",
+    "severity": "high",
+    "description": "Cross-site scripting vulnerability in template rendering - fixed by HTML escaping",
+    "date_fixed": "2024-01-14",
+    "fix_commit": "def789ghi012"
+  },
+  {
+    "type": "command-injection",
+    "path": "app/file_processor.py",
+    "function": "process_file",
+    "cwe": "CWE-78",
+    "severity": "critical",
+    "description": "Command injection in file processor - fixed by using subprocess with shell=False",
+    "date_fixed": "2024-01-13",
+    "fix_commit": "ghi345jkl678"
+  },
+  {
+    "type": "path-traversal",
+    "path": "app/file_handler.py",
+    "function": "read_file",
+    "cwe": "CWE-22",
+    "severity": "high",
+    "description": "Path traversal vulnerability - fixed by validating file paths",
+    "date_fixed": "2024-01-12",
+    "fix_commit": "jkl901mno234"
+  }
+]

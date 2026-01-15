@@ -113,12 +113,17 @@ class HybridSecurityAnalyzer:
         enable_dast: bool = False,
         enable_supply_chain: bool = True,
         enable_fuzzing: bool = False,
+        enable_threat_intel: bool = True,
+        enable_remediation: bool = True,
+        enable_runtime_security: bool = False,
+        enable_regression_testing: bool = True,
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
         ai_provider: Optional[str] = None,
         dast_target_url: Optional[str] = None,
         fuzzing_duration: int = 300,  # 5 minutes default
+        runtime_monitoring_duration: int = 60,  # 1 minute default
         config: Optional[dict] = None,
     ):
         """
@@ -132,12 +137,17 @@ class HybridSecurityAnalyzer:
             enable_dast: Run DAST Scanner
             enable_supply_chain: Run Supply Chain Attack Detection
             enable_fuzzing: Run Intelligent Fuzzing Engine
+            enable_threat_intel: Run Threat Intelligence Enrichment
+            enable_remediation: Run Automated Remediation Engine
+            enable_runtime_security: Run Container Runtime Security Monitoring
+            enable_regression_testing: Run Security Regression Testing
             enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
             ai_provider: AI provider name (anthropic, openai, etc.)
             dast_target_url: Target URL for DAST scanning
             fuzzing_duration: Fuzzing duration in seconds (default: 300)
+            runtime_monitoring_duration: Runtime monitoring duration in seconds (default: 60)
             config: Additional configuration
         """
         self.enable_semgrep = enable_semgrep
@@ -147,12 +157,17 @@ class HybridSecurityAnalyzer:
         self.enable_dast = enable_dast
         self.enable_supply_chain = enable_supply_chain
         self.enable_fuzzing = enable_fuzzing
+        self.enable_threat_intel = enable_threat_intel
+        self.enable_remediation = enable_remediation
+        self.enable_runtime_security = enable_runtime_security
+        self.enable_regression_testing = enable_regression_testing
         self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
         self.ai_provider = ai_provider
         self.dast_target_url = dast_target_url
         self.fuzzing_duration = fuzzing_duration
+        self.runtime_monitoring_duration = runtime_monitoring_duration
         self.config = config or {}
 
         # Initialize scanners
@@ -163,6 +178,10 @@ class HybridSecurityAnalyzer:
         self.dast_scanner = None
         self.supply_chain_scanner = None
         self.fuzzing_scanner = None
+        self.threat_intel_enricher = None
+        self.remediation_engine = None
+        self.runtime_security_monitor = None
+        self.regression_tester = None
         self.sandbox_validator = None
         self.ai_client = None
 
@@ -259,6 +278,48 @@ class HybridSecurityAnalyzer:
                 logger.warning(f"⚠️  Fuzzing Engine not available: {e}")
                 self.enable_fuzzing = False
 
+        if self.enable_threat_intel:
+            try:
+                from threat_intel_enricher import ThreatIntelEnricher
+
+                self.threat_intel_enricher = ThreatIntelEnricher()
+                logger.info("✅ Threat Intelligence Enricher initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Threat Intelligence Enricher not available: {e}")
+                self.enable_threat_intel = False
+
+        if self.enable_remediation:
+            try:
+                from remediation_engine import RemediationEngine
+
+                self.remediation_engine = RemediationEngine(ai_provider=self.ai_provider)
+                logger.info("✅ Remediation Engine initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Remediation Engine not available: {e}")
+                self.enable_remediation = False
+
+        if self.enable_runtime_security:
+            try:
+                from runtime_security_monitor import RuntimeSecurityMonitor
+
+                self.runtime_security_monitor = RuntimeSecurityMonitor(
+                    duration_seconds=self.runtime_monitoring_duration
+                )
+                logger.info("✅ Runtime Security Monitor initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Runtime Security Monitor not available: {e}")
+                self.enable_runtime_security = False
+
+        if self.enable_regression_testing:
+            try:
+                from regression_tester import SecurityRegressionTester
+
+                self.regression_tester = SecurityRegressionTester()
+                logger.info("✅ Security Regression Tester initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Security Regression Tester not available: {e}")
+                self.enable_regression_testing = False
+
         # Initialize sandbox validator if enabled
         if self.enable_sandbox:
             try:
@@ -273,12 +334,15 @@ class HybridSecurityAnalyzer:
         # Validation: At least one scanner or AI enrichment must be enabled
         if (not self.enable_semgrep and not self.enable_trivy and not self.enable_checkov
             and not self.enable_api_security and not self.enable_dast and not self.enable_supply_chain
-            and not self.enable_fuzzing and not self.enable_ai_enrichment):
+            and not self.enable_fuzzing and not self.enable_threat_intel and not self.enable_remediation
+            and not self.enable_runtime_security and not self.enable_regression_testing
+            and not self.enable_ai_enrichment):
             raise ValueError(
                 "❌ ERROR: At least one tool must be enabled!\n"
                 "   Enable: --enable-semgrep, --enable-trivy, --enable-checkov, "
                 "--enable-api-security, --enable-dast, --enable-supply-chain, "
-                "--enable-fuzzing, or --enable-ai-enrichment"
+                "--enable-fuzzing, --enable-threat-intel, --enable-remediation, "
+                "--enable-runtime-security, --enable-regression-testing, or --enable-ai-enrichment"
             )
 
     def analyze(
@@ -396,6 +460,39 @@ class HybridSecurityAnalyzer:
                 logger.error(f"   ❌ Fuzzing failed: {e}")
                 logger.info("   💡 Continuing with other scanners...")
 
+        # Run Threat Intelligence Enrichment
+        if self.enable_threat_intel and self.threat_intel_enricher and all_findings:
+            try:
+                logger.info("   🔍 Running Threat Intelligence Enrichment...")
+                enriched_findings = self._run_threat_intel(all_findings)
+                all_findings = enriched_findings
+                logger.info(f"   ✅ Threat Intel: {len(all_findings)} findings enriched with threat context")
+            except Exception as e:
+                logger.error(f"   ❌ Threat Intelligence enrichment failed: {e}")
+                logger.info("   💡 Continuing with unenriched findings...")
+
+        # Run Runtime Security Monitoring
+        if self.enable_runtime_security and self.runtime_security_monitor:
+            try:
+                logger.info("   🔍 Running Runtime Security Monitoring...")
+                runtime_findings = self._run_runtime_security(target_path)
+                all_findings.extend(runtime_findings)
+                logger.info(f"   ✅ Runtime Security: {len(runtime_findings)} runtime threats detected")
+            except Exception as e:
+                logger.error(f"   ❌ Runtime Security monitoring failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run Security Regression Testing
+        if self.enable_regression_testing and self.regression_tester:
+            try:
+                logger.info("   🔍 Running Security Regression Testing...")
+                regression_findings = self._run_regression_testing(target_path, all_findings)
+                all_findings.extend(regression_findings)
+                logger.info(f"   ✅ Regression Testing: {len(regression_findings)} regressions detected")
+            except Exception as e:
+                logger.error(f"   ❌ Regression testing failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
         phase_timings["phase1_static_analysis"] = time.time() - phase1_start
         logger.info(f"   ⏱️  Phase 1 duration: {phase_timings['phase1_static_analysis']:.1f}s")
 
@@ -425,6 +522,29 @@ class HybridSecurityAnalyzer:
             logger.info(f"   ⏱️  Phase 2 duration: {phase_timings['phase2_ai_enrichment']:.1f}s")
         elif self.enable_ai_enrichment and not all_findings:
             logger.info("   ⚠️  Skipping Phase 2: No findings to enrich")
+
+        # PHASE 2.5: Automated Remediation (Optional)
+        if self.enable_remediation and all_findings and self.remediation_engine:
+            logger.info("")
+            logger.info("─" * 80)
+            logger.info("🔧 PHASE 2.5: Automated Remediation (AI-Generated Fixes)")
+            logger.info("─" * 80)
+
+            phase2_5_start = time.time()
+
+            try:
+                # Generate remediation suggestions for findings
+                remediated_findings = self._run_remediation(all_findings)
+                all_findings = remediated_findings
+                logger.info("   ✅ Remediation suggestions generated")
+            except Exception as e:
+                logger.error(f"   ❌ Remediation generation failed: {e}")
+                logger.info("   💡 Continuing without remediation suggestions...")
+
+            phase_timings["phase2_5_remediation"] = time.time() - phase2_5_start
+            logger.info(f"   ⏱️  Phase 2.5 duration: {phase_timings['phase2_5_remediation']:.1f}s")
+        elif self.enable_remediation and not all_findings:
+            logger.info("   ⚠️  Skipping Phase 2.5: No findings to remediate")
 
         # PHASE 3: Agent-OS Integration (Optional)
         if self.enable_agent_os and all_findings:
@@ -753,6 +873,165 @@ class HybridSecurityAnalyzer:
 
         except Exception as e:
             logger.error(f"❌ Fuzzing failed: {e}")
+
+        return findings
+
+    def _run_threat_intel(self, findings: list[HybridFinding]) -> list[HybridFinding]:
+        """Run Threat Intelligence Enrichment to add real-time threat context"""
+        enriched = []
+
+        logger.info(f"   🌐 Enriching {len(findings)} findings with threat intelligence...")
+
+        for finding in findings:
+            try:
+                # Enrich with threat intelligence if CVE is present
+                if finding.cve_id:
+                    threat_context = self.threat_intel_enricher.enrich_cve(finding.cve_id)
+
+                    # Add threat intelligence metadata to finding
+                    if threat_context:
+                        # Update exploitability based on threat intel
+                        if threat_context.get("in_kev_catalog"):
+                            finding.exploitability = "trivial"  # Actively exploited in wild
+                            finding.severity = "critical"  # Escalate severity
+
+                        # Add EPSS score to description
+                        epss_score = threat_context.get("epss_score", 0.0)
+                        if epss_score > 0.5:
+                            finding.description = (
+                                f"[EPSS: {epss_score:.1%} exploit probability] {finding.description}"
+                            )
+
+                        # Add exploit availability info
+                        exploit_available = threat_context.get("exploit_available", False)
+                        if exploit_available:
+                            finding.description = f"[Public exploit available] {finding.description}"
+
+                        # Add references from threat intel
+                        if threat_context.get("references"):
+                            finding.references.extend(threat_context["references"])
+
+                enriched.append(finding)
+
+            except Exception as e:
+                logger.warning(f"⚠️  Threat intel enrichment failed for {finding.finding_id}: {e}")
+                enriched.append(finding)
+
+        logger.info(f"   ✅ Threat intelligence enrichment complete")
+        return enriched
+
+    def _run_remediation(self, findings: list[HybridFinding]) -> list[HybridFinding]:
+        """Generate AI-powered remediation suggestions for findings"""
+        remediated = []
+
+        logger.info(f"   🔧 Generating remediation suggestions for {len(findings)} findings...")
+
+        for finding in findings:
+            try:
+                # Skip if already has good recommendation
+                if finding.recommendation and len(finding.recommendation) > 100:
+                    remediated.append(finding)
+                    continue
+
+                # Generate AI-powered remediation suggestion
+                suggestion = self.remediation_engine.suggest_fix(finding)
+
+                if suggestion:
+                    # Update finding with remediation suggestion
+                    finding.recommendation = suggestion.get("fix_explanation", finding.recommendation)
+
+                    # Add code patch if available
+                    if suggestion.get("code_patch"):
+                        finding.description = (
+                            f"{finding.description}\n\n"
+                            f"**Suggested Fix:**\n```\n{suggestion['code_patch']}\n```"
+                        )
+
+                    # Add testing recommendations
+                    if suggestion.get("testing_recommendations"):
+                        finding.references.append(
+                            f"Testing: {suggestion['testing_recommendations']}"
+                        )
+
+                remediated.append(finding)
+
+            except Exception as e:
+                logger.warning(f"⚠️  Remediation generation failed for {finding.finding_id}: {e}")
+                remediated.append(finding)
+
+        logger.info(f"   ✅ Remediation suggestions generated")
+        return remediated
+
+    def _run_runtime_security(self, target_path: str) -> list[HybridFinding]:
+        """Run Container Runtime Security Monitoring"""
+        findings = []
+
+        try:
+            logger.info(f"   🐳 Monitoring runtime security for {self.runtime_monitoring_duration}s...")
+
+            # Run runtime security monitor
+            runtime_result = self.runtime_security_monitor.monitor(target_path)
+
+            # Convert to HybridFinding format
+            if isinstance(runtime_result, list):
+                for runtime_finding in runtime_result:
+                    finding = HybridFinding(
+                        finding_id=runtime_finding.get("id", "unknown"),
+                        source_tool="runtime-security",
+                        severity=self._normalize_severity(runtime_finding.get("severity", "medium")),
+                        category="runtime",
+                        title=runtime_finding.get("title", "Runtime Security Threat"),
+                        description=runtime_finding.get("description", ""),
+                        file_path=runtime_finding.get("file_path", target_path),
+                        line_number=runtime_finding.get("line_number"),
+                        cwe_id=runtime_finding.get("cwe_id"),
+                        recommendation=runtime_finding.get("recommendation", ""),
+                        references=runtime_finding.get("references", []),
+                        confidence=runtime_finding.get("confidence", 0.9),
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ Runtime security monitoring failed: {e}")
+
+        return findings
+
+    def _run_regression_testing(self, target_path: str, current_findings: list[HybridFinding]) -> list[HybridFinding]:
+        """Run Security Regression Testing to detect reappearance of fixed vulnerabilities"""
+        findings = []
+
+        try:
+            logger.info("   🧪 Checking for security regressions...")
+
+            # Detect regressions
+            regressions = self.regression_tester.detect_regression(
+                current_findings=current_findings,
+                target_path=target_path
+            )
+
+            # Convert to HybridFinding format
+            for regression in regressions:
+                finding = HybridFinding(
+                    finding_id=regression.get("id", "unknown"),
+                    source_tool="regression-testing",
+                    severity="high",  # Regressions are always high severity
+                    category="regression",
+                    title=f"Security Regression: {regression.get('title', 'Fixed vulnerability reappeared')}",
+                    description=regression.get("description", ""),
+                    file_path=regression.get("file_path", target_path),
+                    line_number=regression.get("line_number"),
+                    cwe_id=regression.get("cwe_id"),
+                    cve_id=regression.get("cve_id"),
+                    recommendation=regression.get("recommendation", ""),
+                    references=regression.get("references", []),
+                    confidence=1.0,  # Regressions are confirmed
+                    llm_enriched=False,
+                )
+                findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ Regression testing failed: {e}")
 
         return findings
 
@@ -1150,6 +1429,14 @@ Respond with JSON only:"""
             tools.append("Supply-Chain")
         if self.enable_fuzzing:
             tools.append("Fuzzing")
+        if self.enable_threat_intel:
+            tools.append("Threat-Intel")
+        if self.enable_remediation:
+            tools.append("Remediation")
+        if self.enable_runtime_security:
+            tools.append("Runtime-Security")
+        if self.enable_regression_testing:
+            tools.append("Regression-Testing")
         if self.enable_ai_enrichment and self.ai_client:
             tools.append(f"AI-Enrichment ({self.ai_client.provider})")
         if self.enable_agent_os:
@@ -1352,6 +1639,10 @@ def main():
     parser.add_argument("--enable-dast", action="store_true", default=False, help="Enable DAST scanning")
     parser.add_argument("--enable-supply-chain", action="store_true", default=True, help="Enable Supply Chain Attack Detection")
     parser.add_argument("--enable-fuzzing", action="store_true", default=False, help="Enable Intelligent Fuzzing Engine")
+    parser.add_argument("--enable-threat-intel", action="store_true", default=True, help="Enable Threat Intelligence Enrichment")
+    parser.add_argument("--enable-remediation", action="store_true", default=True, help="Enable Automated Remediation Engine")
+    parser.add_argument("--enable-runtime-security", action="store_true", default=False, help="Enable Container Runtime Security Monitoring")
+    parser.add_argument("--enable-regression-testing", action="store_true", default=True, help="Enable Security Regression Testing")
     parser.add_argument(
         "--enable-ai-enrichment",
         action="store_true",
@@ -1361,6 +1652,7 @@ def main():
     parser.add_argument("--ai-provider", help="AI provider (anthropic, openai, ollama)")
     parser.add_argument("--dast-target-url", help="Target URL for DAST scanning (required if --enable-dast)")
     parser.add_argument("--fuzzing-duration", type=int, default=300, help="Fuzzing duration in seconds (default: 300)")
+    parser.add_argument("--runtime-monitoring-duration", type=int, default=60, help="Runtime monitoring duration in seconds (default: 60)")
     parser.add_argument("--severity-filter", help="Comma-separated severity levels to report (e.g., critical,high)")
 
     args = parser.parse_args()
@@ -1382,10 +1674,15 @@ def main():
         enable_dast=args.enable_dast,
         enable_supply_chain=args.enable_supply_chain,
         enable_fuzzing=args.enable_fuzzing,
+        enable_threat_intel=args.enable_threat_intel,
+        enable_remediation=args.enable_remediation,
+        enable_runtime_security=args.enable_runtime_security,
+        enable_regression_testing=args.enable_regression_testing,
         enable_ai_enrichment=args.enable_ai_enrichment,
         ai_provider=args.ai_provider,
         dast_target_url=args.dast_target_url,
         fuzzing_duration=args.fuzzing_duration,
+        runtime_monitoring_duration=args.runtime_monitoring_duration,
         config=config,
     )
 

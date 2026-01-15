@@ -39,6 +39,10 @@
 - **🧪 Security Test Generation**: Auto-generate pytest/Jest tests for discovered vulnerabilities
 - **🔗 Supply Chain Attack Detection**: Detect typosquatting, malicious dependencies, and compromised packages
 - **🧬 Intelligent Fuzzing**: AI-guided fuzzing for APIs, functions, and file parsers
+- **🌍 Threat Intelligence Enrichment**: Real-time threat context from CVE, CISA KEV, EPSS, exploit DBs
+- **🔧 Automated Remediation**: AI-generated fix suggestions with code patches and testing guidance
+- **🐳 Runtime Security Monitoring**: Container runtime threat detection (optional)
+- **🧪 Regression Testing**: Ensure fixed vulnerabilities stay fixed with automated test generation
 - **🤖 AI Triage**: Claude/OpenAI for intelligent noise reduction (60-70% FP suppression)
 - **🎯 Smart Blocking**: Only fails on verified secrets, critical CVEs, high-confidence SAST
 - **⚡ Intelligent Caching**: 10-100x faster repeat scans
@@ -49,6 +53,9 @@
 
 **By default, Agent-OS:**
 - ✅ Runs **9 scanners** (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST)
+- ✅ Enriches findings with **threat intelligence** (CVE, CISA KEV, EPSS, exploit availability)
+- ✅ Generates **AI-powered fix suggestions** with code patches and testing recommendations
+- ✅ Runs **regression tests** to prevent fixed vulnerabilities from returning
 - ✅ Tests **OWASP API Top 10** vulnerabilities (BOLA, broken auth, SSRF, misconfigurations, etc.)
 - ✅ **Automatically suppresses** test files, documentation, and low-confidence findings
 - ✅ **Caches results** for 7 days (10-100x speedup on repeat scans)
@@ -207,6 +214,10 @@ Agent-OS includes a powerful CLI for local development and CI/CD integration.
 | `agentos dast` | Run DAST scan with Nuclei | `./scripts/agentos dast --target https://api.example.com --openapi spec.yaml` |
 | `agentos correlate` | Correlate SAST and DAST findings | `./scripts/agentos correlate --sast sast.json --dast dast.json` |
 | `agentos generate-tests` | Generate security test suite | `./scripts/agentos generate-tests --findings findings.json --output tests/security/` |
+| `agentos threat-intel` | Enrich findings with threat intelligence | `./scripts/agentos threat-intel enrich --findings findings.json` |
+| `agentos remediate` | Generate AI-powered fix suggestions | `./scripts/agentos remediate --findings findings.json --output fixes.md` |
+| `agentos runtime-security` | Monitor container runtime security | `./scripts/agentos runtime-security monitor --duration 60` |
+| `agentos regression-test` | Generate and run security regression tests | `./scripts/agentos regression-test generate --fixed-findings fixed.json` |
 | `agentos dashboard` | Launch observability dashboard | `./scripts/agentos dashboard` |
 | `decision_analyzer.py` | Analyze AI decision quality | `python scripts/decision_analyzer.py --days 30` |
 | `scanner_registry.py` | Manage scanner plugins | `python scripts/scanner_registry.py list` |

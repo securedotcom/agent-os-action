@@ -1,0 +1,15 @@
+{
+  "test_id": "d2d143e19f2d",
+  "vulnerability_type": "path-traversal",
+  "cve_id": null,
+  "cwe_id": "CWE-22",
+  "file_path": "app/file_handler.py",
+  "function_name": "read_file",
+  "date_fixed": "2026-01-15T03:57:04.156573",
+  "test_code": "\nimport pytest\nfrom app.file_handler import read_file\n\ndef test_path_traversal_regression():\n    \"\"\"Regression test: Ensure path traversal is still fixed\"\"\"\n    traversal_payloads = [\n        \"../../etc/passwd\",\n        \"....//....//etc/passwd\",\n        \"..\\\\..\\\\windows\\\\system32\",\n        \"%2e%2e%2f%2e%2e%2fetc%2fpasswd\",\n    ]\n\n    for payload in traversal_payloads:\n        try:\n            result = read_file(payload)\n            # Should not access sensitive files\n            result_str = str(result)\n            assert \"root:\" not in result_str, f\"Path traversal possible: {payload}\"\n            assert \"system32\" not in result_str.lower(), \"Windows system files accessible\"\n        except (ValueError, FileNotFoundError, PermissionError):\n            # Expected: should reject or sanitize path\n            pass\n\ndef test_path_traversal_normal_input():\n    \"\"\"Ensure fix doesn't break normal functionality\"\"\"\n    normal_input = \"safe/path/file.txt\"\n    result = read_file(normal_input)\n    assert result is not None, \"Function broken for normal path\"\n",
+  "language": "python",
+  "description": "Path traversal vulnerability - fixed by validating file paths",
+  "severity": "high",
+  "exploit_payload": "../../etc/passwd",
+  "expected_behavior": "should_validate_path"
+}

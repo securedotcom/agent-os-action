@@ -98,6 +98,10 @@ class ScannerRegistry:
                 "dast": ("dast_scanner", "DASTScanner"),
                 "supply-chain": ("supply_chain_analyzer", "SupplyChainAnalyzer"),
                 "fuzzing": ("fuzzing_engine", "FuzzingEngine"),
+                "threat-intel": ("threat_intel_enricher", "ThreatIntelEnricher"),
+                "remediation": ("remediation_engine", "RemediationEngine"),
+                "runtime-security": ("runtime_security_monitor", "RuntimeSecurityMonitor"),
+                "regression-testing": ("regression_tester", "SecurityRegressionTester"),
             }
 
             for scanner_name, (module_name, class_name) in builtin_scanners.items():

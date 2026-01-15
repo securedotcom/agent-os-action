@@ -21,7 +21,7 @@ Start here if you're new to Agent-OS:
 
 Learn about Agent-OS capabilities:
 
-- **[Scanner Overview](references/scanner-reference.md)** - All 7 integrated security scanners
+- **[Scanner Overview](references/scanner-reference.md)** - All 13 integrated security features
   - TruffleHog - Verified secret detection
   - Gitleaks - Pattern-based secret scanning
   - Semgrep - SAST with 2000+ rules
@@ -29,6 +29,12 @@ Learn about Agent-OS capabilities:
   - Checkov - Infrastructure-as-Code security
   - API Security - OWASP API Top 10 testing
   - DAST - Dynamic application security testing
+  - Supply Chain - Dependency attack detection
+  - Fuzzing - AI-guided intelligent fuzzing
+  - Threat Intel - Real-time threat context enrichment
+  - Remediation - AI-powered fix generation
+  - Runtime Security - Container threat monitoring
+  - Regression Testing - Automated security regression tests
 
 - **[AI Triage & Noise Reduction](adrs/0003-ai-triage-strategy.md)** - Reduce false positives by 60-70%
   - Claude (Anthropic) integration
@@ -39,6 +45,10 @@ Learn about Agent-OS capabilities:
 - **[Security Test Generation](security-test-generator.md)** - Auto-generate pytest/Jest tests for vulnerabilities
 - **[API Security Testing](DAST_QUICKSTART.md)** - OWASP API Top 10 vulnerability detection
 - **[Supply Chain Security](#supply-chain)** - Dependency attack detection and fuzzing
+- **[Threat Intelligence](features/threat-intelligence.md)** - Real-time threat context from CVE, CISA KEV, EPSS
+- **[Automated Remediation](features/remediation.md)** - AI-generated fix suggestions with code patches
+- **[Runtime Security](features/runtime-security.md)** - Container runtime threat monitoring
+- **[Regression Testing](features/regression-testing.md)** - Ensure fixed vulnerabilities stay fixed
 - **[Intelligent Caching](../README.md#intelligent-caching)** - 10-100x faster repeat scans
 - **[Real-Time Progress](../README.md#real-time-progress)** - Beautiful terminal UI with progress bars
 - **[Feedback Learning](../README.md#feedback-collection--learning)** - Continuous improvement through user feedback

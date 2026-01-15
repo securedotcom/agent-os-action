@@ -1,0 +1,15 @@
+{
+  "test_id": "4c836ec2a25f",
+  "vulnerability_type": "sql-injection",
+  "cve_id": "CVE-2024-1234",
+  "cwe_id": "CWE-89",
+  "file_path": "app/database.py",
+  "function_name": "get_user_by_id",
+  "date_fixed": "2026-01-15T03:57:04.152727",
+  "test_code": "\nimport pytest\nfrom app.database import get_user_by_id\n\ndef test_sql_injection_regression():\n    \"\"\"Regression test: Ensure SQL injection is still fixed\"\"\"\n    # Test with SQL injection payload\n    malicious_input = \"' OR '1'='1\"\n\n    # Should NOT execute SQL injection (should sanitize or use parameterized query)\n    try:\n        result = get_user_by_id(malicious_input)\n        # If we get here, check that injection didn't work\n        result_str = str(result)\n        assert \"1'='1\" not in result_str, \"SQL injection vulnerability returned!\"\n        assert len(result_str) < 1000, \"Suspiciously large result - possible injection\"\n    except ValueError:\n        # Expected: should raise error for malicious input\n        pass\n    except Exception as e:\n        # Should not crash with other errors\n        if \"SQL\" in str(e) and \"syntax\" in str(e).lower():\n            pytest.fail(\"SQL injection still possible - syntax error indicates unescaped SQL\")\n\ndef test_sql_injection_normal_input():\n    \"\"\"Ensure fix doesn't break normal functionality\"\"\"\n    normal_input = \"valid_user_123\"\n    result = get_user_by_id(normal_input)\n    assert result is not None, \"Function broken for normal input\"\n",
+  "language": "python",
+  "description": "SQL injection in user lookup function - fixed by using parameterized queries",
+  "severity": "critical",
+  "exploit_payload": "' OR '1'='1",
+  "expected_behavior": "should_use_parameterized_query"
+}

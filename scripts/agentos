@@ -339,6 +339,144 @@ def cmd_fuzz(args):
             print(f"   - {crash.crash_type} ({crash.severity})")
 
 
+def cmd_threat_intel(args):
+    """Enrich findings with threat intelligence"""
+    from threat_intel_enricher import ThreatIntelEnricher
+    import json
+
+    if args.action == "enrich":
+        if not args.findings:
+            print("❌ Error: --findings required")
+            sys.exit(1)
+
+        # Load findings
+        with open(args.findings) as f:
+            findings_data = json.load(f)
+
+        enricher = ThreatIntelEnricher()
+
+        # Enrich findings with threat intel
+        enriched_count = 0
+        for finding in findings_data.get("findings", []):
+            if finding.get("cve_id"):
+                threat_context = enricher.enrich_cve(finding["cve_id"])
+                if threat_context:
+                    finding["threat_context"] = threat_context
+                    enriched_count += 1
+
+        # Save enriched findings
+        with open(args.output or args.findings, 'w') as f:
+            json.dump(findings_data, f, indent=2)
+
+        print(f"\n🌐 Threat Intelligence Enrichment:")
+        print(f"   Total findings: {len(findings_data.get('findings', []))}")
+        print(f"   Enriched: {enriched_count}")
+        print(f"   Output: {args.output or args.findings}")
+
+
+def cmd_remediate(args):
+    """Generate AI-powered remediation suggestions"""
+    from remediation_engine import RemediationEngine
+    import json
+
+    if not args.findings:
+        print("❌ Error: --findings required")
+        sys.exit(1)
+
+    # Load findings
+    with open(args.findings) as f:
+        findings_data = json.load(f)
+
+    engine = RemediationEngine(ai_provider=args.ai_provider)
+
+    # Generate remediation suggestions
+    remediations = []
+    for finding in findings_data.get("findings", []):
+        suggestion = engine.suggest_fix(finding)
+        if suggestion:
+            remediations.append({
+                "finding_id": finding.get("finding_id"),
+                "title": finding.get("title"),
+                "fix": suggestion
+            })
+
+    # Output remediations
+    output = args.output or "remediations.md"
+    with open(output, 'w') as f:
+        f.write("# Security Remediation Suggestions\n\n")
+        for rem in remediations:
+            f.write(f"## {rem['title']}\n\n")
+            f.write(f"**Finding ID:** {rem['finding_id']}\n\n")
+            f.write(f"**Fix:**\n{rem['fix'].get('fix_explanation', 'No fix available')}\n\n")
+            if rem['fix'].get('code_patch'):
+                f.write(f"**Code Patch:**\n```\n{rem['fix']['code_patch']}\n```\n\n")
+            f.write("---\n\n")
+
+    print(f"\n🔧 Remediation Suggestions:")
+    print(f"   Total findings: {len(findings_data.get('findings', []))}")
+    print(f"   Remediation suggestions: {len(remediations)}")
+    print(f"   Output: {output}")
+
+
+def cmd_runtime_security(args):
+    """Monitor container runtime security"""
+    from runtime_security_monitor import RuntimeSecurityMonitor
+
+    if args.action == "monitor":
+        monitor = RuntimeSecurityMonitor(duration_seconds=args.duration or 60)
+
+        print(f"\n🐳 Runtime Security Monitoring:")
+        print(f"   Duration: {args.duration or 60}s")
+        print(f"   Starting monitor...")
+
+        findings = monitor.monitor(args.path or ".")
+
+        print(f"\n   Threats detected: {len(findings)}")
+
+        if findings:
+            print("\n   Runtime threats:")
+            for finding in findings:
+                print(f"   - {finding.get('severity', 'UNKNOWN').upper()}: {finding.get('title', 'Unknown threat')}")
+
+
+def cmd_regression_test(args):
+    """Generate and run security regression tests"""
+    from regression_tester import SecurityRegressionTester
+
+    tester = SecurityRegressionTester()
+
+    if args.action == "generate":
+        if not args.fixed_findings:
+            print("❌ Error: --fixed-findings required")
+            sys.exit(1)
+
+        import json
+        with open(args.fixed_findings) as f:
+            fixed_findings = json.load(f)
+
+        # Generate regression test suite
+        test_cases = tester.generate_regression_tests(fixed_findings.get("findings", []))
+
+        print(f"\n🧪 Regression Test Generation:")
+        print(f"   Fixed findings: {len(fixed_findings.get('findings', []))}")
+        print(f"   Test cases generated: {len(test_cases)}")
+
+    elif args.action == "run":
+        # Run regression tests
+        regressions = tester.detect_regression(
+            current_findings=[],
+            target_path=args.path or "."
+        )
+
+        print(f"\n🧪 Regression Test Results:")
+        print(f"   Regressions detected: {len(regressions)}")
+
+        if regressions:
+            print("\n   Regressions:")
+            for regression in regressions:
+                print(f"   - {regression.get('title', 'Unknown regression')}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agent-OS Security Control Plane",
@@ -383,6 +521,19 @@ Examples:
   agentos fuzz api --spec openapi.yaml --duration 60
   agentos fuzz function --target src/parser.py --function parse_xml --duration 30
   agentos fuzz ci --budget 5
+
+  # Threat intelligence enrichment
+  agentos threat-intel enrich --findings findings.json --output enriched.json
+
+  # Automated remediation
+  agentos remediate --findings findings.json --output fixes.md
+
+  # Runtime security monitoring
+  agentos runtime-security monitor --duration 60 --path /path/to/app
+
+  # Security regression testing
+  agentos regression-test generate --fixed-findings fixed.json
+  agentos regression-test run --path /path/to/repo
 """
     )
     
@@ -488,6 +639,49 @@ Examples:
     fuzz_ci.add_argument('--ai-provider', help='AI provider for smart test generation')
 
     parser_fuzz.set_defaults(func=cmd_fuzz)
+
+    # Threat Intelligence command
+    parser_threat_intel = subparsers.add_parser('threat-intel', help='Threat intelligence enrichment')
+    threat_intel_subparsers = parser_threat_intel.add_subparsers(dest='action', help='Threat intel action')
+
+    # Threat intel enrich
+    threat_intel_enrich = threat_intel_subparsers.add_parser('enrich', help='Enrich findings with threat intel')
+    threat_intel_enrich.add_argument('--findings', required=True, help='Findings JSON file')
+    threat_intel_enrich.add_argument('--output', help='Output file (default: overwrites input)')
+
+    parser_threat_intel.set_defaults(func=cmd_threat_intel)
+
+    # Remediation command
+    parser_remediate = subparsers.add_parser('remediate', help='Generate remediation suggestions')
+    parser_remediate.add_argument('--findings', required=True, help='Findings JSON file')
+    parser_remediate.add_argument('--output', help='Output markdown file (default: remediations.md)')
+    parser_remediate.add_argument('--ai-provider', help='AI provider for remediation generation')
+    parser_remediate.set_defaults(func=cmd_remediate)
+
+    # Runtime Security command
+    parser_runtime = subparsers.add_parser('runtime-security', help='Container runtime security monitoring')
+    runtime_subparsers = parser_runtime.add_subparsers(dest='action', help='Runtime security action')
+
+    # Runtime security monitor
+    runtime_monitor = runtime_subparsers.add_parser('monitor', help='Monitor runtime security')
+    runtime_monitor.add_argument('--duration', type=int, help='Monitoring duration in seconds (default: 60)')
+    runtime_monitor.add_argument('--path', help='Path to monitor (default: current directory)')
+
+    parser_runtime.set_defaults(func=cmd_runtime_security)
+
+    # Regression Testing command
+    parser_regression = subparsers.add_parser('regression-test', help='Security regression testing')
+    regression_subparsers = parser_regression.add_subparsers(dest='action', help='Regression test action')
+
+    # Regression test generate
+    regression_generate = regression_subparsers.add_parser('generate', help='Generate regression test suite')
+    regression_generate.add_argument('--fixed-findings', required=True, help='Fixed findings JSON file')
+
+    # Regression test run
+    regression_run = regression_subparsers.add_parser('run', help='Run regression tests')
+    regression_run.add_argument('--path', help='Repository path (default: current directory)')
+
+    parser_regression.set_defaults(func=cmd_regression_test)
 
     args = parser.parse_args()
     

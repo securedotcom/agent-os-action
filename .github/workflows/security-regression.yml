@@ -1,0 +1,207 @@
+name: Security Regression Tests
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.ts'
+      - 'tests/security_regression/**'
+  push:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run daily at 2 AM UTC to catch any regression
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      vuln_type:
+        description: 'Vulnerability type to test (leave empty for all)'
+        required: false
+        type: string
+
+jobs:
+  regression-tests:
+    name: Run Security Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-timeout
+
+      - name: Check for regression tests
+        id: check_tests
+        run: |
+          if [ -d "tests/security_regression" ] && [ "$(find tests/security_regression -name '*.py' | wc -l)" -gt 0 ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "Found $(find tests/security_regression -name '*.py' | wc -l) regression tests"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "No regression tests found - skipping"
+          fi
+
+      - name: Run regression tests
+        if: steps.check_tests.outputs.has_tests == 'true'
+        id: run_tests
+        run: |
+          if [ -n "${{ github.event.inputs.vuln_type }}" ]; then
+            echo "Running tests for vulnerability type: ${{ github.event.inputs.vuln_type }}"
+            python scripts/regression_tester.py --mode run --vuln-type "${{ github.event.inputs.vuln_type }}"
+          else
+            echo "Running all regression tests"
+            python scripts/regression_tester.py --mode run
+          fi
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always() && steps.check_tests.outputs.has_tests == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-test-results
+          path: tests/security_regression/latest_results.json
+          retention-days: 30
+
+      - name: Generate test report
+        if: always() && steps.check_tests.outputs.has_tests == 'true'
+        run: |
+          if [ -f "tests/security_regression/latest_results.json" ]; then
+            echo "## Security Regression Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            TOTAL=$(jq -r '.total' tests/security_regression/latest_results.json)
+            PASSED=$(jq -r '.passed' tests/security_regression/latest_results.json)
+            FAILED=$(jq -r '.failed' tests/security_regression/latest_results.json)
+            ERRORS=$(jq -r '.errors' tests/security_regression/latest_results.json)
+
+            echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
+            echo "- **✅ Passed**: $PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- **❌ Failed**: $FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "- **⚠️ Errors**: $ERRORS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$FAILED" -gt 0 ]; then
+              echo "### ⚠️ Failed Tests - Vulnerabilities May Have Returned!" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "The following regression tests failed:" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.failures[] | "- **\(.vulnerability)** [\(.severity)] in `\(.file)` (test: \(.test_id))"' \
+                tests/security_regression/latest_results.json >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.check_tests.outputs.has_tests == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('tests/security_regression/latest_results.json', 'utf8'));
+
+            let body = '## 🧪 Security Regression Test Results\n\n';
+            body += `- **Total Tests**: ${results.total}\n`;
+            body += `- **✅ Passed**: ${results.passed}\n`;
+            body += `- **❌ Failed**: ${results.failed}\n`;
+            body += `- **⚠️ Errors**: ${results.errors}\n\n`;
+
+            if (results.failed > 0) {
+              body += '### ⚠️ CRITICAL: Failed Tests - Vulnerabilities May Have Returned!\n\n';
+              body += 'The following regression tests failed:\n\n';
+              results.failures.forEach(failure => {
+                body += `- **${failure.vulnerability}** [${failure.severity}] in \`${failure.file}\`\n`;
+                body += `  - Test ID: \`${failure.test_id}\`\n`;
+              });
+              body += '\n**Action Required**: Review these failures immediately. A failed regression test indicates a previously fixed vulnerability may have been reintroduced.\n';
+            } else if (results.passed === results.total) {
+              body += '✅ All regression tests passed! No security vulnerabilities detected.\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail if tests failed
+        if: steps.run_tests.outcome == 'failure'
+        run: |
+          echo "❌ REGRESSION TESTS FAILED - VULNERABILITIES MAY HAVE RETURNED!"
+          echo "Review the test results above to identify which vulnerabilities have regressed."
+          exit 1
+
+      - name: Show statistics
+        if: steps.check_tests.outputs.has_tests == 'true'
+        run: |
+          echo "📊 Regression Test Statistics"
+          python scripts/regression_tester.py --mode stats
+
+  generate-from-findings:
+    name: Generate Tests from Fixed Findings
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Check for fixed findings
+        id: check_findings
+        run: |
+          if [ -f "fixed_findings.json" ]; then
+            echo "has_findings=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_findings=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate regression tests
+        if: steps.check_findings.outputs.has_findings == 'true'
+        run: |
+          python scripts/regression_tester.py --mode generate --fixed-findings fixed_findings.json
+
+      - name: Create Pull Request
+        if: steps.check_findings.outputs.has_findings == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'test: Add regression tests for fixed vulnerabilities'
+          title: 'Add Security Regression Tests'
+          body: |
+            ## Automated Regression Test Generation
+
+            This PR adds regression tests for recently fixed security vulnerabilities.
+
+            ### Generated Tests
+            - Source: `fixed_findings.json`
+            - Tests generated automatically from security findings
+
+            ### Review Checklist
+            - [ ] Verify test coverage for all fixed vulnerabilities
+            - [ ] Ensure exploit payloads are realistic
+            - [ ] Check that assertions properly detect regressions
+            - [ ] Confirm tests pass locally
+
+            **Note**: These tests will run in CI/CD to prevent vulnerabilities from returning.
+          branch: automated/regression-tests
+          delete-branch: true
