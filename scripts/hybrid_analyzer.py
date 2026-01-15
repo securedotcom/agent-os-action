@@ -111,11 +111,14 @@ class HybridSecurityAnalyzer:
         enable_checkov: bool = True,
         enable_api_security: bool = True,
         enable_dast: bool = False,
+        enable_supply_chain: bool = True,
+        enable_fuzzing: bool = False,
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
         ai_provider: Optional[str] = None,
         dast_target_url: Optional[str] = None,
+        fuzzing_duration: int = 300,  # 5 minutes default
         config: Optional[dict] = None,
     ):
         """
@@ -127,11 +130,14 @@ class HybridSecurityAnalyzer:
             enable_checkov: Run Checkov IaC scanning
             enable_api_security: Run API Security Scanner
             enable_dast: Run DAST Scanner
+            enable_supply_chain: Run Supply Chain Attack Detection
+            enable_fuzzing: Run Intelligent Fuzzing Engine
             enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
             ai_provider: AI provider name (anthropic, openai, etc.)
             dast_target_url: Target URL for DAST scanning
+            fuzzing_duration: Fuzzing duration in seconds (default: 300)
             config: Additional configuration
         """
         self.enable_semgrep = enable_semgrep
@@ -139,11 +145,14 @@ class HybridSecurityAnalyzer:
         self.enable_checkov = enable_checkov
         self.enable_api_security = enable_api_security
         self.enable_dast = enable_dast
+        self.enable_supply_chain = enable_supply_chain
+        self.enable_fuzzing = enable_fuzzing
         self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
         self.ai_provider = ai_provider
         self.dast_target_url = dast_target_url
+        self.fuzzing_duration = fuzzing_duration
         self.config = config or {}
 
         # Initialize scanners
@@ -152,6 +161,8 @@ class HybridSecurityAnalyzer:
         self.checkov_scanner = None
         self.api_security_scanner = None
         self.dast_scanner = None
+        self.supply_chain_scanner = None
+        self.fuzzing_scanner = None
         self.sandbox_validator = None
         self.ai_client = None
 
@@ -228,6 +239,26 @@ class HybridSecurityAnalyzer:
                 logger.warning(f"⚠️  DAST scanner not available: {e}")
                 self.enable_dast = False
 
+        if self.enable_supply_chain:
+            try:
+                from supply_chain_analyzer import SupplyChainAnalyzer
+
+                self.supply_chain_scanner = SupplyChainAnalyzer()
+                logger.info("✅ Supply Chain scanner initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Supply Chain scanner not available: {e}")
+                self.enable_supply_chain = False
+
+        if self.enable_fuzzing:
+            try:
+                from fuzzing_engine import FuzzingEngine
+
+                self.fuzzing_scanner = FuzzingEngine(ai_provider=self.ai_provider)
+                logger.info("✅ Fuzzing Engine initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Fuzzing Engine not available: {e}")
+                self.enable_fuzzing = False
+
         # Initialize sandbox validator if enabled
         if self.enable_sandbox:
             try:
@@ -241,11 +272,13 @@ class HybridSecurityAnalyzer:
 
         # Validation: At least one scanner or AI enrichment must be enabled
         if (not self.enable_semgrep and not self.enable_trivy and not self.enable_checkov
-            and not self.enable_api_security and not self.enable_dast and not self.enable_ai_enrichment):
+            and not self.enable_api_security and not self.enable_dast and not self.enable_supply_chain
+            and not self.enable_fuzzing and not self.enable_ai_enrichment):
             raise ValueError(
                 "❌ ERROR: At least one tool must be enabled!\n"
                 "   Enable: --enable-semgrep, --enable-trivy, --enable-checkov, "
-                "--enable-api-security, --enable-dast, or --enable-ai-enrichment"
+                "--enable-api-security, --enable-dast, --enable-supply-chain, "
+                "--enable-fuzzing, or --enable-ai-enrichment"
             )
 
     def analyze(
@@ -339,6 +372,28 @@ class HybridSecurityAnalyzer:
                 logger.info(f"   ✅ DAST: {len(dast_findings)} runtime vulnerabilities")
             except Exception as e:
                 logger.error(f"   ❌ DAST scan failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run Supply Chain Scanner
+        if self.enable_supply_chain and self.supply_chain_scanner:
+            try:
+                logger.info("   🔍 Running Supply Chain scanner...")
+                supply_chain_findings = self._run_supply_chain(target_path)
+                all_findings.extend(supply_chain_findings)
+                logger.info(f"   ✅ Supply Chain: {len(supply_chain_findings)} dependency threats")
+            except Exception as e:
+                logger.error(f"   ❌ Supply Chain scan failed: {e}")
+                logger.info("   💡 Continuing with other scanners...")
+
+        # Run Fuzzing Engine
+        if self.enable_fuzzing and self.fuzzing_scanner:
+            try:
+                logger.info("   🔍 Running Fuzzing Engine...")
+                fuzzing_findings = self._run_fuzzing(target_path)
+                all_findings.extend(fuzzing_findings)
+                logger.info(f"   ✅ Fuzzing: {len(fuzzing_findings)} crashes discovered")
+            except Exception as e:
+                logger.error(f"   ❌ Fuzzing failed: {e}")
                 logger.info("   💡 Continuing with other scanners...")
 
         phase_timings["phase1_static_analysis"] = time.time() - phase1_start
@@ -632,6 +687,72 @@ class HybridSecurityAnalyzer:
 
         except Exception as e:
             logger.error(f"❌ DAST scan failed: {e}")
+
+        return findings
+
+    def _run_supply_chain(self, target_path: str) -> list[HybridFinding]:
+        """Run Supply Chain Attack Detection and convert to HybridFinding format"""
+        findings = []
+
+        try:
+            # Run Supply Chain scanner
+            supply_chain_result = self.supply_chain_scanner.scan(target_path)
+
+            # Convert to HybridFinding format
+            if isinstance(supply_chain_result, list):
+                for sc_finding in supply_chain_result:
+                    finding = HybridFinding(
+                        finding_id=sc_finding.get("id", "unknown"),
+                        source_tool="supply-chain",
+                        severity=self._normalize_severity(sc_finding.get("severity", "medium")),
+                        category="supply-chain",
+                        title=sc_finding.get("title", "Supply Chain Threat"),
+                        description=sc_finding.get("description", ""),
+                        file_path=sc_finding.get("file_path", target_path),
+                        line_number=sc_finding.get("line_number"),
+                        cwe_id=sc_finding.get("cwe_id"),
+                        recommendation=sc_finding.get("recommendation", ""),
+                        references=sc_finding.get("references", []),
+                        confidence=sc_finding.get("confidence", 0.9),
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ Supply Chain scan failed: {e}")
+
+        return findings
+
+    def _run_fuzzing(self, target_path: str) -> list[HybridFinding]:
+        """Run Intelligent Fuzzing Engine and convert to HybridFinding format"""
+        findings = []
+
+        try:
+            # Run Fuzzing scanner
+            fuzzing_result = self.fuzzing_scanner.scan(target_path)
+
+            # Convert to HybridFinding format
+            if isinstance(fuzzing_result, list):
+                for fuzz_finding in fuzzing_result:
+                    finding = HybridFinding(
+                        finding_id=fuzz_finding.get("id", "unknown"),
+                        source_tool="fuzzing",
+                        severity=self._normalize_severity(fuzz_finding.get("severity", "medium")),
+                        category="security",
+                        title=fuzz_finding.get("title", "Fuzzing Crash"),
+                        description=fuzz_finding.get("description", ""),
+                        file_path=fuzz_finding.get("file_path", target_path),
+                        line_number=fuzz_finding.get("line_number"),
+                        cwe_id=fuzz_finding.get("cwe_id"),
+                        recommendation=fuzz_finding.get("recommendation", ""),
+                        references=fuzz_finding.get("references", []),
+                        confidence=fuzz_finding.get("confidence", 1.0),
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+
+        except Exception as e:
+            logger.error(f"❌ Fuzzing failed: {e}")
 
         return findings
 
@@ -1025,6 +1146,10 @@ Respond with JSON only:"""
             tools.append("API-Security")
         if self.enable_dast:
             tools.append("DAST")
+        if self.enable_supply_chain:
+            tools.append("Supply-Chain")
+        if self.enable_fuzzing:
+            tools.append("Fuzzing")
         if self.enable_ai_enrichment and self.ai_client:
             tools.append(f"AI-Enrichment ({self.ai_client.provider})")
         if self.enable_agent_os:
@@ -1225,6 +1350,8 @@ def main():
     parser.add_argument("--enable-checkov", action="store_true", default=True, help="Enable Checkov IaC scanning")
     parser.add_argument("--enable-api-security", action="store_true", default=True, help="Enable API Security scanning")
     parser.add_argument("--enable-dast", action="store_true", default=False, help="Enable DAST scanning")
+    parser.add_argument("--enable-supply-chain", action="store_true", default=True, help="Enable Supply Chain Attack Detection")
+    parser.add_argument("--enable-fuzzing", action="store_true", default=False, help="Enable Intelligent Fuzzing Engine")
     parser.add_argument(
         "--enable-ai-enrichment",
         action="store_true",
@@ -1233,6 +1360,7 @@ def main():
     )
     parser.add_argument("--ai-provider", help="AI provider (anthropic, openai, ollama)")
     parser.add_argument("--dast-target-url", help="Target URL for DAST scanning (required if --enable-dast)")
+    parser.add_argument("--fuzzing-duration", type=int, default=300, help="Fuzzing duration in seconds (default: 300)")
     parser.add_argument("--severity-filter", help="Comma-separated severity levels to report (e.g., critical,high)")
 
     args = parser.parse_args()
@@ -1252,9 +1380,12 @@ def main():
         enable_checkov=args.enable_checkov,
         enable_api_security=args.enable_api_security,
         enable_dast=args.enable_dast,
+        enable_supply_chain=args.enable_supply_chain,
+        enable_fuzzing=args.enable_fuzzing,
         enable_ai_enrichment=args.enable_ai_enrichment,
         ai_provider=args.ai_provider,
         dast_target_url=args.dast_target_url,
+        fuzzing_duration=args.fuzzing_duration,
         config=config,
     )
 

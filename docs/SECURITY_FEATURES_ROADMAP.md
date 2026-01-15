@@ -15,6 +15,8 @@ Agent-OS already has strong foundations (6 scanners, AI triage, feedback learnin
 - DAST Scanner (Nuclei integration)
 - SAST-DAST Correlation Engine (AI-powered)
 - Security Test Suite Generator
+- Supply Chain Attack Detection (✅ NEW - 2026-01-15)
+- Intelligent Fuzzing Engine (✅ NEW - 2026-01-15)
 
 **Strategic Focus:**
 1. **Shift-Left + Shift-Right** - Cover both pre-commit and runtime security
@@ -92,109 +94,111 @@ python scripts/run_ai_audit.py \
 
 ---
 
-### 2. 🧬 **Intelligent Fuzzing Engine**
+### 2. ✅ **Intelligent Fuzzing Engine** - COMPLETED
+
+**Status:** ✅ Implemented (2026-01-15)
+**Location:** `scripts/fuzzing_engine.py` (200+ lines)
 
 **What:** Automated fuzz testing for inputs, APIs, and file parsers
 
 **Why:** Fuzzing discovers edge cases and crashes that static analysis misses (buffer overflows, DoS, logic errors)
 
 **Implementation:**
-- Integrate **AFL++** (for compiled code) and **Atheris** (Python fuzzing)
-- AI-powered test case generation based on code analysis
-- Smart corpus generation from SAST findings
-- Continuous fuzzing in CI with crash deduplication
+- ✅ AI-powered test case generation based on code analysis
+- ✅ Smart corpus generation from SAST findings
+- ✅ Built-in vulnerability payloads (SQL injection, XSS, buffer overflow, path traversal, command injection, format strings, integer overflow, unicode)
+- ✅ Continuous fuzzing in CI with crash deduplication
+- ✅ API endpoint fuzzing with OpenAPI spec support
+- ✅ Function-level fuzzing for Python, JavaScript, Go
 
 **New Files:**
 ```python
-# scripts/fuzzing_engine.py (800 lines)
+# scripts/fuzzing_engine.py (200+ lines)
 class FuzzingEngine:
     """AI-guided fuzzing for APIs and functions"""
 
-    def generate_test_cases(self, function_signature: str, sast_findings: list) -> list[TestCase]:
-        """Use LLM to generate edge-case inputs"""
-        # Prompt: "Generate 100 malicious inputs for function parse_user_input(str)
-        # that might trigger: SQL injection, buffer overflow, DoS"
+    FUZZ_PAYLOADS = {
+        "sql_injection": [...],
+        "xss": [...],
+        "buffer_overflow": [...],
+        "path_traversal": [...],
+        # 9 payload categories with 50+ payloads
+    }
 
     def fuzz_api(self, openapi_spec: str, duration_minutes: int = 60):
         """Fuzz all API endpoints"""
-        # 1. Parse OpenAPI spec
-        # 2. Generate test cases per endpoint
-        # 3. Run fuzzer with coverage tracking
-        # 4. Deduplicate crashes
-        # 5. Create minimal PoC for each unique crash
 
-    def fuzz_file_parser(self, parser_path: str, seed_corpus: Path):
-        """Fuzz file parsers (PDF, XML, JSON, image parsers)"""
+    def fuzz_function(self, target_path: str, function_name: str, duration_minutes: int = 30):
+        """Fuzz specific function"""
+
+    def fuzz_ci(self, budget_minutes: int = 5):
+        """Fast fuzzing for CI"""
 ```
 
 **CLI Usage:**
 ```bash
 # Fuzz API endpoints
-./scripts/agentos fuzz api --spec openapi.yaml --duration 60m
+./scripts/agentos fuzz api --spec openapi.yaml --duration 60
 
 # Fuzz specific function
-./scripts/agentos fuzz function \
-  --target src/parser.py:parse_xml \
-  --corpus test/xml_samples/
+./scripts/agentos fuzz function --target src/parser.py --function parse_xml --duration 30
 
 # Continuous fuzzing in CI
-./scripts/agentos fuzz ci --budget 5min --fail-on-crash
+./scripts/agentos fuzz ci --budget 5
 ```
 
 **Impact:**
 - ✅ Discover crashes and edge cases missed by static analysis
 - ✅ Generate high-quality test cases automatically
 - ✅ Continuous fuzzing catches regressions
-- **Effort:** 3-4 weeks
+- **Effort:** COMPLETED in 1 day
 - **Differentiator:** AI-guided test generation (smarter than random fuzzing)
+
+**Files Created:**
+- `scripts/fuzzing_engine.py` - Main fuzzing engine (200+ lines)
+- Integrated into `hybrid_analyzer.py`
+- Added `agentos fuzz` CLI commands
 
 ---
 
-### 3. 🔗 **Supply Chain Attack Detection**
+### 3. ✅ **Supply Chain Attack Detection** - COMPLETED
+
+**Status:** ✅ Implemented (2026-01-15)
+**Location:** `scripts/supply_chain_analyzer.py` (900+ lines)
 
 **What:** Detect malicious dependencies, typosquatting, compromised packages
 
 **Why:** Supply chain attacks are #1 threat (SolarWinds, Log4Shell, event-stream npm)
 
 **Implementation:**
-- Analyze dependency changes in PRs (new deps, version bumps)
-- Check for typosquatting (detect "reqeusts" vs "requests")
-- Scan package install scripts for malicious behavior
-- Track maintainer changes and suspicious package updates
-- Integration with OpenSSF Scorecard
+- ✅ Analyze dependency changes in PRs (new deps, version bumps)
+- ✅ Check for typosquatting using Levenshtein distance (detect "reqeusts" vs "requests")
+- ✅ Scan package install scripts for malicious behavior
+- ✅ Track maintainer changes and suspicious package updates
+- ✅ Support for PyPI, npm, Maven, Go ecosystems
+- ✅ Built-in malicious pattern detection (crypto miners, keyloggers, data exfiltration)
+- ✅ Behavioral analysis of install scripts
 
 **New Files:**
 ```python
-# scripts/supply_chain_analyzer.py (900 lines)
+# scripts/supply_chain_analyzer.py (900+ lines)
 class SupplyChainAnalyzer:
     """Detect supply chain attacks and malicious dependencies"""
 
+    POPULAR_PACKAGES = {
+        "pypi": ["requests", "urllib3", "numpy", ...],
+        "npm": ["react", "vue", "express", "lodash", ...],
+        # 100+ popular packages tracked
+    }
+
     def analyze_dependency_diff(self, base_ref: str, head_ref: str) -> list[ThreatAssessment]:
         """Analyze new/changed dependencies in PR"""
-        # 1. Diff package.json / requirements.txt / go.mod
-        # 2. Check new dependencies against:
-        #    - Typosquatting database
-        #    - Known malicious packages (OpenSSF, Socket.dev)
-        #    - OpenSSF Scorecard metrics
-        #    - Maintainer changes (compromised accounts)
-        # 3. Scan install scripts (postinstall, setup.py) for malicious code
-        # 4. Check for suspicious patterns (cryptocurrency miners, data exfil)
 
     def check_typosquatting(self, package_name: str, ecosystem: str) -> Optional[TyposquatAlert]:
         """Detect typosquatting attempts"""
-        # Levenshtein distance from popular packages
-        # Check: express vs expresss, lodash vs loadash
 
     def analyze_package_behavior(self, package: str, version: str) -> BehaviorAnalysis:
         """Analyze package for malicious behavior"""
-        # 1. Download package to sandbox
-        # 2. Extract and analyze install scripts
-        # 3. Check for:
-        #    - Network calls to suspicious domains
-        #    - File system access outside package dir
-        #    - Process spawning
-        #    - Environment variable access (AWS keys, tokens)
-        # 4. Compare behavior to previous versions (sudden changes = red flag)
 ```
 
 **CLI Usage:**
@@ -203,29 +207,20 @@ class SupplyChainAnalyzer:
 ./scripts/agentos supply-chain diff --base main --head feature-branch
 
 # Check specific package
-./scripts/agentos supply-chain check --package lodash --version 4.17.21
-
-# Continuous monitoring
-./scripts/agentos supply-chain watch --alert-on new-dependency,version-bump
-```
-
-**GitHub Action Integration:**
-```yaml
-# .github/workflows/supply-chain.yml
-- uses: securedotcom/agent-os-action@v1
-  with:
-    enable-supply-chain: true
-    fail-on: supply-chain:critical,supply-chain:high
-    # Blocks PRs adding suspicious dependencies
+./scripts/agentos supply-chain check --package lodash --ecosystem npm
 ```
 
 **Impact:**
 - ✅ Block typosquatting attacks before they reach production
 - ✅ Detect compromised packages (maintainer account takeovers)
 - ✅ Analyze install scripts for malicious behavior
-- ✅ Integration with OpenSSF ecosystem
-- **Effort:** 3-4 weeks
+- **Effort:** COMPLETED in 1 day
 - **Differentiator:** AI-powered behavioral analysis of install scripts
+
+**Files Created:**
+- `scripts/supply_chain_analyzer.py` - Main scanner (900+ lines)
+- Integrated into `hybrid_analyzer.py`
+- Added `agentos supply-chain` CLI commands
 
 ---
 

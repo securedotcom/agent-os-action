@@ -96,6 +96,8 @@ class ScannerRegistry:
                 "gitleaks": ("gitleaks_scanner", "GitleaksScanner"),
                 "api-security": ("api_security_scanner", "APISecurityScanner"),
                 "dast": ("dast_scanner", "DASTScanner"),
+                "supply-chain": ("supply_chain_analyzer", "SupplyChainAnalyzer"),
+                "fuzzing": ("fuzzing_engine", "FuzzingEngine"),
             }
 
             for scanner_name, (module_name, class_name) in builtin_scanners.items():

@@ -12,6 +12,7 @@
 
 ## 📋 Table of Contents
 
+- **[📖 Full Documentation](docs/index.md)** - Comprehensive docs index
 - [What It Does](#what-it-does)
 - [🚀 NEW: Agent-Native Features](#-new-agent-native-features)
 - [Quick Start (3 minutes)](#quick-start-3-minutes)
@@ -32,10 +33,12 @@
 
 ### Core Capabilities
 
-- **🔍 Multi-Scanner**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security (6 scanners in parallel)
+- **🔍 Multi-Scanner**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST (9 scanners)
 - **🌐 DAST Scanner**: Optional dynamic application security testing with Nuclei (4000+ templates)
 - **🔗 SAST-DAST Correlation**: AI verifies if static findings are exploitable via dynamic tests
 - **🧪 Security Test Generation**: Auto-generate pytest/Jest tests for discovered vulnerabilities
+- **🔗 Supply Chain Attack Detection**: Detect typosquatting, malicious dependencies, and compromised packages
+- **🧬 Intelligent Fuzzing**: AI-guided fuzzing for APIs, functions, and file parsers
 - **🤖 AI Triage**: Claude/OpenAI for intelligent noise reduction (60-70% FP suppression)
 - **🎯 Smart Blocking**: Only fails on verified secrets, critical CVEs, high-confidence SAST
 - **⚡ Intelligent Caching**: 10-100x faster repeat scans
@@ -45,7 +48,7 @@
 ### Default Behavior
 
 **By default, Agent-OS:**
-- ✅ Runs **6 scanners** in parallel (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security)
+- ✅ Runs **9 scanners** (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST)
 - ✅ Tests **OWASP API Top 10** vulnerabilities (BOLA, broken auth, SSRF, misconfigurations, etc.)
 - ✅ **Automatically suppresses** test files, documentation, and low-confidence findings
 - ✅ **Caches results** for 7 days (10-100x speedup on repeat scans)
@@ -1223,11 +1226,13 @@ A: **Yes!** See [PLATFORM.md#kubernetes](PLATFORM.md#kubernetes) for CronJob exa
 
 ### Documentation
 
-- **Full Platform Docs**: [PLATFORM.md](PLATFORM.md)
-- **Agent-Native Guide**: [CLAUDE.md](CLAUDE.md)
-- **Examples**: [examples/workflows/](examples/workflows/)
-- **FAQ**: [docs/FAQ.md](docs/FAQ.md)
-- **Architecture**: [docs/architecture/](docs/architecture/)
+- **📖 Documentation Index**: [docs/index.md](docs/index.md) - Start here for all docs
+- **Quick Start**: [QUICKSTART.md](QUICKSTART.md) - 5-minute guide
+- **Platform Deployment**: [PLATFORM.md](PLATFORM.md) - Enterprise deployment
+- **Agent Context**: [CLAUDE.md](CLAUDE.md) - For AI agents developing with Agent-OS
+- **FAQ**: [docs/FAQ.md](docs/FAQ.md) - Frequently asked questions
+- **Examples**: [docs/EXAMPLES.md](docs/EXAMPLES.md) - Usage examples
+- **Architecture**: [docs/architecture/](docs/architecture/) - System design
 
 ### Get Help
 

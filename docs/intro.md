@@ -4,19 +4,22 @@ sidebar_position: 1
 slug: /
 ---
 
-# Agent OS Code Reviewer Documentation
+# Agent-OS Security Platform Documentation
 
-Welcome to the comprehensive documentation for **Agent OS Code Reviewer** - an AI-powered automated code review system that provides security analysis, performance optimization, quality assessment, and test coverage insights.
+Welcome to the comprehensive documentation for **Agent-OS** - an AI-powered security platform that orchestrates multiple security scanners, applies intelligent triage to reduce false positives, and enforces policy gates.
 
-## 🎯 What is Agent OS Code Reviewer?
+## 🎯 What is Agent-OS?
 
-Agent OS Code Reviewer is a GitHub Action that uses advanced AI models (Claude, OpenAI, or Ollama) to analyze your codebase and provide:
+Agent-OS is a production-ready security platform that runs as a GitHub Action, CLI tool, or deployed service. It uses advanced AI models (Claude, OpenAI, or Ollama) to provide:
 
-- **Security Analysis**: Identify vulnerabilities, exploits, and security risks
-- **Performance Review**: Find bottlenecks and optimization opportunities
-- **Quality Assessment**: Evaluate code quality and best practices
-- **Test Coverage**: Identify testing gaps and generate test suggestions
-- **Exploit Analysis**: Aardvark mode for deep exploit chain analysis
+- **Multi-Scanner Orchestration**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, DAST
+- **AI Triage & Noise Reduction**: 60-70% false positive suppression
+- **SAST-DAST Correlation**: AI verifies if static findings are exploitable
+- **Security Test Generation**: Auto-generate pytest/Jest tests for vulnerabilities
+- **Supply Chain Security**: Dependency attack detection and fuzzing
+- **Intelligent Caching**: 10-100x faster repeat scans
+- **Observability Dashboard**: Real-time AI decision quality visualization
+- **Continuous Learning**: Feedback-driven improvement
 
 ## 🚀 Quick Start
 
@@ -46,17 +49,18 @@ jobs:
 
 ### 2. Configure Secrets
 
-Add your AI provider API key to GitHub Secrets:
+Add your AI provider API key to GitHub Secrets (or use Ollama for free):
 - Go to Settings → Secrets and variables → Actions
-- For Claude: Add `ANTHROPIC_API_KEY` with your Anthropic API key
-- For OpenAI: Add `OPENAI_API_KEY` with your OpenAI API key
-- For Ollama: No API key needed (local inference)
+- For Claude: Add `ANTHROPIC_API_KEY` ([Get key](https://console.anthropic.com))
+- For OpenAI: Add `OPENAI_API_KEY` ([Get key](https://platform.openai.com/api-keys))
+- For Ollama: No API key needed ([Setup guide](OLLAMA_SETUP.md))
 
-### 3. Run Your First Review
+### 3. Run Your First Scan
 
 - Create a pull request or push to trigger the workflow
 - Review the generated report in `.agent-os/reviews/`
-- Check the PR comment for findings summary
+- Check the PR comment for actionable findings (noise auto-suppressed)
+- View SARIF report in GitHub Security tab
 
 ## 📚 Documentation Structure
 
@@ -83,22 +87,24 @@ Complete configuration and API references:
 ## 🎨 Key Features
 
 ### 🔒 Security First
-- OWASP Top 10 vulnerability detection
-- Exploit chain analysis (Aardvark mode)
-- SARIF report generation for GitHub Code Scanning
-- Security test case generation
+- **7 Security Scanners**: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, DAST
+- **OWASP Coverage**: Top 10 Web + API Top 10
+- **AI-Powered Triage**: 60-70% false positive reduction
+- **SAST-DAST Correlation**: Verify exploitability
+- **Security Test Generation**: Auto-generate tests for found vulnerabilities
 
 ### 💰 Cost Effective
-- **Single-agent mode**: ~$0.30 per run (recommended)
-- **Multi-agent mode**: ~$2-3 per run (not recommended)
-- Built-in cost estimation and guardrails
-- Configurable cost limits
+- **Ollama (free)**: $0.00 per run, 100% local processing
+- **Claude**: ~$0.35 per run (best accuracy)
+- **OpenAI**: ~$0.50 per run (alternative)
+- **Intelligent caching**: 10-100x faster repeat scans
+- **Cost limits**: Hard cap to prevent overruns
 
 ### ⚡ Fast & Efficient
-- 2-3 minute analysis time (single-agent)
-- Smart file selection and filtering
-- Incremental analysis for PRs
-- Parallel processing where possible
+- **Parallel scanning**: 4+ scanners run simultaneously
+- **Smart caching**: <1 minute for cached scans
+- **Incremental analysis**: Only scan changed files
+- **Progress bars**: Real-time feedback
 
 ### 🎯 Actionable Insights
 - Clear severity ratings (critical/high/medium/low)

@@ -267,6 +267,78 @@ def cmd_generate_tests(args):
     print(f"   Tests: {len(suite.tests)}")
 
 
+def cmd_supply_chain(args):
+    """Run supply chain attack detection"""
+    from supply_chain_analyzer import SupplyChainAnalyzer
+
+    analyzer = SupplyChainAnalyzer(repo_path=args.path or ".")
+
+    if args.action == "diff":
+        # Analyze dependency changes
+        assessments = analyzer.analyze_dependency_diff(args.base or "main", args.head or "HEAD")
+
+        print(f"\n🔗 Supply Chain Analysis:")
+        print(f"   Total changes: {len(assessments)}")
+
+        threats = [a for a in assessments if a.risk_level in ["high", "critical"]]
+        print(f"   High-risk threats: {len(threats)}")
+
+        for threat in threats:
+            print(f"\n   ⚠️  {threat.dependency.package_name} ({threat.risk_level.upper()})")
+            for rec in threat.recommendations:
+                print(f"      - {rec}")
+
+    elif args.action == "check":
+        # Check specific package
+        if not args.package or not args.ecosystem:
+            print("❌ Error: --package and --ecosystem required for check")
+            sys.exit(1)
+
+        alert = analyzer.check_typosquatting(args.package, args.ecosystem)
+        if alert:
+            print(f"\n⚠️  TYPOSQUATTING ALERT:")
+            print(f"   Suspicious: {alert.suspicious_package}")
+            print(f"   Legitimate: {alert.legitimate_package}")
+            print(f"   Similarity: {alert.similarity_score*100:.0f}%")
+            print(f"   Severity: {alert.severity}")
+        else:
+            print(f"✅ No typosquatting detected for '{args.package}'")
+
+
+def cmd_fuzz(args):
+    """Run intelligent fuzzing"""
+    from fuzzing_engine import FuzzingEngine
+
+    engine = FuzzingEngine(ai_provider=args.ai_provider)
+
+    if args.action == "api":
+        if not args.spec:
+            print("❌ Error: --spec required for API fuzzing")
+            sys.exit(1)
+
+        result = engine.fuzz_api(args.spec, duration_minutes=args.duration or 60)
+
+    elif args.action == "function":
+        if not args.target or not args.function:
+            print("❌ Error: --target and --function required for function fuzzing")
+            sys.exit(1)
+
+        result = engine.fuzz_function(args.target, args.function, duration_minutes=args.duration or 30)
+
+    elif args.action == "ci":
+        result = engine.fuzz_ci(budget_minutes=args.budget or 5)
+
+    print(f"\n🎯 Fuzzing Results:")
+    print(f"   Duration: {result.duration_seconds:.1f}s")
+    print(f"   Test cases: {result.test_cases_executed}")
+    print(f"   Crashes: {len(result.unique_crashes)}")
+
+    if result.unique_crashes:
+        print(f"\n   Unique crashes:")
+        for crash in result.unique_crashes:
+            print(f"   - {crash.crash_type} ({crash.severity})")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Agent-OS Security Control Plane",
@@ -302,6 +374,15 @@ Examples:
 
   # Generate security tests
   agentos generate-tests --findings findings.json --output tests/security/
+
+  # Supply chain attack detection
+  agentos supply-chain diff --base main --head feature-branch
+  agentos supply-chain check --package lodash --ecosystem npm
+
+  # Intelligent fuzzing
+  agentos fuzz api --spec openapi.yaml --duration 60
+  agentos fuzz function --target src/parser.py --function parse_xml --duration 30
+  agentos fuzz ci --budget 5
 """
     )
     
@@ -366,6 +447,47 @@ Examples:
     parser_gentests.add_argument('--findings', required=True, help='Findings JSON file')
     parser_gentests.add_argument('--output', help='Output directory (default: tests/security/)')
     parser_gentests.set_defaults(func=cmd_generate_tests)
+
+    # Supply chain command
+    parser_supply = subparsers.add_parser('supply-chain', help='Supply chain attack detection')
+    supply_subparsers = parser_supply.add_subparsers(dest='action', help='Supply chain action')
+
+    # Supply chain diff
+    supply_diff = supply_subparsers.add_parser('diff', help='Analyze dependency changes')
+    supply_diff.add_argument('--base', help='Base git reference (default: main)')
+    supply_diff.add_argument('--head', help='Head git reference (default: HEAD)')
+    supply_diff.add_argument('--path', help='Repository path (default: current directory)')
+
+    # Supply chain check
+    supply_check = supply_subparsers.add_parser('check', help='Check specific package')
+    supply_check.add_argument('--package', required=True, help='Package name to check')
+    supply_check.add_argument('--ecosystem', required=True, choices=['pypi', 'npm', 'maven', 'go'], help='Package ecosystem')
+
+    parser_supply.set_defaults(func=cmd_supply_chain)
+
+    # Fuzzing command
+    parser_fuzz = subparsers.add_parser('fuzz', help='Intelligent fuzzing')
+    fuzz_subparsers = parser_fuzz.add_subparsers(dest='action', help='Fuzzing action')
+
+    # Fuzz API
+    fuzz_api = fuzz_subparsers.add_parser('api', help='Fuzz API endpoints')
+    fuzz_api.add_argument('--spec', required=True, help='OpenAPI spec path')
+    fuzz_api.add_argument('--duration', type=int, help='Fuzzing duration in minutes (default: 60)')
+    fuzz_api.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    # Fuzz function
+    fuzz_func = fuzz_subparsers.add_parser('function', help='Fuzz specific function')
+    fuzz_func.add_argument('--target', required=True, help='Target file path')
+    fuzz_func.add_argument('--function', required=True, help='Function name to fuzz')
+    fuzz_func.add_argument('--duration', type=int, help='Fuzzing duration in minutes (default: 30)')
+    fuzz_func.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    # Fuzz CI
+    fuzz_ci = fuzz_subparsers.add_parser('ci', help='Fast fuzzing for CI')
+    fuzz_ci.add_argument('--budget', type=int, help='Time budget in minutes (default: 5)')
+    fuzz_ci.add_argument('--ai-provider', help='AI provider for smart test generation')
+
+    parser_fuzz.set_defaults(func=cmd_fuzz)
 
     args = parser.parse_args()
     
