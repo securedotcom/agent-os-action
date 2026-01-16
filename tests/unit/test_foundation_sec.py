@@ -268,6 +268,7 @@ class TestFoundationSecProvider:
             assert "pip install transformers torch accelerate" in str(exc_info.value)
 
 
+@pytest.mark.skip(reason="Foundation-Sec removed in v4.1.0 - deprecated feature")
 class TestFoundationSecIntegrationWithRunAudit:
     """Test Foundation-Sec integration with run_ai_audit.py"""
 
