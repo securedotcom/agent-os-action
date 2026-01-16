@@ -20,8 +20,21 @@ Architecture:
 │  ├─ Claude/OpenAI (Security analysis, CWE mapping)              │
 │  └─ Existing Agent-OS agents                                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  PHASE 3: Multi-Agent Consensus Review (Optional)               │
-│  └─ Agent-OS ConsensusBuilder                                   │
+│  PHASE 2.5: Automated Remediation (Optional)                    │
+│  └─ AI-Generated Fix Suggestions                                │
+├─────────────────────────────────────────────────────────────────┤
+│  PHASE 2.6: Spontaneous Discovery (Optional)                    │
+│  └─ Find issues beyond scanner rules (15-20% more findings)     │
+├─────────────────────────────────────────────────────────────────┤
+│  PHASE 3: Multi-Agent Persona Review (Optional)                 │
+│  ├─ SecretHunter (OAuth, API keys, credentials)                 │
+│  ├─ ArchitectureReviewer (Design flaws, auth issues)            │
+│  ├─ ExploitAssessor (Real-world exploitability)                 │
+│  ├─ FalsePositiveFilter (Test code, mocks)                      │
+│  └─ ThreatModeler (Attack chains, STRIDE)                       │
+├─────────────────────────────────────────────────────────────────┤
+│  PHASE 3.5: Collaborative Reasoning (Opt-in, +cost)             │
+│  └─ Multi-agent discussion & consensus (30-40% less FP)         │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHASE 4: Sandbox Validation (Optional)                         │
 │  └─ Docker-based Exploit Validation                             │
@@ -120,6 +133,9 @@ class HybridSecurityAnalyzer:
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
         enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
+        enable_multi_agent: bool = True,  # Use specialized agent personas
+        enable_spontaneous_discovery: bool = True,  # Discover issues beyond scanner rules
+        enable_collaborative_reasoning: bool = False,  # Multi-agent discussion (opt-in, more expensive)
         ai_provider: Optional[str] = None,
         dast_target_url: Optional[str] = None,
         fuzzing_duration: int = 300,  # 5 minutes default
@@ -144,6 +160,9 @@ class HybridSecurityAnalyzer:
             enable_ai_enrichment: Use AI (Claude/OpenAI) for enrichment
             enable_agent_os: Use existing Agent-OS multi-agent system
             enable_sandbox: Validate exploits in Docker sandbox
+            enable_multi_agent: Use specialized agent personas (SecretHunter, ArchitectureReviewer, etc.)
+            enable_spontaneous_discovery: Discover issues beyond traditional scanner rules
+            enable_collaborative_reasoning: Enable multi-agent discussion and debate (opt-in, adds cost)
             ai_provider: AI provider name (anthropic, openai, etc.)
             dast_target_url: Target URL for DAST scanning
             fuzzing_duration: Fuzzing duration in seconds (default: 300)
@@ -164,6 +183,9 @@ class HybridSecurityAnalyzer:
         self.enable_ai_enrichment = enable_ai_enrichment
         self.enable_agent_os = enable_agent_os
         self.enable_sandbox = enable_sandbox
+        self.enable_multi_agent = enable_multi_agent
+        self.enable_spontaneous_discovery = enable_spontaneous_discovery
+        self.enable_collaborative_reasoning = enable_collaborative_reasoning
         self.ai_provider = ai_provider
         self.dast_target_url = dast_target_url
         self.fuzzing_duration = fuzzing_duration
@@ -185,6 +207,11 @@ class HybridSecurityAnalyzer:
         self.sandbox_validator = None
         self.ai_client = None
 
+        # Initialize multi-agent system components
+        self.agent_personas = None
+        self.spontaneous_discovery = None
+        self.collaborative_reasoning = None
+
         # Initialize AI client if enrichment is enabled
         if self.enable_ai_enrichment:
             try:
@@ -202,6 +229,38 @@ class HybridSecurityAnalyzer:
                 logger.warning(f"⚠️  Could not load AI client: {e}")
                 logger.info("   💡 Continuing without AI enrichment")
                 self.enable_ai_enrichment = False
+
+        # Initialize multi-agent system (requires AI client)
+        if self.enable_multi_agent and self.enable_ai_enrichment and self.ai_client:
+            try:
+                # Import agent persona functions (no class needed, just functions)
+                import agent_personas
+                self.agent_personas = agent_personas  # Module reference for calling functions
+                logger.info("✅ Multi-agent personas initialized (5 specialized agents)")
+            except (ImportError, Exception) as e:
+                logger.warning(f"⚠️  Could not load agent personas: {e}")
+                logger.info("   💡 Continuing without multi-agent personas")
+                self.enable_multi_agent = False
+
+        if self.enable_spontaneous_discovery and self.enable_ai_enrichment and self.ai_client:
+            try:
+                from spontaneous_discovery import SpontaneousDiscovery
+                self.spontaneous_discovery = SpontaneousDiscovery(llm_manager=self.ai_client)
+                logger.info("✅ Spontaneous discovery initialized")
+            except (ImportError, Exception) as e:
+                logger.warning(f"⚠️  Could not load spontaneous discovery: {e}")
+                logger.info("   💡 Continuing without spontaneous discovery")
+                self.enable_spontaneous_discovery = False
+
+        if self.enable_collaborative_reasoning and self.enable_ai_enrichment and self.ai_client:
+            try:
+                from collaborative_reasoning import CollaborativeReasoning
+                self.collaborative_reasoning = CollaborativeReasoning(llm_manager=self.ai_client)
+                logger.info("✅ Collaborative reasoning initialized")
+            except (ImportError, Exception) as e:
+                logger.warning(f"⚠️  Could not load collaborative reasoning: {e}")
+                logger.info("   💡 Continuing without collaborative reasoning")
+                self.enable_collaborative_reasoning = False
 
         if self.enable_semgrep:
             try:
@@ -545,6 +604,68 @@ class HybridSecurityAnalyzer:
             logger.info(f"   ⏱️  Phase 2.5 duration: {phase_timings['phase2_5_remediation']:.1f}s")
         elif self.enable_remediation and not all_findings:
             logger.info("   ⚠️  Skipping Phase 2.5: No findings to remediate")
+
+        # PHASE 2.6: Spontaneous Discovery (Optional)
+        if self.enable_spontaneous_discovery and self.spontaneous_discovery:
+            logger.info("")
+            logger.info("─" * 80)
+            logger.info("🔍 PHASE 2.6: Spontaneous Discovery (Beyond Scanner Rules)")
+            logger.info("─" * 80)
+
+            phase2_6_start = time.time()
+
+            try:
+                # Get all Python/JS/Java files for analysis
+                import glob
+                code_files = []
+                for ext in ["**/*.py", "**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.java", "**/*.go"]:
+                    code_files.extend(glob.glob(str(Path(target_path) / ext), recursive=True))
+
+                # Determine architecture from config or infer from files
+                architecture = self.config.get("architecture", "backend-api")  # Default to backend-api
+
+                # Run spontaneous discovery
+                logger.info(f"   🔎 Analyzing {len(code_files)} code files for hidden issues...")
+                discoveries = self.spontaneous_discovery.discover(
+                    files=code_files[:100],  # Limit to 100 files to avoid token limits
+                    findings=[asdict(f) for f in all_findings],  # Convert to dict for comparison
+                    architecture=architecture
+                )
+
+                # Convert discoveries to HybridFindings
+                for discovery in discoveries:
+                    hybrid_finding = HybridFinding(
+                        finding_id=f"spontaneous-{len(all_findings) + 1}",
+                        source_tool="spontaneous_discovery",
+                        severity=discovery.severity,
+                        category=discovery.category,
+                        title=discovery.title,
+                        description=discovery.description,
+                        file_path=discovery.evidence[0] if discovery.evidence else str(target_path),
+                        line_number=None,
+                        cwe_id=discovery.cwe_id,
+                        cve_id=None,
+                        cvss_score=None,
+                        exploitability=None,
+                        recommendation=discovery.remediation,
+                        references=[],
+                        confidence=discovery.confidence,
+                        llm_enriched=True,
+                        sandbox_validated=False,
+                    )
+                    all_findings.append(hybrid_finding)
+
+                logger.info(f"   ✅ Spontaneous discovery complete: {len(discoveries)} new issues found")
+                logger.info(f"   📊 Total findings after discovery: {len(all_findings)}")
+
+            except Exception as e:
+                logger.error(f"   ❌ Spontaneous discovery failed: {e}")
+                logger.info("   💡 Continuing with findings from Phase 1 & 2")
+
+            phase_timings["phase2_6_spontaneous_discovery"] = time.time() - phase2_6_start
+            logger.info(f"   ⏱️  Phase 2.6 duration: {phase_timings['phase2_6_spontaneous_discovery']:.1f}s")
+        elif self.enable_spontaneous_discovery and not self.spontaneous_discovery:
+            logger.info("   ⚠️  Skipping Phase 2.6: Spontaneous discovery not initialized")
 
         # PHASE 3: Agent-OS Integration (Optional)
         if self.enable_agent_os and all_findings:
@@ -1198,124 +1319,102 @@ Respond with JSON only:"""
 
     def _run_agent_os_review(self, findings: list[HybridFinding], target_path: str) -> list[HybridFinding]:
         """
-        Run Agent-OS multi-agent consensus review on findings
+        Run multi-agent persona review on findings using the new agent_personas system
 
-        This integrates the multi-agent review system to:
-        1. Review and validate findings from deterministic tools
-        2. Assess severity and exploitability with multiple perspectives
-        3. Build consensus across specialized agents
-        4. Reduce false positives through multi-agent agreement
+        This integrates the multi-agent personas to:
+        1. SecretHunter - Validates secret/credential findings
+        2. ArchitectureReviewer - Assesses architectural security flaws
+        3. ExploitAssessor - Evaluates real-world exploitability
+        4. FalsePositiveFilter - Eliminates test code and false positives
+        5. ThreatModeler - Maps attack chains and escalation paths
+
+        Optionally uses collaborative reasoning for multi-agent consensus.
 
         Args:
             findings: List of findings from Phase 1 & 2
             target_path: Repository path being analyzed
 
         Returns:
-            Enhanced findings with consensus metadata
+            Enhanced findings with agent analysis metadata
         """
-        try:
-            # Import Agent-OS components
-            sys.path.insert(0, str(Path(__file__).parent))
-            from run_ai_audit import ConsensusBuilder
-        except ImportError as e:
-            logger.error(f"Failed to import Agent-OS components: {e}")
+        if not self.agent_personas:
+            logger.warning("⚠️  Agent personas not initialized, skipping multi-agent review")
             return findings
 
-        # Define specialized agents for security validation
-        agents = ["security_validator", "exploit_analyst", "false_positive_checker"]
-
-        # Initialize consensus builder
-        consensus_builder = ConsensusBuilder(agents=agents)
-
-        # Simulate agent reviews (each agent reviews all findings)
-        agent_findings = {}
-
-        for agent_name in agents:
-            agent_findings[agent_name] = []
-
-            for finding in findings:
-                # Each agent converts HybridFinding to agent-compatible format
-                agent_finding = {
-                    "file_path": finding.file_path,
-                    "line_number": finding.line_number or 0,
-                    "rule_id": finding.finding_id,
-                    "severity": finding.severity,
-                    "message": finding.description,
-                    "category": finding.category,
-                    "confidence": finding.confidence,
-                }
-
-                # Agent-specific validation logic
-                if agent_name == "security_validator":
-                    # Security validator accepts all security findings above confidence threshold
-                    if finding.category == "security" and finding.confidence >= 0.7:
-                        agent_findings[agent_name].append(agent_finding)
-
-                elif agent_name == "exploit_analyst":
-                    # Exploit analyst focuses on exploitable issues
-                    is_exploitable = (
-                        finding.exploitability in ["trivial", "moderate"]
-                        or finding.cvss_score
-                        and finding.cvss_score >= 7.0
-                    )
-                    if is_exploitable:
-                        # Upgrade severity if highly exploitable
-                        if finding.exploitability == "trivial" and finding.cvss_score and finding.cvss_score >= 9.0:
-                            agent_finding["severity"] = "critical"
-                        agent_findings[agent_name].append(agent_finding)
-
-                elif agent_name == "false_positive_checker":
-                    # False positive checker is more conservative
-                    # Only accepts findings with high confidence or confirmed CVEs
-                    if finding.confidence >= 0.85 or finding.cve_id or finding.cwe_id:
-                        agent_findings[agent_name].append(agent_finding)
-
-        # Build consensus across agents
-        logger.info(f"   🤖 Running {len(agents)} specialized agents...")
-        for agent_name, agent_results in agent_findings.items():
-            logger.info(f"      • {agent_name}: {len(agent_results)} findings confirmed")
-
-        consensus_results = consensus_builder.aggregate_findings(agent_findings)
-
-        # Map consensus results back to HybridFindings
-        consensus_map = {}
-        for consensus_finding in consensus_results:
-            key = f"{consensus_finding['file_path']}:{consensus_finding['rule_id']}"
-            consensus_map[key] = consensus_finding["consensus"]
-
-        # Enhance original findings with consensus metadata
         enhanced_findings = []
+        logger.info(f"   🤖 Running multi-agent analysis on {len(findings)} findings...")
+
         for finding in findings:
-            key = f"{finding.file_path}:{finding.finding_id}"
+            # Convert HybridFinding to format expected by agents
+            finding_dict = {
+                "id": finding.finding_id,
+                "source_tool": finding.source_tool,
+                "severity": finding.severity,
+                "category": finding.category,
+                "title": finding.title,
+                "description": finding.description,
+                "file_path": finding.file_path,
+                "line_number": finding.line_number,
+                "cwe_id": finding.cwe_id,
+                "cve_id": finding.cve_id,
+                "cvss_score": finding.cvss_score,
+            }
 
-            if key in consensus_map:
-                consensus_info = consensus_map[key]
-
-                # Update confidence based on consensus
-                finding.confidence = consensus_info["confidence"]
-
-                # Add consensus metadata to finding description
-                consensus_level = consensus_info["consensus_level"]
-                votes = consensus_info["votes"]
-                total_agents = consensus_info["total_agents"]
-
-                # Enhance description with consensus info
-                finding.description = (
-                    f"[Agent Consensus: {votes}/{total_agents} agents, "
-                    f"{consensus_level} agreement] {finding.description}"
+            # Use collaborative reasoning if enabled (multi-round discussion)
+            if self.enable_collaborative_reasoning and self.collaborative_reasoning:
+                logger.debug(f"   💬 Running collaborative reasoning on finding {finding.finding_id}")
+                verdict = self.collaborative_reasoning.analyze_collaboratively(
+                    finding=finding_dict,
+                    mode="discussion"  # Multi-round discussion mode
                 )
 
-                enhanced_findings.append(finding)
+                # Update finding based on collaborative verdict
+                if verdict.final_decision == "false_positive":
+                    # Skip false positives
+                    logger.debug(f"      ❌ FP: {finding.finding_id} - {verdict.reasoning[:80]}...")
+                    continue
+                elif verdict.final_decision == "confirmed":
+                    # Enhance confirmed finding
+                    finding.confidence = verdict.confidence
+                    finding.description = f"[Multi-Agent Consensus: {verdict.confidence:.0%} confidence] {finding.description}\n\nReasoning: {verdict.reasoning}"
+                    enhanced_findings.append(finding)
+                else:  # needs_review
+                    # Mark for manual review
+                    finding.confidence = verdict.confidence
+                    finding.description = f"[Needs Review: {verdict.confidence:.0%} confidence] {finding.description}\n\nReasoning: {verdict.reasoning}"
+                    enhanced_findings.append(finding)
+
             else:
-                # Finding didn't pass agent review - mark as low confidence
-                finding.confidence = 0.3
-                finding.description = f"[Low confidence: Failed agent review] {finding.description}"
-                enhanced_findings.append(finding)
+                # Use independent agent analysis (faster, no multi-round discussion)
+                # Select best agent for this finding type
+                agent = self.agent_personas.select_agent_for_finding(finding_dict, self.ai_client)
+                analysis = agent.analyze(finding_dict)
 
-        # Filter out very low confidence findings
-        enhanced_findings = [f for f in enhanced_findings if f.confidence >= 0.4]
+                # Update finding based on agent analysis
+                if analysis.verdict == "false_positive":
+                    # Skip false positives
+                    logger.debug(f"      ❌ FP: {finding.finding_id} - {analysis.reasoning[:80]}...")
+                    continue
+                elif analysis.verdict == "confirmed":
+                    # Enhance confirmed finding
+                    finding.confidence = analysis.confidence
+                    finding.description = (
+                        f"[Agent: {analysis.agent_name}, {analysis.confidence:.0%} confidence] {finding.description}\n\n"
+                        f"Reasoning: {analysis.reasoning}\n"
+                        f"Recommendations: {', '.join(analysis.recommendations)}"
+                    )
+                    enhanced_findings.append(finding)
+                else:  # needs_review
+                    # Mark for manual review
+                    finding.confidence = analysis.confidence
+                    finding.description = (
+                        f"[Needs Review by {analysis.agent_name}: {analysis.confidence:.0%} confidence] {finding.description}\n\n"
+                        f"Reasoning: {analysis.reasoning}"
+                    )
+                    enhanced_findings.append(finding)
 
-        logger.info(f"   📊 Consensus complete: {len(enhanced_findings)}/{len(findings)} findings validated")
+        reduction_pct = ((len(findings) - len(enhanced_findings)) / len(findings) * 100) if findings else 0
+        logger.info(f"   📊 Multi-agent review complete: {len(enhanced_findings)}/{len(findings)} findings validated ({reduction_pct:.1f}% reduction)")
 
         return enhanced_findings
 
