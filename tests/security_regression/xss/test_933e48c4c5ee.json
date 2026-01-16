@@ -1,0 +1,15 @@
+{
+  "test_id": "933e48c4c5ee",
+  "vulnerability_type": "xss",
+  "cve_id": null,
+  "cwe_id": "CWE-79",
+  "file_path": "app/templates.py",
+  "function_name": "render_user_input",
+  "date_fixed": "2026-01-15T03:57:04.154381",
+  "test_code": "\nimport pytest\nfrom app.templates import render_user_input\n\ndef test_xss_regression():\n    \"\"\"Regression test: Ensure XSS is still fixed\"\"\"\n    xss_payload = \"<script>alert('XSS')</script>\"\n\n    result = render_user_input(xss_payload)\n\n    # Output should be escaped\n    assert \"<script>\" not in result, \"XSS vulnerability returned - script tag not escaped!\"\n    assert \"alert(\" not in result or \"&lt;\" in result, \"JavaScript not properly escaped\"\n\n    # Check for common XSS evasion techniques\n    evasion_payloads = [\n        \"<img src=x onerror=alert(1)>\",\n        \"javascript:alert(1)\",\n        \"<svg onload=alert(1)>\",\n    ]\n\n    for payload in evasion_payloads:\n        result = render_user_input(payload)\n        assert \"onerror=\" not in result and \"onload=\" not in result, f\"XSS evasion possible: {payload}\"\n\ndef test_xss_normal_input():\n    \"\"\"Ensure fix doesn't break normal functionality\"\"\"\n    normal_input = \"Hello <b>World</b>\"\n    result = render_user_input(normal_input)\n    assert \"Hello\" in result, \"Normal text missing from output\"\n",
+  "language": "python",
+  "description": "Cross-site scripting vulnerability in template rendering - fixed by HTML escaping",
+  "severity": "high",
+  "exploit_payload": "<script>alert('XSS')</script>",
+  "expected_behavior": "should_escape_output"
+}

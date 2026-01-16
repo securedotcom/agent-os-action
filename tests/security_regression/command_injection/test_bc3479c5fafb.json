@@ -1,0 +1,15 @@
+{
+  "test_id": "bc3479c5fafb",
+  "vulnerability_type": "command-injection",
+  "cve_id": null,
+  "cwe_id": "CWE-78",
+  "file_path": "app/file_processor.py",
+  "function_name": "process_file",
+  "date_fixed": "2026-01-15T03:57:04.155468",
+  "test_code": "\nimport pytest\nfrom app.file_processor import process_file\n\ndef test_command_injection_regression():\n    \"\"\"Regression test: Ensure command injection is still fixed\"\"\"\n    malicious_inputs = [\n        \"; cat /etc/passwd\",\n        \"| cat /etc/passwd\",\n        \"& cat /etc/passwd\",\n        \"$(cat /etc/passwd)\",\n        \"`cat /etc/passwd`\",\n    ]\n\n    for malicious_input in malicious_inputs:\n        # Should not execute command\n        try:\n            result = process_file(malicious_input)\n            # If no exception, verify command wasn't executed\n            result_str = str(result)\n            assert \"root:\" not in result_str, f\"Command injection possible with: {malicious_input}\"\n            assert \"/bin/bash\" not in result_str, \"System files accessible\"\n        except (ValueError, SecurityError, PermissionError):\n            # Expected: should raise error for malicious input\n            pass\n\ndef test_command_injection_normal_input():\n    \"\"\"Ensure fix doesn't break normal functionality\"\"\"\n    normal_input = \"test.txt\"\n    result = process_file(normal_input)\n    assert result is not None, \"Function broken for normal input\"\n",
+  "language": "python",
+  "description": "Command injection in file processor - fixed by using subprocess with shell=False",
+  "severity": "critical",
+  "exploit_payload": "; cat /etc/passwd",
+  "expected_behavior": "should_reject_or_sanitize"
+}
