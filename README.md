@@ -130,6 +130,7 @@ graph LR
 
 Create `.github/workflows/agent-os.yml`:
 
+**Basic Configuration:**
 ```yaml
 name: Agent-OS Security
 on: [pull_request]
@@ -148,6 +149,42 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+**Advanced Configuration (All Features):**
+```yaml
+name: Agent-OS Security (Full Suite)
+on: [pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: securedotcom/agent-os-action@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Core Features (enabled by default)
+          enable-api-security: 'true'           # OWASP API Top 10 testing
+          enable-supply-chain: 'true'           # Detect malicious packages
+          enable-threat-intel: 'true'           # CVE/CISA KEV enrichment
+          enable-remediation: 'true'            # AI-powered fix suggestions
+          enable-regression-testing: 'true'     # Prevent vulnerability regression
+
+          # Optional Features (disabled by default, enable as needed)
+          enable-dast: 'true'                   # Dynamic application security testing
+          dast-target-url: 'https://staging.example.com'
+
+          enable-fuzzing: 'true'                # AI-guided fuzzing
+          fuzzing-duration: '300'               # 5 minutes
+
+          enable-runtime-security: 'true'       # Container runtime monitoring
+          runtime-monitoring-duration: '60'     # 1 minute
+```
+
 #### 2. Add API Key
 
 - Go to Settings → Secrets → Actions
@@ -157,8 +194,10 @@ jobs:
 #### 3. Open a PR
 
 Agent-OS will:
-- ✅ Scan your code with 4 security tools
+- ✅ Scan your code with 9 security tools (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST)
 - ✅ AI triages findings (suppresses test files, docs, low-confidence)
+- ✅ Enriches with threat intelligence (CVE, CISA KEV, EPSS)
+- ✅ Generates AI-powered fix suggestions
 - ✅ Comments with 2-10 actionable findings
 - ✅ Blocks PR if verified threats found
 
@@ -749,9 +788,9 @@ python scripts/run_ai_audit.py --help
 
 ## Common Use Cases
 
-### 1. PR Security Gate
+### 1. PR Security Gate (Comprehensive)
 
-Block PRs with verified threats:
+Block PRs with verified threats using all security features:
 
 ```yaml
 name: PR Security Gate
@@ -773,6 +812,17 @@ jobs:
           review-type: 'security'
           fail-on-blockers: 'true'
           only-changed: 'true'
+
+          # Enable all static analysis features (default: true)
+          enable-api-security: 'true'
+          enable-supply-chain: 'true'
+          enable-threat-intel: 'true'
+          enable-remediation: 'true'
+          enable-regression-testing: 'true'
+
+          # Optionally enable dynamic testing (requires staging environment)
+          enable-dast: 'true'
+          dast-target-url: 'https://pr-${{ github.event.number }}.staging.example.com'
 ```
 
 ---

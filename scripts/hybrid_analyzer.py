@@ -1657,6 +1657,23 @@ def main():
 
     args = parser.parse_args()
 
+    # Helper to get boolean from environment variable
+    def get_bool_env(key: str, default: bool) -> bool:
+        val = os.getenv(key)
+        if val is None:
+            return default
+        return val.lower() in ("true", "1", "yes")
+
+    # Helper to get int from environment variable
+    def get_int_env(key: str, default: int) -> int:
+        val = os.getenv(key)
+        if val is None:
+            return default
+        try:
+            return int(val)
+        except ValueError:
+            return default
+
     # Build config from environment
     config = {
         "ai_provider": args.ai_provider or os.getenv("INPUT_AI_PROVIDER", "auto"),
@@ -1665,24 +1682,39 @@ def main():
         "ollama_endpoint": os.getenv("OLLAMA_ENDPOINT"),
     }
 
+    # Read feature flags from environment variables (GitHub Action inputs)
+    # These override defaults but are overridden by explicit CLI args
+    enable_api_security = get_bool_env("ENABLE_API_SECURITY", args.enable_api_security)
+    enable_dast = get_bool_env("ENABLE_DAST", args.enable_dast)
+    enable_supply_chain = get_bool_env("ENABLE_SUPPLY_CHAIN", args.enable_supply_chain)
+    enable_fuzzing = get_bool_env("ENABLE_FUZZING", args.enable_fuzzing)
+    enable_threat_intel = get_bool_env("ENABLE_THREAT_INTEL", args.enable_threat_intel)
+    enable_remediation = get_bool_env("ENABLE_REMEDIATION", args.enable_remediation)
+    enable_runtime_security = get_bool_env("ENABLE_RUNTIME_SECURITY", args.enable_runtime_security)
+    enable_regression_testing = get_bool_env("ENABLE_REGRESSION_TESTING", args.enable_regression_testing)
+
+    dast_target_url = args.dast_target_url or os.getenv("DAST_TARGET_URL")
+    fuzzing_duration = get_int_env("FUZZING_DURATION", args.fuzzing_duration)
+    runtime_monitoring_duration = get_int_env("RUNTIME_MONITORING_DURATION", args.runtime_monitoring_duration)
+
     # Initialize analyzer
     analyzer = HybridSecurityAnalyzer(
         enable_semgrep=args.enable_semgrep,
         enable_trivy=args.enable_trivy,
         enable_checkov=args.enable_checkov,
-        enable_api_security=args.enable_api_security,
-        enable_dast=args.enable_dast,
-        enable_supply_chain=args.enable_supply_chain,
-        enable_fuzzing=args.enable_fuzzing,
-        enable_threat_intel=args.enable_threat_intel,
-        enable_remediation=args.enable_remediation,
-        enable_runtime_security=args.enable_runtime_security,
-        enable_regression_testing=args.enable_regression_testing,
+        enable_api_security=enable_api_security,
+        enable_dast=enable_dast,
+        enable_supply_chain=enable_supply_chain,
+        enable_fuzzing=enable_fuzzing,
+        enable_threat_intel=enable_threat_intel,
+        enable_remediation=enable_remediation,
+        enable_runtime_security=enable_runtime_security,
+        enable_regression_testing=enable_regression_testing,
         enable_ai_enrichment=args.enable_ai_enrichment,
         ai_provider=args.ai_provider,
-        dast_target_url=args.dast_target_url,
-        fuzzing_duration=args.fuzzing_duration,
-        runtime_monitoring_duration=args.runtime_monitoring_duration,
+        dast_target_url=dast_target_url,
+        fuzzing_duration=fuzzing_duration,
+        runtime_monitoring_duration=runtime_monitoring_duration,
         config=config,
     )
 

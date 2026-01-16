@@ -1,0 +1,82 @@
+# Example: Agent-OS Security Scan with All Features Enabled
+# This workflow demonstrates all available security features
+
+name: Agent-OS Full Security Suite
+on:
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays at 2 AM
+
+jobs:
+  comprehensive-security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Agent-OS Security Scan
+        uses: securedotcom/agent-os-action@v1
+        with:
+          # AI Provider Configuration
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          ai-provider: 'anthropic'
+          model: 'claude-sonnet-4'
+
+          # Review Configuration
+          review-type: 'security'
+          project-type: 'backend-api'
+          fail-on-blockers: 'true'
+          only-changed: 'true'
+
+          # Core Security Features (enabled by default)
+          enable-api-security: 'true'           # OWASP API Top 10 testing
+          enable-supply-chain: 'true'           # Detect malicious packages
+          enable-threat-intel: 'true'           # CVE/CISA KEV enrichment
+          enable-remediation: 'true'            # AI-powered fix suggestions
+          enable-regression-testing: 'true'     # Prevent vulnerability regression
+
+          # Optional Advanced Features (disabled by default)
+          enable-dast: 'true'                   # Dynamic application security testing
+          dast-target-url: 'https://pr-${{ github.event.number }}.staging.example.com'
+
+          enable-fuzzing: 'true'                # AI-guided fuzzing
+          fuzzing-duration: '300'               # 5 minutes
+
+          enable-runtime-security: 'false'      # Container runtime monitoring (requires Docker)
+          runtime-monitoring-duration: '60'     # 1 minute
+
+          # Traditional Security Scanners
+          semgrep-enabled: 'true'               # SAST with 2000+ rules
+
+          # Exploit Analysis (Aardvark Mode)
+          enable-exploit-analysis: 'true'       # Exploit chain analysis
+          generate-security-tests: 'true'       # Auto-generate security tests
+          exploitability-threshold: 'trivial'   # Block on trivial exploits
+
+          # Cost & Performance Guardrails
+          max-files: '100'
+          max-tokens: '8000'
+          cost-limit: '2.0'                     # Max $2.00 per scan
+          exclude-paths: '.github/**,node_modules/**,*.lock,vendor/**'
+
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports-${{ github.run_id }}
+          path: .agent-os/reviews/
+          retention-days: 30
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .agent-os/reviews/results.sarif

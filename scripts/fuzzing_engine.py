@@ -34,6 +34,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin, urlparse
 
+# Import Docker sandbox for safe code execution
+try:
+    from sandbox.docker_sandbox import DockerSandbox, SandboxConfig
+    SANDBOX_AVAILABLE = True
+except ImportError:
+    SANDBOX_AVAILABLE = False
+    logging.warning("Docker sandbox not available - fuzzing will run without isolation")
+
 # Optional imports with graceful fallback
 try:
     import requests
@@ -79,6 +87,9 @@ class FuzzConfig:
     base_url: Optional[str] = None
     timeout_seconds: int = 5
     verify_ssl: bool = True
+    use_sandbox: bool = True  # Use Docker sandbox for safe execution
+    sandbox_cpu_limit: float = 1.0  # CPU cores for sandbox
+    sandbox_memory_limit: str = "512m"  # Memory limit for sandbox
 
 
 @dataclass
@@ -231,6 +242,7 @@ class FuzzingEngine:
         self.config = config
         self.coverage_data: Dict[str, Set[int]] = defaultdict(set)
         self.corpus: List[Any] = []
+        self.sandbox: Optional[DockerSandbox] = None
 
         # Initialize LLM if available
         if llm_manager is None:
@@ -245,6 +257,33 @@ class FuzzingEngine:
                 self.llm = None
         else:
             self.llm = llm_manager
+
+        # Initialize Docker sandbox if enabled
+        if self.config and self.config.use_sandbox:
+            if not SANDBOX_AVAILABLE:
+                logger.warning(
+                    "Sandbox requested but not available. "
+                    "Install Docker support with: pip install docker"
+                )
+                logger.warning("Falling back to UNSAFE direct execution")
+            else:
+                try:
+                    sandbox_config = SandboxConfig(
+                        cpu_limit=self.config.sandbox_cpu_limit,
+                        memory_limit=self.config.sandbox_memory_limit,
+                        timeout=self.config.timeout_seconds,
+                        network_disabled=True
+                    )
+                    self.sandbox = DockerSandbox(config=sandbox_config)
+                    logger.info(
+                        f"Docker sandbox initialized: "
+                        f"CPU={self.config.sandbox_cpu_limit}, "
+                        f"Memory={self.config.sandbox_memory_limit}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to initialize Docker sandbox: {e}")
+                    logger.warning("Falling back to UNSAFE direct execution")
+                    self.sandbox = None
 
     def fuzz_api(self, openapi_spec: str, duration_minutes: int = 60,
                  base_url: str = None, verify_ssl: bool = True) -> FuzzResult:
@@ -717,22 +756,50 @@ No explanations, just the JSON array."""
 
     def _load_function(self, file_path: str, function_name: str):
         """
-        Dynamically load a function from a Python file
+        Load function metadata from a Python file
+
+        SECURITY NOTE: This method only loads metadata, NOT the actual function.
+        The actual execution happens in the sandbox for security.
 
         Args:
             file_path: Path to Python file
             function_name: Name of function to load
 
         Returns:
-            Function object or None
+            Tuple of (file_path, function_name) if valid, None otherwise
         """
+        # If sandbox is enabled, we don't actually load the function
+        # We just verify the file exists and return metadata
+        if self.sandbox:
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                logger.error(f"File not found: {file_path}")
+                return None
+
+            # Read the file to verify function exists
+            try:
+                with open(file_path, 'r') as f:
+                    code = f.read()
+                if f"def {function_name}" not in code:
+                    logger.warning(f"Function {function_name} not found in {file_path}")
+                    # Don't fail - might be a class method or generated
+                return (file_path, function_name)
+            except Exception as e:
+                logger.error(f"Failed to read {file_path}: {e}")
+                return None
+
+        # UNSAFE FALLBACK: Only used when sandbox is disabled
+        logger.warning(
+            f"Loading function {function_name} WITHOUT sandbox - UNSAFE! "
+            "Enable sandbox with use_sandbox=True for security."
+        )
         try:
             spec = importlib.util.spec_from_file_location("target_module", file_path)
             if not spec or not spec.loader:
                 return None
 
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            spec.loader.exec_module(module)  # UNSAFE!
 
             return getattr(module, function_name, None)
         except Exception as e:
@@ -741,24 +808,67 @@ No explanations, just the JSON array."""
 
     def _extract_function_signature(self, func) -> str:
         """Extract function signature as string"""
+        # Handle tuple (file_path, function_name) from sandbox mode
+        if isinstance(func, tuple):
+            _, function_name = func
+            return f"{function_name}(...)"
+
         try:
             sig = inspect.signature(func)
             return f"{func.__name__}{sig}"
         except Exception:
-            return f"{func.__name__}(...)"
+            try:
+                return f"{func.__name__}(...)"
+            except Exception:
+                return "function(...)"
 
     def _execute_function_test(self, func, test_input: Any, source_file: str) -> Dict:
         """
-        Execute function with test input
+        Execute function with test input (SANDBOXED or UNSAFE fallback)
 
         Args:
-            func: Function to test
+            func: Function to test OR tuple of (file_path, function_name) if sandboxed
             test_input: Input to pass to function
             source_file: Source file path for coverage tracking
 
         Returns:
             Result dictionary
         """
+        # SANDBOXED EXECUTION (SECURE)
+        if self.sandbox and isinstance(func, tuple):
+            file_path, function_name = func
+
+            try:
+                # Execute in isolated Docker container
+                sandbox_result = self.sandbox.execute_python_module(
+                    file_path,
+                    function_name,
+                    test_input,
+                    timeout=self.config.timeout_seconds if self.config else 30
+                )
+
+                # Convert sandbox result to expected format
+                result = {
+                    'crashed': sandbox_result.crashed,
+                    'crash_type': sandbox_result.crash_type,
+                    'stack_trace': sandbox_result.stack_trace,
+                    'lines_executed': sandbox_result.lines_executed or set()
+                }
+
+                return result
+
+            except Exception as e:
+                logger.error(f"Sandbox execution failed: {e}")
+                return {
+                    'crashed': True,
+                    'crash_type': 'sandbox_error',
+                    'stack_trace': str(e),
+                    'lines_executed': set()
+                }
+
+        # UNSAFE FALLBACK (NO SANDBOX)
+        logger.warning("Executing WITHOUT sandbox - SECURITY RISK!")
+
         result = {
             'crashed': False,
             'crash_type': None,
@@ -772,15 +882,15 @@ No explanations, just the JSON array."""
             params = sig.parameters
 
             if len(params) == 0:
-                func()
+                func()  # UNSAFE!
             elif len(params) == 1:
-                func(test_input)
+                func(test_input)  # UNSAFE!
             else:
                 # Multiple params - try to split input or pass same to all
                 if isinstance(test_input, (list, tuple)):
-                    func(*test_input[:len(params)])
+                    func(*test_input[:len(params)])  # UNSAFE!
                 else:
-                    func(*[test_input] * len(params))
+                    func(*[test_input] * len(params))  # UNSAFE!
 
         except TimeoutError:
             result['crashed'] = True
@@ -1034,6 +1144,19 @@ No explanations, just the JSON array."""
 
         logger.info(f"Exported {len(crashes)} crashes to SARIF: {output_file}")
 
+    def cleanup(self):
+        """Clean up fuzzing engine resources"""
+        if self.sandbox:
+            logger.info("Cleaning up Docker sandbox...")
+            try:
+                self.sandbox.cleanup()
+            except Exception as e:
+                logger.warning(f"Failed to cleanup sandbox: {e}")
+
+    def __del__(self):
+        """Destructor - ensure cleanup"""
+        self.cleanup()
+
 
 def main():
     """CLI entry point"""
@@ -1054,6 +1177,7 @@ def main():
     func_parser.add_argument('--duration', type=int, default=30, help='Duration in minutes')
     func_parser.add_argument('--sast-findings', help='SAST findings JSON file')
     func_parser.add_argument('--output', default='fuzz_results.json', help='Output file')
+    func_parser.add_argument('--no-sandbox', action='store_true', help='Disable Docker sandbox (UNSAFE!)')
 
     # File parser fuzzing
     parser_parser = subparsers.add_parser('parser', help='Fuzz file parser')
@@ -1061,6 +1185,7 @@ def main():
     parser_parser.add_argument('--file-type', required=True, choices=['json', 'xml', 'csv', 'pdf', 'image'])
     parser_parser.add_argument('--duration', type=int, default=30, help='Duration in minutes')
     parser_parser.add_argument('--output', default='fuzz_results.json', help='Output file')
+    parser_parser.add_argument('--no-sandbox', action='store_true', help='Disable Docker sandbox (UNSAFE!)')
 
     # CI mode
     ci_parser = subparsers.add_parser('ci', help='Quick fuzzing for CI/CD')
@@ -1073,8 +1198,23 @@ def main():
         parser.print_help()
         return 1
 
+    # Build config based on arguments
+    config = None
+    if args.command in ('function', 'parser'):
+        use_sandbox = not getattr(args, 'no_sandbox', False)
+        if not use_sandbox:
+            logger.warning("⚠️  SANDBOX DISABLED - Running in UNSAFE mode!")
+            logger.warning("⚠️  Untrusted code will execute directly on your system!")
+
+        config = FuzzConfig(
+            target=FuzzTarget.PYTHON_FUNCTION,
+            target_path="",
+            use_sandbox=use_sandbox,
+            timeout_seconds=getattr(args, 'duration', 30) * 60
+        )
+
     # Initialize engine
-    engine = FuzzingEngine()
+    engine = FuzzingEngine(config=config)
 
     try:
         if args.command == 'api':
@@ -1150,6 +1290,11 @@ def main():
         logger.error(f"Fuzzing failed: {e}")
         logger.debug(traceback.format_exc())
         return 2
+
+    finally:
+        # Always cleanup
+        if engine:
+            engine.cleanup()
 
 
 if __name__ == '__main__':

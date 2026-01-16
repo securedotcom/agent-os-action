@@ -24,6 +24,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -414,6 +420,42 @@ class DASTScanner:
 
         return json.dumps(body_dict)
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((subprocess.SubprocessError, OSError, RuntimeError)),
+    )
+    def _execute_nuclei_scan(self, cmd: list[str], target_count: int) -> str:
+        """Execute Nuclei scan with retry logic
+
+        Args:
+            cmd: Nuclei command to execute
+            target_count: Number of targets being scanned
+
+        Returns:
+            Nuclei stdout output
+
+        Raises:
+            RuntimeError: If scan fails after retries
+        """
+        logger.info(f"  Running: nuclei with {target_count} targets...")
+
+        # Run Nuclei
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minute timeout
+        )
+
+        # Nuclei returns 0 even with findings
+        if result.returncode not in [0, 1]:
+            logger.error(f"Nuclei scan failed with exit code {result.returncode}")
+            logger.error(f"STDERR: {result.stderr}")
+            raise RuntimeError(f"Nuclei scan failed: {result.stderr}")
+
+        return result.stdout
+
     def _run_nuclei(self, targets: list[DASTTarget]) -> list[NucleiFinding]:
         """
         Execute Nuclei scan on targets
@@ -425,43 +467,33 @@ class DASTScanner:
             List of NucleiFinding objects
         """
         # Create temporary file with target URLs
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            target_file = f.name
+        # Use delete=True with context manager for automatic cleanup
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=True) as f:
+            target_file_path = f.name
             for target in targets:
                 f.write(f"{target.url}\n")
+            f.flush()  # Ensure data is written before nuclei reads it
 
-        try:
-            # Build nuclei command
-            cmd = self._build_nuclei_command(target_file)
+            try:
+                # Build nuclei command
+                cmd = self._build_nuclei_command(target_file_path)
 
-            logger.info(f"  Running: nuclei with {len(targets)} targets...")
+                # Execute with retry logic
+                output = self._execute_nuclei_scan(cmd, len(targets))
 
-            # Run Nuclei
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600,  # 10 minute timeout
-            )
+                # Parse JSON output
+                findings = self._parse_nuclei_output(output)
 
-            # Nuclei returns 0 even with findings
-            if result.returncode not in [0, 1]:
-                logger.error(f"Nuclei scan failed with exit code {result.returncode}")
-                logger.error(f"STDERR: {result.stderr}")
-                raise RuntimeError(f"Nuclei scan failed: {result.stderr}")
+                logger.info(f"  Nuclei scan complete: {len(findings)} findings")
+                return findings
 
-            # Parse JSON output
-            findings = self._parse_nuclei_output(result.stdout)
-
-            logger.info(f"  Nuclei scan complete: {len(findings)} findings")
-            return findings
-
-        except subprocess.TimeoutExpired:
-            logger.error("Nuclei scan timed out after 10 minutes")
-            raise RuntimeError("Nuclei scan timed out")
-        finally:
-            # Clean up temp file
-            Path(target_file).unlink(missing_ok=True)
+            except subprocess.TimeoutExpired:
+                logger.error("Nuclei scan timed out after 10 minutes")
+                raise RuntimeError("Nuclei scan timed out")
+            except Exception as e:
+                logger.error(f"Nuclei scan failed after retries: {e}")
+                raise
+            # No finally block needed - context manager handles cleanup automatically
 
     def _build_nuclei_command(self, target_file: str) -> list[str]:
         """

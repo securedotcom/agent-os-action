@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.security_test_generator import SecurityTestGenerator, TestSuite
+from scripts.security_test_generator import SecurityTestGenerator, GeneratedTestSuite
 
 
 class TestSecurityTestGenerator:
@@ -263,7 +263,7 @@ class TestSecurityTestGenerator:
 
     def test_write_test_file_python(self, generator):
         """Test writing Python test file"""
-        suite = TestSuite(
+        suite = GeneratedTestSuite(
             language="python",
             framework="pytest",
             tests=["def test_foo():\n    assert True"],
@@ -284,7 +284,7 @@ class TestSecurityTestGenerator:
 
     def test_write_test_file_javascript(self, generator):
         """Test writing JavaScript test file"""
-        suite = TestSuite(
+        suite = GeneratedTestSuite(
             language="javascript",
             framework="jest",
             tests=["test('works', () => expect(true).toBe(true));"],
@@ -306,11 +306,11 @@ class TestSecurityTestGenerator:
 
     def test_test_suite_test_count(self):
         """Test TestSuite test_count method"""
-        suite = TestSuite(language="python", framework="pytest", tests=["test1", "test2", "test3"])
+        suite = GeneratedTestSuite(language="python", framework="pytest", tests=["test1", "test2", "test3"])
 
         assert suite.test_count() == 3
 
-        empty_suite = TestSuite(language="python", framework="pytest")
+        empty_suite = GeneratedTestSuite(language="python", framework="pytest")
         assert empty_suite.test_count() == 0
 
 
