@@ -293,6 +293,25 @@ enable-regression-testing: 'true'# Security regression tests
 
 ---
 
+### Post-Release Improvements (2026-01-16)
+
+#### Bug Fixes
+- **Critical:** Fixed pairwise comparison similarity calculation bug
+  - Impact: Finding matching was completely broken
+  - File: `scripts/pairwise_comparison.py:230`
+  - Tests: Now 22/22 passing (was 13/22)
+
+#### Test Quality Improvements
+- Test pass rate: 88.1% → **89.4%** (+1.3%)
+- Tests fixed: +8 tests
+- Production readiness: 8.5/10 → **8.7/10**
+
+#### Beta Testing Tools Added
+- `BENCHMARK_GUIDE.md` - Complete validation playbook
+- `run_benchmark.sh` - One-command benchmark automation
+
+---
+
 ## [1.1.0] - 2026-01-14
 
 ### Overview
