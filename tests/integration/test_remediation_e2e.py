@@ -17,7 +17,7 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
-from security_test_generator import SecurityTestGenerator, TestSuite
+from security_test_generator import SecurityTestGenerator, GeneratedTestSuite
 
 
 class TestSecurityTestGeneratorE2E:
@@ -302,7 +302,7 @@ class TestSecurityTestGeneratorE2E:
         )
 
         # Should handle gracefully
-        assert isinstance(test_suite, TestSuite), "Should return TestSuite"
+        assert isinstance(test_suite, GeneratedTestSuite), "Should return GeneratedTestSuite"
 
     def test_test_suite_metadata(self):
         """Test that generated test suites include proper metadata"""
@@ -444,7 +444,7 @@ class TestSecurityTestGeneratorE2E:
 
     # Helper methods
 
-    def _write_test_suite(self, test_suite: TestSuite) -> List[Path]:
+    def _write_test_suite(self, test_suite: GeneratedTestSuite) -> List[Path]:
         """Write test suite to files"""
         test_files = []
 
@@ -459,7 +459,7 @@ class TestSecurityTestGeneratorE2E:
 
         return test_files
 
-    def _write_single_test_file(self, test_suite: TestSuite, filepath: Path) -> None:
+    def _write_single_test_file(self, test_suite: GeneratedTestSuite, filepath: Path) -> None:
         """Write a single test file"""
         content = []
 

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class TestSuite:
+class GeneratedTestSuite:
     """Generated security test suite"""
 
     language: str  # python, javascript
@@ -96,7 +96,7 @@ class SecurityTestGenerator:
 
     def generate_test_suite(
         self, findings: list[dict], output_path: str = "tests/security/", filename: Optional[str] = None
-    ) -> TestSuite:
+    ) -> GeneratedTestSuite:
         """
         Generate complete test suite for findings
 
@@ -106,13 +106,13 @@ class SecurityTestGenerator:
             filename: Optional custom filename (auto-detected if None)
 
         Returns:
-            TestSuite object with generated tests
+            GeneratedTestSuite object with generated tests
         """
         self.stats["total_findings"] = len(findings)
 
         if not findings:
             logger.warning("No findings provided, generating empty test suite")
-            return TestSuite(language="python", framework="pytest")
+            return GeneratedTestSuite(language="python", framework="pytest")
 
         # Detect language from findings
         language = self._detect_language(findings)
@@ -138,7 +138,7 @@ class SecurityTestGenerator:
         setup_code = self._generate_setup(language, framework)
         imports = self._generate_imports(language, framework)
 
-        suite = TestSuite(
+        suite = GeneratedTestSuite(
             language=language,
             framework=framework,
             tests=tests,
@@ -528,7 +528,7 @@ describe('Security Tests - Generated', () => {
                 "const { describe, test, expect, beforeAll, afterAll } = require('@jest/globals');",
             ]
 
-    def _write_test_file(self, suite: TestSuite, output_path: str, filename: str):
+    def _write_test_file(self, suite: GeneratedTestSuite, output_path: str, filename: str):
         """Write test suite to file"""
         output_dir = Path(output_path)
         output_dir.mkdir(parents=True, exist_ok=True)

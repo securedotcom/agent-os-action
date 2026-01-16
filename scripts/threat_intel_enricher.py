@@ -27,6 +27,12 @@ import urllib.request
 import urllib.error
 import urllib.parse
 from collections import defaultdict
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +371,24 @@ class ThreatIntelEnricher:
 
         return context
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((urllib.error.URLError, urllib.error.HTTPError, ConnectionError, TimeoutError)),
+    )
+    def _fetch_kev_data(self) -> Dict:
+        """Fetch KEV data from CISA API with retry logic"""
+        logger.info("Fetching CISA KEV catalog...")
+        self._rate_limit("kev")
+
+        req = urllib.request.Request(self.CISA_KEV_URL)
+        req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
+
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read())
+
+        return data
+
     def _load_kev_catalog(self) -> Optional[Dict]:
         """Load CISA KEV catalog with 24h caching"""
         cache_file = self.cache_dir / "kev_catalog.json"
@@ -384,16 +408,9 @@ class ThreatIntelEnricher:
                 except Exception as e:
                     logger.warning(f"Failed to load KEV cache: {e}")
 
-        # Fetch fresh data
+        # Fetch fresh data with retry logic
         try:
-            logger.info("Fetching CISA KEV catalog...")
-            self._rate_limit("kev")
-
-            req = urllib.request.Request(self.CISA_KEV_URL)
-            req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
-
-            with urllib.request.urlopen(req, timeout=30) as response:
-                data = json.loads(response.read())
+            data = self._fetch_kev_data()
 
             # Cache it
             with open(cache_file, "w") as f:
@@ -405,7 +422,7 @@ class ThreatIntelEnricher:
             return data
 
         except Exception as e:
-            logger.error(f"Failed to fetch KEV catalog: {e}")
+            logger.error(f"Failed to fetch KEV catalog after retries: {e}")
             self.stats["api_errors"] += 1
             return None
 
@@ -419,6 +436,30 @@ class ThreatIntelEnricher:
                 return vuln
 
         return None
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((urllib.error.URLError, urllib.error.HTTPError, ConnectionError, TimeoutError)),
+    )
+    def _fetch_epss_data(self, cve_id: str) -> Dict:
+        """Fetch EPSS data from FIRST API with retry logic"""
+        self._rate_limit("epss")
+        url = f"{self.EPSS_API_URL}?cve={cve_id}"
+
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read())
+
+        if data.get("data") and len(data["data"]) > 0:
+            epss_data = data["data"][0]
+            return {
+                "epss": float(epss_data.get("epss", 0)),
+                "percentile": float(epss_data.get("percentile", 0)),
+            }
+        return {}
 
     def _get_epss_score(self, cve_id: str) -> Optional[Dict]:
         """Get EPSS score from FIRST API with caching"""
@@ -435,24 +476,11 @@ class ThreatIntelEnricher:
                 except Exception:
                     pass
 
-        # Fetch from API
+        # Fetch from API with retry logic
         try:
-            self._rate_limit("epss")
-            url = f"{self.EPSS_API_URL}?cve={cve_id}"
+            result = self._fetch_epss_data(cve_id)
 
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
-
-            with urllib.request.urlopen(req, timeout=15) as response:
-                data = json.loads(response.read())
-
-            if data.get("data") and len(data["data"]) > 0:
-                epss_data = data["data"][0]
-                result = {
-                    "epss": float(epss_data.get("epss", 0)),
-                    "percentile": float(epss_data.get("percentile", 0)),
-                }
-
+            if result:
                 # Cache it
                 with open(cache_file, "w") as f:
                     json.dump(result, f, indent=2)
@@ -461,10 +489,32 @@ class ThreatIntelEnricher:
                 return result
 
         except Exception as e:
-            logger.debug(f"Failed to get EPSS for {cve_id}: {e}")
+            logger.debug(f"Failed to get EPSS for {cve_id} after retries: {e}")
             self.stats["api_errors"] += 1
 
         return None
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((urllib.error.URLError, ConnectionError, TimeoutError)),
+    )
+    def _fetch_nvd_data(self, cve_id: str) -> Dict:
+        """Fetch NVD data from API with retry logic"""
+        self._rate_limit("nvd")
+        url = f"{self.NVD_API_URL}?cveId={cve_id}"
+
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
+
+        with urllib.request.urlopen(req, timeout=20) as response:
+            data = json.loads(response.read())
+
+        if data.get("vulnerabilities") and len(data["vulnerabilities"]) > 0:
+            vuln = data["vulnerabilities"][0]["cve"]
+            return self._parse_nvd_vulnerability(vuln)
+
+        return {}
 
     def _get_nvd_data(self, cve_id: str) -> Optional[Dict]:
         """Get NVD data for CVE with caching"""
@@ -481,21 +531,11 @@ class ThreatIntelEnricher:
                 except Exception:
                     pass
 
-        # Fetch from NVD API (no key = strict rate limit)
+        # Fetch from NVD API with retry logic
         try:
-            self._rate_limit("nvd")
-            url = f"{self.NVD_API_URL}?cveId={cve_id}"
+            result = self._fetch_nvd_data(cve_id)
 
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
-
-            with urllib.request.urlopen(req, timeout=20) as response:
-                data = json.loads(response.read())
-
-            if data.get("vulnerabilities") and len(data["vulnerabilities"]) > 0:
-                vuln = data["vulnerabilities"][0]["cve"]
-                result = self._parse_nvd_vulnerability(vuln)
-
+            if result:
                 # Cache it
                 with open(cache_file, "w") as f:
                     json.dump(result, f, indent=2)
@@ -507,10 +547,10 @@ class ThreatIntelEnricher:
             if e.code == 404:
                 logger.debug(f"CVE {cve_id} not found in NVD")
             else:
-                logger.debug(f"Failed to get NVD data for {cve_id}: HTTP {e.code}")
+                logger.debug(f"Failed to get NVD data for {cve_id} after retries: HTTP {e.code}")
             self.stats["api_errors"] += 1
         except Exception as e:
-            logger.debug(f"Failed to get NVD data for {cve_id}: {e}")
+            logger.debug(f"Failed to get NVD data for {cve_id} after retries: {e}")
             self.stats["api_errors"] += 1
 
         return None
@@ -575,6 +615,45 @@ class ThreatIntelEnricher:
             "exploit_sources": exploit_sources,
         }
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((urllib.error.URLError, urllib.error.HTTPError, ConnectionError, TimeoutError)),
+    )
+    def _fetch_github_advisories(self, cve_id: str) -> List[Dict]:
+        """Fetch GitHub advisories from API with retry logic"""
+        self._rate_limit("github")
+
+        # GitHub API v3 requires proper URL encoding
+        params = urllib.parse.urlencode({"cve_id": cve_id})
+        url = f"{self.GITHUB_ADVISORY_URL}?{params}"
+
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
+        req.add_header("Accept", "application/vnd.github+json")
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            advisories = json.loads(response.read())
+
+        # Extract relevant fields
+        result = []
+        for advisory in advisories:
+            result.append(
+                {
+                    "id": advisory.get("ghsa_id"),
+                    "summary": advisory.get("summary"),
+                    "severity": advisory.get("severity"),
+                    "html_url": advisory.get("html_url"),
+                    "published_at": advisory.get("published_at"),
+                    "updated_at": advisory.get("updated_at"),
+                    "patched_versions": advisory.get("vulnerabilities", [{}])[0].get(
+                        "patched_versions"
+                    ),
+                }
+            )
+
+        return result
+
     def _get_github_advisories(self, cve_id: str) -> List[Dict]:
         """Get GitHub Security Advisories for CVE"""
         cache_file = self.cache_dir / f"github_{cve_id}.json"
@@ -590,37 +669,9 @@ class ThreatIntelEnricher:
                 except Exception:
                     pass
 
-        # Fetch from GitHub API
+        # Fetch from GitHub API with retry logic
         try:
-            self._rate_limit("github")
-
-            # GitHub API v3 requires proper URL encoding
-            params = urllib.parse.urlencode({"cve_id": cve_id})
-            url = f"{self.GITHUB_ADVISORY_URL}?{params}"
-
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
-            req.add_header("Accept", "application/vnd.github+json")
-
-            with urllib.request.urlopen(req, timeout=15) as response:
-                advisories = json.loads(response.read())
-
-            # Extract relevant fields
-            result = []
-            for advisory in advisories:
-                result.append(
-                    {
-                        "id": advisory.get("ghsa_id"),
-                        "summary": advisory.get("summary"),
-                        "severity": advisory.get("severity"),
-                        "html_url": advisory.get("html_url"),
-                        "published_at": advisory.get("published_at"),
-                        "updated_at": advisory.get("updated_at"),
-                        "patched_versions": advisory.get("vulnerabilities", [{}])[0].get(
-                            "patched_versions"
-                        ),
-                    }
-                )
+            result = self._fetch_github_advisories(cve_id)
 
             # Cache it
             with open(cache_file, "w") as f:
@@ -630,10 +681,39 @@ class ThreatIntelEnricher:
             return result
 
         except Exception as e:
-            logger.debug(f"Failed to get GitHub advisories for {cve_id}: {e}")
+            logger.debug(f"Failed to get GitHub advisories for {cve_id} after retries: {e}")
             self.stats["api_errors"] += 1
 
         return []
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((urllib.error.URLError, ConnectionError, TimeoutError)),
+    )
+    def _fetch_osv_data(self, cve_id: str) -> List[Dict]:
+        """Fetch OSV data from API with retry logic"""
+        self._rate_limit("osv")
+        url = f"{self.OSV_API_URL}/{cve_id}"
+
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read())
+
+        result = [
+            {
+                "id": data.get("id"),
+                "summary": data.get("summary"),
+                "details": data.get("details"),
+                "severity": data.get("severity"),
+                "references": data.get("references", []),
+                "affected": data.get("affected", []),
+            }
+        ]
+
+        return result
 
     def _get_osv_data(self, cve_id: str) -> List[Dict]:
         """Get OSV (Open Source Vulnerabilities) data"""
@@ -650,27 +730,9 @@ class ThreatIntelEnricher:
                 except Exception:
                     pass
 
-        # Fetch from OSV API
+        # Fetch from OSV API with retry logic
         try:
-            self._rate_limit("osv")
-            url = f"{self.OSV_API_URL}/{cve_id}"
-
-            req = urllib.request.Request(url)
-            req.add_header("User-Agent", "Agent-OS-Security-Scanner/1.0")
-
-            with urllib.request.urlopen(req, timeout=15) as response:
-                data = json.loads(response.read())
-
-            result = [
-                {
-                    "id": data.get("id"),
-                    "summary": data.get("summary"),
-                    "details": data.get("details"),
-                    "severity": data.get("severity"),
-                    "references": data.get("references", []),
-                    "affected": data.get("affected", []),
-                }
-            ]
+            result = self._fetch_osv_data(cve_id)
 
             # Cache it
             with open(cache_file, "w") as f:
@@ -683,10 +745,10 @@ class ThreatIntelEnricher:
             if e.code == 404:
                 logger.debug(f"CVE {cve_id} not found in OSV")
             else:
-                logger.debug(f"Failed to get OSV data for {cve_id}: HTTP {e.code}")
+                logger.debug(f"Failed to get OSV data for {cve_id} after retries: HTTP {e.code}")
             self.stats["api_errors"] += 1
         except Exception as e:
-            logger.debug(f"Failed to get OSV data for {cve_id}: {e}")
+            logger.debug(f"Failed to get OSV data for {cve_id} after retries: {e}")
             self.stats["api_errors"] += 1
 
         return []

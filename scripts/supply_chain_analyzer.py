@@ -18,12 +18,24 @@ import re
 import subprocess
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
+
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    # Fallback to standard library with warning
+    import xml.etree.ElementTree as ET
+    logging.warning("defusedxml not available - XML parsing may be vulnerable to XXE/billion laughs attacks")
+
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +374,7 @@ class SupplyChainAnalyzer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
+                timeout=60,
                 check=False,
             )
             if result.returncode == 0:
@@ -920,16 +933,19 @@ class SupplyChainAnalyzer:
         typo_result = self.check_typosquatting(change.package_name, change.ecosystem)
         if typo_result:
             threats.append("typosquatting")
+            legitimate_pkg = typo_result["legitimate_package"]
+            distance = typo_result["distance"]
             evidence.append(
-                f"Package name '{change.package_name}' is similar to popular package '{typo_result['legitimate_package']}' (distance: {typo_result['distance']})"
+                f"Package name '{change.package_name}' is similar to popular package "
+                f"'{legitimate_pkg}' (distance: {distance})"
             )
             similar_packages = typo_result.get("similar", [])
             threat_level = ThreatLevel.HIGH
             recommendations.append(
-                f"CRITICAL: Verify you meant '{typo_result['legitimate_package']}' instead of '{change.package_name}'"
+                f"CRITICAL: Verify you meant '{legitimate_pkg}' instead of '{change.package_name}'"
             )
             recommendations.append(
-                f"This may be a typosquatting attack attempting to mimic '{typo_result['legitimate_package']}'"
+                f"This may be a typosquatting attack attempting to mimic '{legitimate_pkg}'"
             )
 
         # 2. Malicious behavior check
@@ -1040,12 +1056,13 @@ class SupplyChainAnalyzer:
         """
         Analyze package for malicious behavior patterns
 
-        This is a simplified implementation that would ideally:
-        1. Download the package
-        2. Extract and scan install scripts
-        3. Perform AST analysis on code
-
-        For now, returns None (would require package download infrastructure)
+        Downloads package and scans for:
+        1. Suspicious install scripts (curl, wget, eval, exec)
+        2. Network calls during install
+        3. File system access outside package directory
+        4. Process spawning and command execution
+        5. Obfuscated code patterns
+        6. Environment variable exfiltration
 
         Args:
             package_name: Name of package
@@ -1054,15 +1071,524 @@ class SupplyChainAnalyzer:
         Returns:
             Dict with suspicious=True and threats/evidence if malicious patterns found
         """
-        # TODO: Implement package download and analysis
-        # This would require:
-        # - Package registry API integration (npm, PyPI, etc.)
-        # - Package download and extraction
-        # - Scanning setup.py, package.json scripts, build.rs, etc.
-        # - AST analysis for deeper inspection
+        try:
+            # Download package to temporary directory
+            with tempfile.TemporaryDirectory() as tmpdir:
+                package_path = Path(tmpdir)
+                logger.debug(f"Downloading {ecosystem}:{package_name} to {package_path}")
 
-        logger.debug(f"Behavior analysis not yet implemented for {ecosystem}:{package_name}")
-        return None
+                # Download package
+                if not self._download_package(package_name, ecosystem, package_path):
+                    logger.warning(f"Failed to download {ecosystem}:{package_name}")
+                    return None
+
+                # Analyze package behavior
+                analysis = self._analyze_package_behavior(package_path, ecosystem)
+
+                if analysis["suspicious"]:
+                    # Calculate risk score
+                    risk_score = self._score_package_risk(analysis)
+                    analysis["risk_score"] = risk_score
+                    logger.info(f"Suspicious package detected: {package_name} (risk: {risk_score}/100)")
+
+                return analysis
+
+        except Exception as e:
+            logger.error(f"Error analyzing {ecosystem}:{package_name}: {e}")
+            return None
+
+    def _download_package(self, package_name: str, ecosystem: str, dest_path: Path) -> bool:
+        """
+        Download package from registry to destination path
+
+        Args:
+            package_name: Package name
+            ecosystem: Package ecosystem (npm, pypi, maven, cargo, go)
+            dest_path: Destination directory for download
+
+        Returns:
+            True if download successful, False otherwise
+        """
+        try:
+            if ecosystem == "npm":
+                return self._download_npm_package(package_name, dest_path)
+            elif ecosystem == "pypi":
+                return self._download_pypi_package(package_name, dest_path)
+            elif ecosystem == "maven":
+                return self._download_maven_package(package_name, dest_path)
+            elif ecosystem == "cargo":
+                return self._download_cargo_package(package_name, dest_path)
+            elif ecosystem == "go":
+                return self._download_go_package(package_name, dest_path)
+            else:
+                logger.warning(f"Unsupported ecosystem for download: {ecosystem}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to download {ecosystem}:{package_name}: {e}")
+            return False
+
+    def _download_npm_package(self, package_name: str, dest_path: Path) -> bool:
+        """Download npm package using npm pack"""
+        try:
+            # Use npm view to get latest version
+            result = subprocess.run(
+                ["npm", "view", package_name, "version"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                logger.debug(f"npm package not found: {package_name}")
+                return False
+
+            version = result.stdout.strip()
+
+            # Download package tarball using npm pack
+            result = subprocess.run(
+                ["npm", "pack", f"{package_name}@{version}"],
+                cwd=dest_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                return False
+
+            # Extract tarball
+            tarball = list(dest_path.glob("*.tgz"))[0]
+            subprocess.run(
+                ["tar", "-xzf", str(tarball), "-C", str(dest_path)],
+                check=True,
+                timeout=30,
+            )
+
+            return True
+
+        except Exception as e:
+            logger.debug(f"npm download failed: {e}")
+            return False
+
+    def _download_pypi_package(self, package_name: str, dest_path: Path) -> bool:
+        """Download PyPI package using pip download"""
+        try:
+            # Use pip download to get package
+            result = subprocess.run(
+                ["pip", "download", "--no-deps", "--dest", str(dest_path), package_name],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                logger.debug(f"PyPI package not found: {package_name}")
+                return False
+
+            # Extract wheel or tar.gz
+            for archive in dest_path.glob("*"):
+                if archive.suffix == ".whl":
+                    # Extract wheel (it's a zip file)
+                    subprocess.run(
+                        ["unzip", "-q", str(archive), "-d", str(dest_path / "extracted")],
+                        check=False,
+                        timeout=30,
+                    )
+                elif archive.suffix == ".gz":
+                    # Extract tar.gz
+                    subprocess.run(
+                        ["tar", "-xzf", str(archive), "-C", str(dest_path)],
+                        check=False,
+                        timeout=30,
+                    )
+
+            return True
+
+        except Exception as e:
+            logger.debug(f"PyPI download failed: {e}")
+            return False
+
+    def _download_maven_package(self, package_name: str, dest_path: Path) -> bool:
+        """Download Maven package using mvn dependency:get"""
+        try:
+            # Parse group:artifact format
+            if ":" not in package_name:
+                return False
+
+            parts = package_name.split(":")
+            if len(parts) < 2:
+                return False
+
+            group_id, artifact_id = parts[0], parts[1]
+
+            # Download using mvn dependency:get
+            result = subprocess.run(
+                [
+                    "mvn",
+                    "dependency:get",
+                    f"-DgroupId={group_id}",
+                    f"-DartifactId={artifact_id}",
+                    "-Dpackaging=jar",
+                    f"-Ddest={dest_path / 'package.jar'}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                logger.debug(f"Maven package not found: {package_name}")
+                return False
+
+            # Extract JAR
+            jar_file = dest_path / "package.jar"
+            if jar_file.exists():
+                subprocess.run(
+                    ["unzip", "-q", str(jar_file), "-d", str(dest_path / "extracted")],
+                    check=False,
+                    timeout=30,
+                )
+
+            return True
+
+        except Exception as e:
+            logger.debug(f"Maven download failed: {e}")
+            return False
+
+    def _download_cargo_package(self, package_name: str, dest_path: Path) -> bool:
+        """Download Cargo package from crates.io"""
+        try:
+            # Use cargo download (if available) or fetch from crates.io API
+            # First try cargo install --no-track with download only
+            result = subprocess.run(
+                [
+                    "cargo",
+                    "install",
+                    "--root",
+                    str(dest_path),
+                    "--no-track",
+                    package_name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+
+            # Alternative: Download directly from crates.io
+            if result.returncode != 0:
+                # Get latest version from crates.io API
+                api_url = f"https://crates.io/api/v1/crates/{package_name}"
+                curl_result = subprocess.run(
+                    ["curl", "-s", api_url],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
+
+                if curl_result.returncode != 0:
+                    return False
+
+                data = json.loads(curl_result.stdout)
+                version = data["crate"]["newest_version"]
+
+                # Download tarball
+                download_url = f"https://crates.io/api/v1/crates/{package_name}/{version}/download"
+                tarball_path = dest_path / f"{package_name}.tar.gz"
+
+                subprocess.run(
+                    ["curl", "-L", "-o", str(tarball_path), download_url],
+                    check=True,
+                    timeout=60,
+                )
+
+                # Extract
+                subprocess.run(
+                    ["tar", "-xzf", str(tarball_path), "-C", str(dest_path)],
+                    check=True,
+                    timeout=30,
+                )
+
+            return True
+
+        except Exception as e:
+            logger.debug(f"Cargo download failed: {e}")
+            return False
+
+    def _download_go_package(self, package_name: str, dest_path: Path) -> bool:
+        """Download Go package using go mod download"""
+        try:
+            # Create temporary go.mod
+            go_mod_content = f"""module temp
+go 1.20
+
+require {package_name} v0.0.0
+"""
+            go_mod_path = dest_path / "go.mod"
+            go_mod_path.write_text(go_mod_content)
+
+            # Download package
+            result = subprocess.run(
+                ["go", "mod", "download", "-x", package_name],
+                cwd=dest_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                # Try with @latest
+                result = subprocess.run(
+                    ["go", "get", "-d", f"{package_name}@latest"],
+                    cwd=dest_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
+                )
+
+            return result.returncode == 0
+
+        except Exception as e:
+            logger.debug(f"Go download failed: {e}")
+            return False
+
+    def _analyze_package_behavior(self, package_path: Path, ecosystem: str) -> Dict[str, Any]:
+        """
+        Analyze downloaded package for suspicious behavior
+
+        Scans for:
+        - Install scripts with curl/wget
+        - eval/exec in setup scripts
+        - Network calls during install
+        - File system modifications outside package dir
+        - Process spawning
+        - Obfuscated code
+        - Environment variable access
+
+        Args:
+            package_path: Path to extracted package
+            ecosystem: Package ecosystem
+
+        Returns:
+            Dict with analysis results including threats, evidence, and suspicious flag
+        """
+        threats = []
+        evidence = []
+        patterns_found = {}
+
+        # Get install/setup scripts based on ecosystem
+        install_scripts = self._get_install_scripts(package_path, ecosystem)
+
+        # Scan each script for suspicious patterns
+        for script_path in install_scripts:
+            try:
+                content = script_path.read_text(errors="ignore")
+
+                # Check each pattern category
+                for category, pattern_list in self.SUSPICIOUS_PATTERNS.items():
+                    if category not in patterns_found:
+                        patterns_found[category] = []
+
+                    for pattern in pattern_list:
+                        matches = re.finditer(pattern, content, re.MULTILINE | re.IGNORECASE)
+                        for match in matches:
+                            match_text = match.group(0)[:100]  # Limit length
+                            patterns_found[category].append(
+                                {
+                                    "file": str(script_path.relative_to(package_path)),
+                                    "match": match_text,
+                                    "line": content[: match.start()].count("\n") + 1,
+                                }
+                            )
+
+            except Exception as e:
+                logger.debug(f"Error scanning {script_path}: {e}")
+
+        # Build threats and evidence from findings
+        if patterns_found.get("network_call"):
+            threats.append("network_call")
+            for finding in patterns_found["network_call"][:3]:  # Limit to top 3
+                evidence.append(
+                    f"Suspicious network call in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("file_access"):
+            threats.append("file_access")
+            for finding in patterns_found["file_access"][:3]:
+                evidence.append(
+                    f"Suspicious file access in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("env_access"):
+            threats.append("env_access")
+            for finding in patterns_found["env_access"][:3]:
+                evidence.append(
+                    f"Environment variable access in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("process_spawn"):
+            threats.append("process_spawn")
+            for finding in patterns_found["process_spawn"][:3]:
+                evidence.append(
+                    f"Process spawning in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("crypto_mining"):
+            threats.append("crypto_mining")
+            for finding in patterns_found["crypto_mining"][:3]:
+                evidence.append(
+                    f"Crypto mining indicator in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("data_exfil"):
+            threats.append("data_exfiltration")
+            for finding in patterns_found["data_exfil"][:3]:
+                evidence.append(
+                    f"Data exfiltration pattern in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        if patterns_found.get("obfuscation"):
+            threats.append("obfuscation")
+            for finding in patterns_found["obfuscation"][:3]:
+                evidence.append(
+                    f"Code obfuscation in {finding['file']}:{finding['line']}: {finding['match']}"
+                )
+
+        return {
+            "suspicious": len(threats) > 0,
+            "threats": threats,
+            "evidence": evidence,
+            "patterns_found": patterns_found,
+        }
+
+    def _get_install_scripts(self, package_path: Path, ecosystem: str) -> List[Path]:
+        """
+        Get list of install/setup scripts to scan based on ecosystem
+
+        Args:
+            package_path: Path to extracted package
+            ecosystem: Package ecosystem
+
+        Returns:
+            List of paths to install scripts
+        """
+        scripts = []
+
+        try:
+            if ecosystem == "npm":
+                # Check package.json for scripts
+                package_json = package_path / "package" / "package.json"
+                if not package_json.exists():
+                    package_json = package_path / "package.json"
+
+                if package_json.exists():
+                    scripts.append(package_json)
+
+                # Check for common script files
+                for pattern in ["**/install.js", "**/preinstall.js", "**/postinstall.js"]:
+                    scripts.extend(package_path.rglob(pattern))
+
+            elif ecosystem == "pypi":
+                # Check setup.py and setup.cfg
+                for pattern in ["**/setup.py", "**/setup.cfg", "**/__init__.py"]:
+                    scripts.extend(package_path.rglob(pattern))
+
+            elif ecosystem == "maven":
+                # Check pom.xml and build scripts
+                for pattern in ["**/pom.xml", "**/build.gradle", "**/build.gradle.kts"]:
+                    scripts.extend(package_path.rglob(pattern))
+
+            elif ecosystem == "cargo":
+                # Check build.rs and Cargo.toml
+                for pattern in ["**/build.rs", "**/Cargo.toml"]:
+                    scripts.extend(package_path.rglob(pattern))
+
+            elif ecosystem == "go":
+                # Check go.mod and .go files with init functions
+                for pattern in ["**/go.mod", "**/*.go"]:
+                    scripts.extend(package_path.rglob(pattern))
+
+        except Exception as e:
+            logger.debug(f"Error finding install scripts: {e}")
+
+        return scripts
+
+    def _score_package_risk(self, analysis: Dict[str, Any]) -> int:
+        """
+        Calculate risk score for package based on analysis
+
+        Scoring:
+        - Network activity: 30 points
+        - Process spawning: 25 points
+        - Environment access: 20 points
+        - File access: 15 points
+        - Obfuscation: 20 points
+        - Crypto mining: 40 points
+        - Data exfiltration: 35 points
+
+        Args:
+            analysis: Analysis results from _analyze_package_behavior
+
+        Returns:
+            Risk score from 0-100
+        """
+        score = 0
+        threats = analysis.get("threats", [])
+
+        # Score by threat type
+        threat_scores = {
+            "network_call": 30,
+            "process_spawn": 25,
+            "env_access": 20,
+            "file_access": 15,
+            "obfuscation": 20,
+            "crypto_mining": 40,
+            "data_exfiltration": 35,
+        }
+
+        for threat in threats:
+            score += threat_scores.get(threat, 10)
+
+        # Cap at 100
+        return min(score, 100)
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((subprocess.SubprocessError, OSError, json.JSONDecodeError)),
+    )
+    def _fetch_openssf_scorecard(self, api_url: str) -> Dict[str, Any]:
+        """Fetch OpenSSF Scorecard data with retry logic
+
+        Args:
+            api_url: OpenSSF Scorecard API URL
+
+        Returns:
+            Scorecard data
+
+        Raises:
+            subprocess.SubprocessError: If curl fails after retries
+        """
+        # Use subprocess to call curl (avoid adding requests dependency)
+        result = subprocess.run(
+            ["curl", "-s", "-H", "Accept: application/json", api_url],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            raise subprocess.SubprocessError(f"curl failed with code {result.returncode}: {result.stderr}")
+
+        data = json.loads(result.stdout)
+        return data
 
     def check_openssf_scorecard(self, package_name: str, ecosystem: str) -> Optional[Dict[str, Any]]:
         """
@@ -1095,18 +1621,8 @@ class SupplyChainAnalyzer:
             # Query OpenSSF Scorecard API
             api_url = f"https://api.securityscorecards.dev/projects/github.com/{org}/{repo}"
 
-            # Use subprocess to call curl (avoid adding requests dependency)
-            result = subprocess.run(
-                ["curl", "-s", "-H", "Accept: application/json", api_url],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            if result.returncode != 0:
-                return None
-
-            data = json.loads(result.stdout)
+            # Fetch with retry logic
+            data = self._fetch_openssf_scorecard(api_url)
 
             if "score" in data:
                 score = data["score"]

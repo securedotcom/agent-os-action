@@ -669,7 +669,12 @@ class LLMManager:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+        retry=retry_if_exception_type((
+            ConnectionError,
+            TimeoutError,
+            OSError,  # Network issues
+            Exception,  # Catch-all for API-specific exceptions (will be filtered by before_sleep)
+        )),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )

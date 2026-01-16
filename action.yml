@@ -56,12 +56,68 @@ inputs:
     description: 'AI model to use (e.g., claude-sonnet-4, gpt-4, llama3)'
     required: false
     default: 'auto'
-  
+
   # Multi-Agent Configuration
   multi-agent-mode:
     description: 'Enable multi-agent mode: single, sequential, or parallel'
     required: false
     default: 'single'
+
+  # Security Feature Toggles
+  enable-api-security:
+    description: 'Enable OWASP API Top 10 testing for REST/GraphQL/gRPC endpoints (BOLA, broken auth, SSRF, misconfigurations)'
+    required: false
+    default: 'true'
+
+  enable-dast:
+    description: 'Enable DAST scanning with Nuclei (4000+ templates) - Requires dast-target-url parameter'
+    required: false
+    default: 'false'
+
+  dast-target-url:
+    description: 'Target URL for DAST scanning (e.g., https://staging.example.com)'
+    required: false
+    default: ''
+
+  enable-supply-chain:
+    description: 'Enable supply chain attack detection (typosquatting, malicious packages, compromised dependencies)'
+    required: false
+    default: 'true'
+
+  enable-fuzzing:
+    description: 'Enable AI-guided fuzzing with 60+ payloads for APIs, functions, and file parsers'
+    required: false
+    default: 'false'
+
+  fuzzing-duration:
+    description: 'Fuzzing duration in seconds (default: 300)'
+    required: false
+    default: '300'
+
+  enable-threat-intel:
+    description: 'Enable threat intelligence enrichment (CISA KEV, EPSS, NVD, exploit databases, real-time threat context)'
+    required: false
+    default: 'true'
+
+  enable-remediation:
+    description: 'Enable AI-powered vulnerability fix generation with code patches and testing guidance'
+    required: false
+    default: 'true'
+
+  enable-runtime-security:
+    description: 'Enable container runtime security monitoring with Falco (requires Docker)'
+    required: false
+    default: 'false'
+
+  runtime-monitoring-duration:
+    description: 'Runtime monitoring duration in seconds (default: 60)'
+    required: false
+    default: '60'
+
+  enable-regression-testing:
+    description: 'Enable security regression test generation to ensure fixed vulnerabilities stay fixed'
+    required: false
+    default: 'true'
 
   # Exploit Analysis Configuration (Aardvark Mode)
   enable-exploit-analysis:
@@ -319,6 +375,18 @@ runs:
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_COST_LIMIT: ${{ inputs.cost-limit }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        # Security Feature Toggles
+        ENABLE_API_SECURITY: ${{ inputs.enable-api-security }}
+        ENABLE_DAST: ${{ inputs.enable-dast }}
+        DAST_TARGET_URL: ${{ inputs.dast-target-url }}
+        ENABLE_SUPPLY_CHAIN: ${{ inputs.enable-supply-chain }}
+        ENABLE_FUZZING: ${{ inputs.enable-fuzzing }}
+        FUZZING_DURATION: ${{ inputs.fuzzing-duration }}
+        ENABLE_THREAT_INTEL: ${{ inputs.enable-threat-intel }}
+        ENABLE_REMEDIATION: ${{ inputs.enable-remediation }}
+        ENABLE_RUNTIME_SECURITY: ${{ inputs.enable-runtime-security }}
+        RUNTIME_MONITORING_DURATION: ${{ inputs.runtime-monitoring-duration }}
+        ENABLE_REGRESSION_TESTING: ${{ inputs.enable-regression-testing }}
         # Exploit Analysis Configuration (Aardvark Mode)
         ENABLE_EXPLOIT_ANALYSIS: ${{ inputs.enable-exploit-analysis }}
         GENERATE_SECURITY_TESTS: ${{ inputs.generate-security-tests }}

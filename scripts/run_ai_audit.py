@@ -3922,6 +3922,18 @@ if __name__ == "__main__":
         "category_passes": os.environ.get("CATEGORY_PASSES", "true"),
         # NEW: Semgrep SAST integration
         "enable_semgrep": os.environ.get("SEMGREP_ENABLED", "true").lower() == "true",
+        # NEW: Advanced Security Features (v1.0.16+ - now exposed in action.yml)
+        "enable_api_security": os.environ.get("ENABLE_API_SECURITY", "true").lower() == "true",
+        "enable_dast": os.environ.get("ENABLE_DAST", "false").lower() == "true",
+        "dast_target_url": os.environ.get("DAST_TARGET_URL", ""),
+        "enable_supply_chain": os.environ.get("ENABLE_SUPPLY_CHAIN", "true").lower() == "true",
+        "enable_fuzzing": os.environ.get("ENABLE_FUZZING", "false").lower() == "true",
+        "fuzzing_duration": int(os.environ.get("FUZZING_DURATION", "300")),
+        "enable_threat_intel": os.environ.get("ENABLE_THREAT_INTEL", "true").lower() == "true",
+        "enable_remediation": os.environ.get("ENABLE_REMEDIATION", "true").lower() == "true",
+        "enable_runtime_security": os.environ.get("ENABLE_RUNTIME_SECURITY", "false").lower() == "true",
+        "runtime_monitoring_duration": int(os.environ.get("RUNTIME_MONITORING_DURATION", "60")),
+        "enable_regression_testing": os.environ.get("ENABLE_REGRESSION_TESTING", "true").lower() == "true",
     }
 
     run_audit(repo_path, config, review_type)
