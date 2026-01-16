@@ -224,11 +224,9 @@ class FindingMatcher:
             overlap = len(words1 & words2) / max(len(words1 | words2), 1)
             weights["message"] = overlap
 
-        # Calculate weighted average
+        # Calculate average similarity score
         if weights:
-            total_weight = sum(weights.values())
-            total_score = sum(weights.values() * weight for weight in weights.values())
-            score = total_score / max(total_weight, 1)
+            score = sum(weights.values()) / len(weights)
 
         return score
 

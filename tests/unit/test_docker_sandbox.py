@@ -170,7 +170,7 @@ class TestDockerSandboxMocked:
         assert result.success is True
         assert result.output == '2'
         assert result.crashed is False
-        assert result.execution_time_ms > 0
+        assert result.execution_time_ms >= 0  # Mocked execution may return 0
         assert sandbox._execution_count == 1
 
     @patch('sandbox.docker_sandbox.DockerManager')
