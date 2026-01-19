@@ -1,0 +1,109 @@
+[
+  {
+    "id": "29f0f79aaa53cbdd",
+    "origin": "spontaneous-discovery",
+    "title": "Missing Authentication Layer",
+    "category": "SAST",
+    "severity": "high",
+    "confidence": 0.75,
+    "cwe": "CWE-306",
+    "description": "The project appears to have API routes/endpoints but no clear authentication mechanism detected. This could allow unauthorized access to sensitive functionality.",
+    "evidence": [
+      "Found 1 route files but no authentication modules",
+      "No files containing 'auth', 'login', 'jwt', or 'oauth' detected",
+      "This pattern suggests missing authentication controls"
+    ],
+    "remediation": "Implement authentication for all sensitive endpoints:\n1. Add authentication middleware/decorators\n2. Use JWT, OAuth2, or session-based auth\n3. Protect all non-public routes\n4. Implement proper session management",
+    "affected_files": [
+      "scripts/api_security_scanner.py"
+    ]
+  },
+  {
+    "id": "1b6deff5c82c8eca",
+    "origin": "spontaneous-discovery",
+    "title": "Weak Cryptographic Algorithms Detected",
+    "category": "SAST",
+    "severity": "medium",
+    "confidence": 0.85,
+    "cwe": "CWE-327",
+    "description": "The codebase uses weak or deprecated cryptographic algorithms that provide insufficient security. These should be replaced with modern, secure alternatives.",
+    "evidence": [
+      "scripts/complexity-check.py: DES encryption (insecure, use AES)",
+      "scripts/remediation_engine.py: MD5 hash function (cryptographically broken)",
+      "scripts/remediation_engine.py: RC4 cipher (broken)",
+      "scripts/spontaneous_discovery.py: RC4 cipher (broken)",
+      "scripts/spontaneous_discovery.py: ECB mode (insecure block cipher mode)"
+    ],
+    "remediation": "Replace weak cryptography:\n1. Use SHA-256 or SHA-3 instead of MD5/SHA1 for hashing\n2. Use AES-256-GCM instead of DES/RC4 for encryption\n3. Avoid ECB mode, use GCM or CBC with proper IV\n4. Use bcrypt/argon2 for password hashing",
+    "affected_files": [
+      "scripts/complexity-check.py",
+      "scripts/remediation_engine.py",
+      "scripts/remediation_engine.py",
+      "scripts/spontaneous_discovery.py",
+      "scripts/spontaneous_discovery.py"
+    ]
+  },
+  {
+    "id": "41072d3afba34f49",
+    "origin": "spontaneous-discovery",
+    "title": "Debug Mode Enabled",
+    "category": "IAC",
+    "severity": "high",
+    "confidence": 0.9,
+    "cwe": "CWE-489",
+    "description": "Debug mode is enabled in configuration files. Debug mode typically exposes detailed error messages, stack traces, and internal application state that can aid attackers in finding and exploiting vulnerabilities.",
+    "evidence": [
+      "scripts/spontaneous_discovery.py:879: # Look for debug=True/true or similar"
+    ],
+    "remediation": "Disable debug mode in production:\n1. Set DEBUG=False or debug=false in production configs\n2. Use environment variables to control debug mode\n3. Implement proper error handling and logging\n4. Show generic error messages to users",
+    "affected_files": [
+      "scripts/spontaneous_discovery.py"
+    ]
+  },
+  {
+    "id": "216961828f8b60af",
+    "origin": "spontaneous-discovery",
+    "title": "Potentially Exposed Admin Interface",
+    "category": "IAC",
+    "severity": "high",
+    "confidence": 0.74,
+    "cwe": "CWE-284",
+    "description": "Admin routes or interfaces were found without clear authentication or authorization checks. Exposed admin interfaces are high-value targets for attackers and should be strictly protected.",
+    "evidence": [
+      "scripts/heuristic_audit_spring.py:73: Admin route without clear auth check",
+      "scripts/sandbox_integration.py:245: Admin route without clear auth check",
+      "scripts/fuzzing_engine.py:150: Admin route without clear auth check"
+    ],
+    "remediation": "Secure admin interfaces:\n1. Require strong authentication (MFA recommended)\n2. Implement role-based access control\n3. Use separate admin authentication realm\n4. Consider IP whitelisting for admin access\n5. Log all admin actions for audit trail",
+    "affected_files": [
+      "scripts/heuristic_audit_spring.py",
+      "scripts/sandbox_integration.py",
+      "scripts/fuzzing_engine.py"
+    ]
+  },
+  {
+    "id": "b9c67e18bf2a76e1",
+    "origin": "spontaneous-discovery",
+    "title": "Sensitive Data in Logs",
+    "category": "SAST",
+    "severity": "high",
+    "confidence": 0.82,
+    "cwe": "CWE-532",
+    "description": "The application appears to log sensitive information such as passwords, tokens, or API keys. This exposes sensitive data to anyone with access to logs and violates security best practices.",
+    "evidence": [
+      "scripts/heuristic_audit_spring.py: Logging password",
+      "scripts/api_security_scanner.py: Logging password",
+      "scripts/spontaneous_discovery.py: Logging password",
+      "scripts/run_ai_audit.py: Logging token",
+      "scripts/agent_personas.py: Logging secret"
+    ],
+    "remediation": "Remove sensitive data from logs:\n1. Never log passwords, tokens, or secrets\n2. Redact sensitive fields before logging\n3. Use structured logging with field-level controls\n4. Review existing logs and rotate compromised credentials",
+    "affected_files": [
+      "scripts/heuristic_audit_spring.py",
+      "scripts/api_security_scanner.py",
+      "scripts/spontaneous_discovery.py",
+      "scripts/run_ai_audit.py",
+      "scripts/agent_personas.py"
+    ]
+  }
+]

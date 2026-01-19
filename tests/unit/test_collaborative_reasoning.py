@@ -1,0 +1,805 @@
+#!/usr/bin/env python3
+"""
+Unit tests for Collaborative Reasoning
+
+Tests cover:
+- Independent analysis mode
+- Discussion mode with multiple rounds
+- Consensus building
+- Conflict resolution
+- Agent agreement scenarios
+- Agent disagreement scenarios
+- Discussion transcript generation
+- Final verdict derivation
+"""
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import Mock, MagicMock, patch, call
+from dataclasses import dataclass
+from typing import Optional, List, Dict
+
+import pytest
+
+# Add scripts directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
+
+try:
+    from collaborative_reasoning import (
+        CollaborativeReasoning,
+        CollaborativeVerdict,
+        AgentPosition,
+        DiscussionRound,
+    )
+except ImportError:
+    # Create mock classes for testing when module doesn't exist yet
+    @dataclass
+    class AgentPosition:
+        agent_name: str
+        verdict: str  # "confirmed", "false_positive", "needs_review"
+        confidence: float
+        reasoning: str
+
+    @dataclass
+    class DiscussionRound:
+        round_number: int
+        agent_positions: List[AgentPosition]
+        consensus_score: float
+        consensus_reached: bool
+
+    @dataclass
+    class CollaborativeVerdict:
+        final_verdict: str
+        agreement_level: float  # 0.0 to 1.0
+        agent_votes: Dict[str, str]
+        discussion_rounds: int
+        confidence: float
+        consensus_reasoning: str
+        minority_position: Optional[str] = None
+        dissenting_agents: Optional[List[str]] = None
+
+    class CollaborativeReasoning:
+        def __init__(self, agents: List, finding: dict):
+            self.agents = agents
+            self.finding = finding
+            self.discussion_history = []
+            self.positions = {}
+
+        def analyze_independently(self) -> Dict[str, AgentPosition]:
+            pass
+
+        def discuss(self, max_rounds: int = 3) -> CollaborativeVerdict:
+            pass
+
+        def build_consensus(self) -> CollaborativeVerdict:
+            pass
+
+        def resolve_conflicts(self, positions: Dict) -> CollaborativeVerdict:
+            pass
+
+        def get_discussion_transcript(self) -> str:
+            pass
+
+
+class TestAgentPositionDataclass:
+    """Test AgentPosition dataclass"""
+
+    def test_agent_position_creation(self):
+        """Test creating an agent position"""
+        position = AgentPosition(
+            agent_name="SecretHunter",
+            verdict="confirmed",
+            confidence=0.95,
+            reasoning="Found hardcoded API key in config",
+        )
+
+        assert position.agent_name == "SecretHunter"
+        assert position.verdict == "confirmed"
+        assert position.confidence == 0.95
+        assert "API key" in position.reasoning
+
+    def test_agent_position_verdicts(self):
+        """Test valid verdict values"""
+        verdicts = ["confirmed", "false_positive", "needs_review"]
+
+        for verdict in verdicts:
+            position = AgentPosition(
+                agent_name="TestAgent",
+                verdict=verdict,
+                confidence=0.8,
+                reasoning="Test reasoning",
+            )
+            assert position.verdict == verdict
+
+
+class TestDiscussionRoundDataclass:
+    """Test DiscussionRound dataclass"""
+
+    def test_discussion_round_creation(self):
+        """Test creating a discussion round"""
+        positions = [
+            AgentPosition(
+                agent_name="Agent1",
+                verdict="confirmed",
+                confidence=0.95,
+                reasoning="Reason 1",
+            ),
+            AgentPosition(
+                agent_name="Agent2",
+                verdict="confirmed",
+                confidence=0.90,
+                reasoning="Reason 2",
+            ),
+        ]
+
+        round_result = DiscussionRound(
+            round_number=1,
+            agent_positions=positions,
+            consensus_score=0.92,
+            consensus_reached=True,
+        )
+
+        assert round_result.round_number == 1
+        assert len(round_result.agent_positions) == 2
+        assert round_result.consensus_score == 0.92
+        assert round_result.consensus_reached is True
+
+
+class TestCollaborativeVerdictDataclass:
+    """Test CollaborativeVerdict dataclass"""
+
+    def test_verdict_creation_minimal(self):
+        """Test creating a collaborative verdict with minimal fields"""
+        verdict = CollaborativeVerdict(
+            final_verdict="confirmed",
+            agreement_level=0.95,
+            agent_votes={"Agent1": "confirmed", "Agent2": "confirmed"},
+            discussion_rounds=1,
+            confidence=0.93,
+            consensus_reasoning="All agents agreed",
+        )
+
+        assert verdict.final_verdict == "confirmed"
+        assert verdict.agreement_level == 0.95
+        assert len(verdict.agent_votes) == 2
+        assert verdict.discussion_rounds == 1
+        assert verdict.minority_position is None
+
+    def test_verdict_creation_full(self):
+        """Test creating a verdict with all fields"""
+        verdict = CollaborativeVerdict(
+            final_verdict="confirmed",
+            agreement_level=0.66,
+            agent_votes={
+                "Agent1": "confirmed",
+                "Agent2": "confirmed",
+                "Agent3": "false_positive",
+            },
+            discussion_rounds=3,
+            confidence=0.88,
+            consensus_reasoning="2 out of 3 agents confirmed",
+            minority_position="false_positive",
+            dissenting_agents=["Agent3"],
+        )
+
+        assert verdict.agreement_level == 0.66
+        assert verdict.minority_position == "false_positive"
+        assert len(verdict.dissenting_agents) == 1
+
+    def test_verdict_agreement_bounds(self):
+        """Test agreement level bounds"""
+        for level in [0.0, 0.5, 1.0]:
+            verdict = CollaborativeVerdict(
+                final_verdict="confirmed",
+                agreement_level=level,
+                agent_votes={},
+                discussion_rounds=1,
+                confidence=0.8,
+                consensus_reasoning="Test",
+            )
+            assert 0 <= verdict.agreement_level <= 1.0
+
+
+class TestCollaborativeReasoningInitialization:
+    """Test CollaborativeReasoning initialization"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.agents = [
+            Mock(name="SecretHunter"),
+            Mock(name="VulnerabilityAssessor"),
+            Mock(name="ArchitectureReviewer"),
+        ]
+        self.finding = {
+            "path": "src/api.py",
+            "message": "Potential security issue",
+            "line": 42,
+        }
+
+    def test_initialization(self):
+        """Test CollaborativeReasoning initialization"""
+        reasoning = CollaborativeReasoning(self.agents, self.finding)
+
+        assert reasoning.agents == self.agents
+        assert reasoning.finding == self.finding
+        assert isinstance(reasoning.discussion_history, list)
+        assert isinstance(reasoning.positions, dict)
+
+    def test_initialization_single_agent(self):
+        """Test initialization with single agent"""
+        reasoning = CollaborativeReasoning([self.agents[0]], self.finding)
+
+        assert len(reasoning.agents) == 1
+
+    def test_initialization_empty_agents(self):
+        """Test initialization with empty agents list"""
+        reasoning = CollaborativeReasoning([], self.finding)
+
+        assert reasoning.agents == []
+
+
+class TestIndependentAnalysis:
+    """Test independent analysis mode"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="SecretHunter"),
+            Mock(name="VulnerabilityAssessor"),
+            Mock(name="ArchitectureReviewer"),
+        ]
+
+        self.finding = {
+            "path": "src/config.py",
+            "message": "Hardcoded secret",
+            "line": 15,
+        }
+
+    def test_analyze_independently_all_confirm(self):
+        """Test independent analysis when all agents confirm"""
+        # Set up agent responses
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.95,
+                    reasoning="Secret detected",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        positions = reasoning.analyze_independently()
+
+        assert len(positions) == 3
+        assert all(pos.verdict == "confirmed" for pos in positions.values())
+
+    def test_analyze_independently_mixed_verdicts(self):
+        """Test independent analysis with mixed verdicts"""
+        verdicts = ["confirmed", "false_positive", "needs_review"]
+
+        for i, agent in enumerate(self.mock_agents):
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict=verdicts[i],
+                    confidence=0.8,
+                    reasoning=f"Reason {i}",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        positions = reasoning.analyze_independently()
+
+        verdicts_from_positions = [pos.verdict for pos in positions.values()]
+        assert "confirmed" in verdicts_from_positions
+        assert "false_positive" in verdicts_from_positions
+        assert "needs_review" in verdicts_from_positions
+
+    def test_analyze_independently_varying_confidence(self):
+        """Test independent analysis with varying confidence levels"""
+        confidences = [0.95, 0.75, 0.55]
+
+        for i, agent in enumerate(self.mock_agents):
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=confidences[i],
+                    reasoning="Reason",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        positions = reasoning.analyze_independently()
+
+        conf_values = [pos.confidence for pos in positions.values()]
+        assert conf_values == confidences
+
+    def test_analyze_independently_all_agents_called(self):
+        """Test that all agents are called during independent analysis"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.9,
+                    reasoning="Test",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        reasoning.analyze_independently()
+
+        for agent in self.mock_agents:
+            agent.analyze.assert_called_once()
+
+
+class TestDiscussionMode:
+    """Test discussion mode with multiple rounds"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="Agent1"),
+            Mock(name="Agent2"),
+            Mock(name="Agent3"),
+        ]
+
+        self.finding = {
+            "path": "src/api.py",
+            "message": "Potential vulnerability",
+            "line": 50,
+        }
+
+    def test_single_round_discussion(self):
+        """Test single round discussion"""
+        # Setup agents to converge on consensus
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.90,
+                    reasoning="Agrees after discussion",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.discuss(max_rounds=1)
+
+        assert verdict.discussion_rounds == 1
+        assert verdict.final_verdict == "confirmed"
+
+    def test_multi_round_discussion(self):
+        """Test multi-round discussion"""
+        # Setup for multiple rounds
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.92,
+                    reasoning="After deliberation",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.discuss(max_rounds=3)
+
+        assert verdict.discussion_rounds <= 3
+
+    def test_discussion_reaches_consensus_early(self):
+        """Test that discussion stops when consensus is reached"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.95,
+                    reasoning="Clear agreement",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.discuss(max_rounds=3)
+
+        assert verdict.discussion_rounds <= 3
+        assert verdict.consensus_reached is True or verdict.consensus_reached == True
+
+    def test_discussion_timeout_max_rounds(self):
+        """Test discussion timeout after max rounds"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.8,
+                    reasoning="Continuing discussion",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.discuss(max_rounds=2)
+
+        assert verdict.discussion_rounds <= 2
+
+
+class TestConsensusBuilding:
+    """Test consensus building"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="Agent1"),
+            Mock(name="Agent2"),
+            Mock(name="Agent3"),
+        ]
+
+        self.finding = {"path": "src/test.py", "message": "Test finding"}
+
+    def test_unanimous_consensus(self):
+        """Test when all agents agree"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.95,
+                    reasoning="Agreement",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.build_consensus()
+
+        assert verdict.final_verdict == "confirmed"
+        assert verdict.agreement_level == 1.0
+        assert len(verdict.dissenting_agents or []) == 0
+
+    def test_majority_consensus(self):
+        """Test when majority agrees"""
+        verdicts = ["confirmed", "confirmed", "false_positive"]
+
+        for i, agent in enumerate(self.mock_agents):
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict=verdicts[i],
+                    confidence=0.85,
+                    reasoning="Opinion",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.build_consensus()
+
+        assert verdict.final_verdict == "confirmed"
+        assert verdict.agreement_level >= 0.66
+        assert len(verdict.dissenting_agents or []) == 1
+
+    def test_split_consensus(self):
+        """Test when agents are split"""
+        verdicts = ["confirmed", "false_positive", "needs_review"]
+
+        for i, agent in enumerate(self.mock_agents):
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict=verdicts[i],
+                    confidence=0.8,
+                    reasoning="Divided opinion",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.build_consensus()
+
+        assert verdict.agreement_level < 1.0
+        assert len(verdict.agent_votes) == 3
+
+
+class TestConflictResolution:
+    """Test conflict resolution"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="Agent1"),
+            Mock(name="Agent2"),
+            Mock(name="Agent3"),
+        ]
+
+        self.finding = {"path": "src/conflict.py", "message": "Disputed issue"}
+
+    def test_resolve_confirmed_vs_false_positive(self):
+        """Test resolving confirmed vs false_positive conflict"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.95, "It's real"),
+            "Agent2": AgentPosition("Agent2", "false_positive", 0.90, "It's false"),
+            "Agent3": AgentPosition("Agent3", "confirmed", 0.92, "It's real"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # Majority should win
+        assert verdict.final_verdict == "confirmed"
+        assert verdict.agreement_level >= 0.66
+
+    def test_resolve_three_way_disagreement(self):
+        """Test resolving three-way disagreement"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.85, "Confirmed"),
+            "Agent2": AgentPosition("Agent2", "false_positive", 0.88, "False pos"),
+            "Agent3": AgentPosition("Agent3", "needs_review", 0.80, "Review"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # Should have lower agreement
+        assert verdict.agreement_level <= 0.66
+        assert verdict.minority_position is not None
+
+    def test_resolve_confidence_weighted(self):
+        """Test conflict resolution weighted by confidence"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.99, "Very sure"),
+            "Agent2": AgentPosition("Agent2", "false_positive", 0.55, "Unsure"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # Higher confidence should influence outcome
+        assert verdict.confidence >= 0.5
+
+
+class TestAgreementScenarios:
+    """Test agent agreement scenarios"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="SecretHunter"),
+            Mock(name="VulnerabilityAssessor"),
+            Mock(name="ComplianceExpert"),
+        ]
+
+    def test_all_agents_confirm(self):
+        """Test when all agents confirm finding"""
+        finding = {"message": "Clear security issue"}
+
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.95,
+                    reasoning="Clear evidence",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, finding)
+        positions = reasoning.analyze_independently()
+
+        assert all(p.verdict == "confirmed" for p in positions.values())
+        assert all(p.confidence >= 0.9 for p in positions.values())
+
+    def test_all_agents_false_positive(self):
+        """Test when all agents mark as false positive"""
+        finding = {"message": "Test code with fake secret"}
+
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="false_positive",
+                    confidence=0.92,
+                    reasoning="Test fixture",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, finding)
+        positions = reasoning.analyze_independently()
+
+        assert all(p.verdict == "false_positive" for p in positions.values())
+
+    def test_all_agents_need_review(self):
+        """Test when all agents mark as needs_review"""
+        finding = {"message": "Ambiguous issue"}
+
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="needs_review",
+                    confidence=0.65,
+                    reasoning="Requires manual review",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, finding)
+        positions = reasoning.analyze_independently()
+
+        assert all(p.verdict == "needs_review" for p in positions.values())
+
+    def test_high_confidence_agreement(self):
+        """Test high confidence agreement"""
+        finding = {"message": "Critical vulnerability"}
+
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.98,
+                    reasoning="Definitive evidence",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, finding)
+        positions = reasoning.analyze_independently()
+
+        avg_confidence = sum(p.confidence for p in positions.values()) / len(positions)
+        assert avg_confidence > 0.95
+
+
+class TestDisagreementScenarios:
+    """Test agent disagreement scenarios"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="Agent1"),
+            Mock(name="Agent2"),
+            Mock(name="Agent3"),
+        ]
+        self.finding = {"message": "Disputed issue"}
+
+    def test_two_vs_one_disagreement(self):
+        """Test 2 vs 1 disagreement"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.90, "Reason1"),
+            "Agent2": AgentPosition("Agent2", "confirmed", 0.92, "Reason2"),
+            "Agent3": AgentPosition("Agent3", "false_positive", 0.85, "Reason3"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        assert verdict.final_verdict == "confirmed"
+        assert verdict.agreement_level == 2 / 3
+        assert len(verdict.dissenting_agents) == 1
+
+    def test_split_evenly_disagreement(self):
+        """Test evenly split disagreement"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.88, "Confirmed"),
+            "Agent2": AgentPosition("Agent2", "false_positive", 0.89, "False"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # Should handle tie-breaking somehow
+        assert verdict.final_verdict in ["confirmed", "false_positive"]
+
+    def test_low_confidence_disagreement(self):
+        """Test disagreement with low confidence"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.60, "Unsure but confirmed"),
+            "Agent2": AgentPosition("Agent2", "false_positive", 0.62, "Unsure but false"),
+            "Agent3": AgentPosition("Agent3", "needs_review", 0.58, "Unclear"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        assert verdict.consensus_reasoning is not None
+
+
+class TestDiscussionTranscript:
+    """Test discussion transcript generation"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [Mock(name="Agent1"), Mock(name="Agent2")]
+        self.finding = {"message": "Test"}
+
+    def test_transcript_generation(self):
+        """Test generating discussion transcript"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.9,
+                    reasoning="Reason",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        reasoning.discuss(max_rounds=2)
+
+        transcript = reasoning.get_discussion_transcript()
+
+        assert isinstance(transcript, str)
+        assert len(transcript) > 0
+
+    def test_transcript_includes_agent_names(self):
+        """Test that transcript includes agent names"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.9,
+                    reasoning="Reason",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        reasoning.discuss(max_rounds=1)
+
+        transcript = reasoning.get_discussion_transcript()
+
+        assert "Agent1" in transcript or "Agent2" in transcript
+
+
+class TestFinalVerdictDerivation:
+    """Test final verdict derivation"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.mock_agents = [
+            Mock(name="Agent1"),
+            Mock(name="Agent2"),
+            Mock(name="Agent3"),
+        ]
+        self.finding = {"message": "Test"}
+
+    def test_verdict_majority_confirmed(self):
+        """Test verdict with majority confirmed"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="confirmed",
+                    confidence=0.90,
+                    reasoning="Test",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.build_consensus()
+
+        assert verdict.final_verdict == "confirmed"
+
+    def test_verdict_majority_false_positive(self):
+        """Test verdict with majority false_positive"""
+        for agent in self.mock_agents:
+            agent.analyze = Mock(
+                return_value=Mock(
+                    verdict="false_positive",
+                    confidence=0.88,
+                    reasoning="Test",
+                )
+            )
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.build_consensus()
+
+        assert verdict.final_verdict == "false_positive"
+
+    def test_verdict_escalation_on_uncertainty(self):
+        """Test verdict escalation when uncertain"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "false_positive", 0.58, "Weak FP"),
+            "Agent2": AgentPosition("Agent2", "confirmed", 0.59, "Weak confirm"),
+            "Agent3": AgentPosition("Agent3", "needs_review", 0.60, "Review"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # High uncertainty should potentially escalate to review
+        assert verdict.final_verdict in ["confirmed", "false_positive", "needs_review"]
+
+    def test_verdict_confidence_calculation(self):
+        """Test final confidence calculation"""
+        positions = {
+            "Agent1": AgentPosition("Agent1", "confirmed", 0.95, "Strong"),
+            "Agent2": AgentPosition("Agent2", "confirmed", 0.90, "Moderate"),
+            "Agent3": AgentPosition("Agent3", "confirmed", 0.85, "Weak"),
+        }
+
+        reasoning = CollaborativeReasoning(self.mock_agents, self.finding)
+        verdict = reasoning.resolve_conflicts(positions)
+
+        # Confidence should be average of all confidences
+        assert 0.8 <= verdict.confidence <= 0.95

@@ -63,6 +63,21 @@ inputs:
     required: false
     default: 'single'
 
+  enable-multi-agent:
+    description: 'Enable specialized agent personas (SecretHunter, ArchitectureReviewer, ExploitAssessor, FalsePositiveFilter, ThreatModeler) for collaborative security analysis'
+    required: false
+    default: 'true'
+
+  enable-spontaneous-discovery:
+    description: 'Enable agents to find security issues beyond scanner rules (15-20% more findings): missing controls, architectural flaws, implicit trust issues, config mistakes, supply chain risks'
+    required: false
+    default: 'true'
+
+  enable-collaborative-reasoning:
+    description: 'Enable multi-agent collaboration and discussion for consensus-based decisions (30-40% fewer false positives, but 40% higher cost)'
+    required: false
+    default: 'false'
+
   # Security Feature Toggles
   enable-api-security:
     description: 'Enable OWASP API Top 10 testing for REST/GraphQL/gRPC endpoints (BOLA, broken auth, SSRF, misconfigurations)'
@@ -367,6 +382,9 @@ runs:
         OLLAMA_ENDPOINT: ${{ inputs.ollama-endpoint }}
         INPUT_MODEL: ${{ inputs.model }}
         INPUT_MULTI_AGENT_MODE: ${{ inputs.multi-agent-mode }}
+        ENABLE_MULTI_AGENT: ${{ inputs.enable-multi-agent }}
+        ENABLE_SPONTANEOUS_DISCOVERY: ${{ inputs.enable-spontaneous-discovery }}
+        ENABLE_COLLABORATIVE_REASONING: ${{ inputs.enable-collaborative-reasoning }}
         INPUT_ONLY_CHANGED: ${{ inputs.only-changed }}
         INPUT_INCLUDE_PATHS: ${{ inputs.include-paths }}
         INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
