@@ -371,9 +371,9 @@ class HybridSecurityAnalyzer:
 
         if self.enable_regression_testing:
             try:
-                from regression_tester import SecurityRegressionTester
+                from regression_tester import RegressionTester
 
-                self.regression_tester = SecurityRegressionTester()
+                self.regression_tester = RegressionTester()
                 logger.info("✅ Security Regression Tester initialized")
             except (ImportError, RuntimeError) as e:
                 logger.warning(f"⚠️  Security Regression Tester not available: {e}")
@@ -628,7 +628,7 @@ class HybridSecurityAnalyzer:
                 logger.info(f"   🔎 Analyzing {len(code_files)} code files for hidden issues...")
                 discoveries = self.spontaneous_discovery.discover(
                     files=code_files[:100],  # Limit to 100 files to avoid token limits
-                    findings=[asdict(f) for f in all_findings],  # Convert to dict for comparison
+                    existing_findings=[asdict(f) for f in all_findings],  # Convert to dict for comparison
                     architecture=architecture
                 )
 
@@ -861,8 +861,27 @@ class HybridSecurityAnalyzer:
             api_result = self.api_security_scanner.scan(target_path)
 
             # Convert to HybridFinding format
-            # API scanner returns list of findings
-            if isinstance(api_result, list):
+            # API scanner returns APIScanResult object with findings attribute
+            if hasattr(api_result, 'findings'):
+                for api_finding in api_result.findings:
+                    finding = HybridFinding(
+                        finding_id=api_finding.finding_id,
+                        source_tool="api-security",
+                        severity=self._normalize_severity(api_finding.severity),
+                        category="security",
+                        title=api_finding.title,
+                        description=api_finding.description,
+                        file_path=api_finding.file_path,
+                        line_number=api_finding.line_number,
+                        cwe_id=api_finding.cwe_id,
+                        recommendation=api_finding.recommendation,
+                        references=api_finding.references,
+                        confidence=api_finding.confidence,
+                        llm_enriched=False,
+                    )
+                    findings.append(finding)
+            elif isinstance(api_result, list):
+                # Fallback for legacy format
                 for api_finding in api_result:
                     finding = HybridFinding(
                         finding_id=f"api-security-{api_finding.get('id', 'unknown')}",
