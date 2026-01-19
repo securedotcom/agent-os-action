@@ -755,23 +755,28 @@ class HybridSecurityAnalyzer:
                 semgrep_results = self.semgrep_scanner.scan(target_path)
 
                 # Convert to HybridFinding format
-                # (structure depends on user's semgrep_scanner implementation)
-                if isinstance(semgrep_results, list):
-                    for result in semgrep_results:
-                        finding = HybridFinding(
-                            finding_id=f"semgrep-{result.get('check_id', 'unknown')}",
-                            source_tool="semgrep",
-                            severity=self._normalize_severity(result.get("severity", "medium")),
-                            category="security",
-                            title=result.get("check_id", "Unknown Issue"),
-                            description=result.get("message", ""),
-                            file_path=result.get("path", ""),
-                            line_number=result.get("line", None),
-                            recommendation=result.get("fix", ""),
-                            references=result.get("references", []),
-                            confidence=0.9,  # Semgrep has low false positive rate
-                        )
-                        findings.append(finding)
+                # Semgrep scanner returns dict with 'findings' key
+                findings_list = []
+                if isinstance(semgrep_results, dict):
+                    findings_list = semgrep_results.get('findings', [])
+                elif isinstance(semgrep_results, list):
+                    findings_list = semgrep_results
+
+                for result in findings_list:
+                    finding = HybridFinding(
+                        finding_id=f"semgrep-{result.get('check_id', 'unknown')}",
+                        source_tool="semgrep",
+                        severity=self._normalize_severity(result.get("severity", "medium")),
+                        category="security",
+                        title=result.get("check_id", "Unknown Issue"),
+                        description=result.get("message", ""),
+                        file_path=result.get("path", ""),
+                        line_number=result.get("line", None),
+                        recommendation=result.get("fix", ""),
+                        references=result.get("references", []),
+                        confidence=0.9,  # Semgrep has low false positive rate
+                    )
+                    findings.append(finding)
 
         except Exception as e:
             logger.error(f"❌ Semgrep scan failed: {e}")

@@ -17,6 +17,12 @@
 **Issue**: Code checked `isinstance(api_result, list)` but API scanner returns `APIScanResult` object with `.findings` attribute
 **Fix**: Added proper handling for `APIScanResult` object format, accessing `api_result.findings`
 
+### 4. Semgrep Finding Aggregation Bug ✅
+**File**: `scripts/hybrid_analyzer.py:759-763`
+**Issue**: Code checked `isinstance(semgrep_results, list)` but Semgrep scanner returns dict with `{'findings': [...]}` structure
+**Fix**: Added proper handling for dict format with `semgrep_results.get('findings', [])`, with fallback for list format
+**Impact**: +4 Semgrep findings now captured (was 4 found, 0 captured)
+
 ## 🔧 FIXES NEEDED (Quick Wins)
 
 ### 4. Integrate TruffleHog/Gitleaks into Hybrid Analyzer
