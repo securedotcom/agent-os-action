@@ -351,7 +351,7 @@ class HybridSecurityAnalyzer:
             try:
                 from remediation_engine import RemediationEngine
 
-                self.remediation_engine = RemediationEngine(ai_provider=self.ai_provider)
+                self.remediation_engine = RemediationEngine(llm_manager=self.ai_client)
                 logger.info("✅ Remediation Engine initialized")
             except (ImportError, RuntimeError) as e:
                 logger.warning(f"⚠️  Remediation Engine not available: {e}")
