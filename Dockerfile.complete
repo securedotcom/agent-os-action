@@ -1,7 +1,7 @@
 FROM python:3.11-slim-bookworm
 
 LABEL org.opencontainers.image.title="Agent-OS Complete Security Scanner"
-LABEL org.opencontainers.image.description="All-in-one security scanner with Semgrep, Trivy, Checkov, TruffleHog, Gitleaks, and AI triage"
+LABEL org.opencontainers.image.description="All-in-one security scanner with 6-phase pipeline: SAST, CVE scanning, IaC security, secrets detection, AI triage, and sandbox validation"
 LABEL org.opencontainers.image.vendor="Agent OS"
 
 # Install system dependencies

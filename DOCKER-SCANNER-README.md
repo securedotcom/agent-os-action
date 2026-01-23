@@ -173,9 +173,15 @@ docker build -f Dockerfile.complete -t agent-os:complete .
 3. **Phase 2.5:** Automated remediation suggestions
 4. **Phase 2.6:** Spontaneous discovery (find issues beyond scanner rules)
 5. **Phase 3:** Multi-agent persona review
-6. **Phase 4:** Sandbox validation
+6. **Phase 4:** Sandbox validation (Docker-in-Docker exploit verification)
 7. **Phase 5:** Policy gates
 8. **Phase 6:** Report generation
+
+**Phase 4 Sandbox Validation:**
+- Validates exploits in isolated Docker containers
+- Proves vulnerabilities are actually exploitable
+- Supports Python, JavaScript, Java, Go
+- Automatically enabled when Docker socket is available
 
 ## 📝 License
 

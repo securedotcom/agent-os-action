@@ -44,10 +44,11 @@ echo ""
 echo "🚀 Starting security scan..."
 echo ""
 
-# Run the scan
+# Run the scan (with Docker socket for Phase 4 sandbox validation)
 docker run --rm \
     -v "$(realpath $REPO_PATH):/workspace" \
     -v "$(realpath $OUTPUT_DIR):/output" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
     agent-os:complete \
     . security --provider anthropic
