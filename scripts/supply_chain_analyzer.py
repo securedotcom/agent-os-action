@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 
 try:
     import defusedxml.ElementTree as ET
@@ -285,6 +286,66 @@ class SupplyChainAnalyzer:
         """
         self.repo_path = Path(repo_path)
         self.enable_network = enable_network
+
+    def scan(
+        self,
+        base_ref: str = "main",
+        head_ref: str = "HEAD",
+        output_format: str = "dict",
+    ) -> Dict[str, Any]:
+        """
+        Scan repository for supply chain threats.
+
+        This is the primary entry point for supply chain analysis.
+        Analyzes dependency changes between two git refs and returns
+        a threat assessment report.
+
+        Args:
+            base_ref: Base git ref to compare against (default: "main")
+            head_ref: Head git ref to analyze (default: "HEAD")
+            output_format: Output format - "dict" or "json" (default: "dict")
+
+        Returns:
+            Dict containing:
+                - summary: Overview with threat counts by severity
+                - threats: List of ThreatAssessment objects (as dicts)
+                - metadata: Scan metadata (repo, refs, timestamp)
+
+        Example:
+            analyzer = SupplyChainAnalyzer("/path/to/repo")
+            results = analyzer.scan(base_ref="main", head_ref="feature-branch")
+            if results["summary"]["critical"] > 0:
+                print("Critical supply chain threats detected!")
+        """
+        logger.info(f"Starting supply chain scan: {base_ref} -> {head_ref}")
+
+        # Run the analysis
+        threats = self.analyze_dependency_diff(base_ref, head_ref)
+
+        # Build result structure
+        result = {
+            "summary": {
+                "total_threats": len(threats),
+                "critical": sum(1 for t in threats if t.threat_level == ThreatLevel.CRITICAL),
+                "high": sum(1 for t in threats if t.threat_level == ThreatLevel.HIGH),
+                "medium": sum(1 for t in threats if t.threat_level == ThreatLevel.MEDIUM),
+                "low": sum(1 for t in threats if t.threat_level == ThreatLevel.LOW),
+                "info": sum(1 for t in threats if t.threat_level == ThreatLevel.INFO),
+            },
+            "threats": [threat.to_dict() for threat in threats],
+            "metadata": {
+                "repo_path": str(self.repo_path),
+                "base_ref": base_ref,
+                "head_ref": head_ref,
+                "network_enabled": self.enable_network,
+                "timestamp": datetime.now().isoformat(),
+            },
+        }
+
+        if output_format == "json":
+            return json.dumps(result, indent=2)
+
+        return result
 
     def analyze_dependency_diff(
         self, base_ref: str = "main", head_ref: str = "HEAD"

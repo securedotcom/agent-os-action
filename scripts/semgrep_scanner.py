@@ -69,7 +69,8 @@ class SemgrepScanner:
     def _check_semgrep_installed(self) -> bool:
         """Check if semgrep is available"""
         try:
-            result = subprocess.run(["semgrep", "--version"], capture_output=True, text=True, timeout=5)
+            # Use 30s timeout to allow for rule downloads on first run
+            result = subprocess.run(["semgrep", "--version"], capture_output=True, text=True, timeout=30)
             return result.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
             return False

@@ -755,6 +755,145 @@ func TestNormalInput{function_name.title()}(t *testing.T) {{
 
         return stats
 
+    def detect_regression(
+        self,
+        current_findings: List[Dict[str, Any]],
+        similarity_threshold: float = 0.8,
+    ) -> Dict[str, Any]:
+        """
+        Detect if any current findings match previously fixed vulnerabilities.
+
+        Compares current scan findings against known fixed vulnerabilities
+        (regression tests) to identify if any have reappeared.
+
+        Args:
+            current_findings: List of current security findings from scanners
+            similarity_threshold: Minimum similarity score (0-1) to consider
+                                  a finding as a regression (default: 0.8)
+
+        Returns:
+            Dict containing:
+                - regressions: List of detected regressions with details
+                - total_checked: Number of findings checked
+                - regression_count: Number of regressions detected
+                - severity_breakdown: Count by severity level
+
+        Example:
+            tester = RegressionTester()
+            findings = scanner.scan("/path/to/code")
+            result = tester.detect_regression(findings)
+            if result["regression_count"] > 0:
+                print("WARNING: Previously fixed vulnerabilities have returned!")
+        """
+        logger.info(f"Checking {len(current_findings)} findings for regressions")
+
+        regressions = []
+        severity_breakdown = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+
+        for finding in current_findings:
+            finding_file = finding.get("path", finding.get("file_path", ""))
+            finding_type = finding.get("type", finding.get("vulnerability_type", ""))
+            finding_cwe = finding.get("cwe", finding.get("cwe_id", ""))
+            finding_function = finding.get("function", finding.get("function_name", ""))
+
+            # Check against each regression test (known fixed vulnerability)
+            for test in self.tests:
+                similarity = self._calculate_similarity(
+                    finding_file, finding_type, finding_cwe, finding_function,
+                    test.file_path, test.vulnerability_type, test.cwe_id, test.function_name,
+                )
+
+                if similarity >= similarity_threshold:
+                    severity = test.severity.lower()
+                    if severity in severity_breakdown:
+                        severity_breakdown[severity] += 1
+
+                    regression = {
+                        "test_id": test.test_id,
+                        "vulnerability_type": test.vulnerability_type,
+                        "cwe_id": test.cwe_id,
+                        "severity": test.severity,
+                        "original_file": test.file_path,
+                        "current_file": finding_file,
+                        "function_name": test.function_name,
+                        "date_fixed": test.date_fixed,
+                        "similarity_score": similarity,
+                        "description": test.description,
+                        "current_finding": finding,
+                    }
+                    regressions.append(regression)
+                    logger.warning(
+                        f"🚨 REGRESSION DETECTED: {test.vulnerability_type} in {finding_file} "
+                        f"(originally fixed: {test.date_fixed})"
+                    )
+
+        result = {
+            "regressions": regressions,
+            "total_checked": len(current_findings),
+            "regression_count": len(regressions),
+            "severity_breakdown": severity_breakdown,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        if regressions:
+            logger.error(
+                f"❌ Found {len(regressions)} regression(s) - "
+                f"previously fixed vulnerabilities have returned!"
+            )
+        else:
+            logger.info("✅ No regressions detected")
+
+        return result
+
+    def _calculate_similarity(
+        self,
+        f1_file: str, f1_type: str, f1_cwe: str, f1_func: str,
+        f2_file: str, f2_type: str, f2_cwe: str, f2_func: str,
+    ) -> float:
+        """
+        Calculate similarity score between a finding and a regression test.
+
+        Uses weighted matching on file path, vulnerability type, CWE, and function.
+
+        Returns:
+            Similarity score from 0.0 to 1.0
+        """
+        score = 0.0
+        weights = {"file": 0.3, "type": 0.35, "cwe": 0.2, "function": 0.15}
+
+        # File path similarity (exact match or same file name)
+        if f1_file and f2_file:
+            if f1_file == f2_file:
+                score += weights["file"]
+            elif Path(f1_file).name == Path(f2_file).name:
+                score += weights["file"] * 0.7
+
+        # Vulnerability type match
+        if f1_type and f2_type:
+            f1_norm = f1_type.lower().replace("-", "_").replace(" ", "_")
+            f2_norm = f2_type.lower().replace("-", "_").replace(" ", "_")
+            if f1_norm == f2_norm:
+                score += weights["type"]
+            elif f1_norm in f2_norm or f2_norm in f1_norm:
+                score += weights["type"] * 0.7
+
+        # CWE match
+        if f1_cwe and f2_cwe:
+            # Extract CWE number for comparison
+            f1_cwe_num = "".join(c for c in f1_cwe if c.isdigit())
+            f2_cwe_num = "".join(c for c in f2_cwe if c.isdigit())
+            if f1_cwe_num and f2_cwe_num and f1_cwe_num == f2_cwe_num:
+                score += weights["cwe"]
+
+        # Function name match
+        if f1_func and f2_func:
+            if f1_func.lower() == f2_func.lower():
+                score += weights["function"]
+            elif f1_func.lower() in f2_func.lower() or f2_func.lower() in f1_func.lower():
+                score += weights["function"] * 0.5
+
+        return score
+
 
 def main():
     """CLI entry point"""
