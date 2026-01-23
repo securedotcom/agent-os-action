@@ -132,7 +132,7 @@ class HybridSecurityAnalyzer:
         enable_regression_testing: bool = True,
         enable_ai_enrichment: bool = True,
         enable_agent_os: bool = False,  # Use existing agent-os if needed
-        enable_sandbox: bool = False,  # Validate exploits in Docker sandbox
+        enable_sandbox: bool = True,  # Validate exploits in Docker sandbox
         enable_multi_agent: bool = True,  # Use specialized agent personas
         enable_spontaneous_discovery: bool = True,  # Discover issues beyond scanner rules
         enable_collaborative_reasoning: bool = False,  # Multi-agent discussion (opt-in, more expensive)

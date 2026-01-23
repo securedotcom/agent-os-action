@@ -1407,53 +1407,73 @@ python scripts/run_ai_audit.py --output-file improved-findings.json
 
 ## Architecture
 
-### System Overview
+### Security Pipeline (6 Phases)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Agent-OS Control Plane                  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │  PHASE 1: Parallel Scanning (30-90 sec)          │     │
-│  ├───────────────────────────────────────────────────┤     │
-│  │  TruffleHog │ Semgrep │ Trivy │ Checkov          │     │
-│  │  (secrets)  │ (SAST)  │ (CVE) │ (IaC)            │     │
-│  └───────────────────────────────────────────────────┘     │
-│               ↓                                             │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │  PHASE 2: Normalization (instant)                │     │
-│  ├───────────────────────────────────────────────────┤     │
-│  │  Convert to unified finding format                │     │
-│  │  Deduplicate across scanners                      │     │
-│  └───────────────────────────────────────────────────┘     │
-│               ↓                                             │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │  PHASE 3: Noise Reduction (1-3 min)              │     │
-│  ├───────────────────────────────────────────────────┤     │
-│  │  Heuristic Filters (test files, docs)            │     │
-│  │  ML Noise Scoring (pattern-based)                │     │
-│  │  AI Triage (Claude/OpenAI) + Few-Shot Learning   │     │
-│  └───────────────────────────────────────────────────┘     │
-│               ↓                                             │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │  PHASE 4: Policy Gates (instant)                 │     │
-│  ├───────────────────────────────────────────────────┤     │
-│  │  Rego policy evaluation (PR/release)             │     │
-│  │  Decision: PASS or BLOCK                          │     │
-│  └───────────────────────────────────────────────────┘     │
-│               ↓                                             │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │  PHASE 5: Feedback Loop (continuous)             │     │
-│  ├───────────────────────────────────────────────────┤     │
-│  │  Log Decision (telemetry)                         │     │
-│  │  User Feedback (TP/FP marking)                    │     │
-│  │  Pattern Discovery (automated)                    │     │
-│  │  Few-Shot Learning (next scan)                    │     │
-│  └───────────────────────────────────────────────────┘     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 1: Fast Deterministic Scanning (30-60 sec)                │
+│   ├─ Semgrep (SAST - 2,000+ rules)                              │
+│   ├─ Trivy (CVE/Dependencies)                                   │
+│   ├─ Checkov (IaC security)                                     │
+│   ├─ TruffleHog (Verified secrets)                              │
+│   └─ Gitleaks (Pattern-based secrets)                           │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2: AI Enrichment (2-5 min)                                │
+│   ├─ Claude/OpenAI/Ollama analysis                              │
+│   ├─ Noise scoring & false positive prediction                  │
+│   ├─ CWE mapping & risk scoring                                 │
+│   └─ Threat Model Generation (pytm + AI)                        │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2.5: Automated Remediation                                │
+│   └─ AI-Generated Fix Suggestions (remediation_engine.py)       │
+│       - SQL Injection → Parameterized queries                   │
+│       - XSS → Output escaping, CSP                              │
+│       - Command Injection → Input sanitization                  │
+│       - Path Traversal, SSRF, XXE, CSRF, etc.                   │
+│       - Unified diff generation for easy patching               │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2.6: Spontaneous Discovery                                │
+│   └─ Find issues BEYOND scanner rules (spontaneous_discovery.py)│
+│       - Architecture risk analysis (missing auth, weak crypto)  │
+│       - Hidden vulnerability detection (race conditions, logic) │
+│       - Configuration security checks                           │
+│       - Data security analysis (PII exposure)                   │
+│       - Only returns findings with >0.7 confidence              │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 3: Multi-Agent Persona Review (agent_personas.py)         │
+│   ├─ SecretHunter      - API keys, credentials expert           │
+│   ├─ ArchitectureReviewer - Design flaws, security gaps         │
+│   ├─ ExploitAssessor   - Real-world exploitability analysis     │
+│   ├─ FalsePositiveFilter - Noise suppression, test code ID      │
+│   └─ ThreatModeler     - Attack chains, threat scenarios        │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 4: Sandbox Validation (sandbox_validator.py)              │
+│   └─ Docker-based Exploit Validation                            │
+│       - Isolated container execution                            │
+│       - Multi-language support (Python, JS, Java, Go)           │
+│       - 14 exploit types supported                              │
+│       - Results: EXPLOITABLE, NOT_EXPLOITABLE, PARTIAL, etc.    │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 5: Policy Gates (gate.py)                                 │
+│   └─ Rego/OPA policy evaluation → PASS/FAIL                     │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 6: Reporting                                              │
+│   ├─ SARIF (GitHub code scanning)                               │
+│   ├─ JSON (programmatic access)                                 │
+│   └─ Markdown (PR comments)                                     │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+**Default Phase Configuration:**
+| Phase | Flag | Default |
+|-------|------|---------|
+| 1 | `enable_semgrep`, `enable_trivy`, `enable_checkov` | ✅ True |
+| 2 | `enable_ai_enrichment` | ✅ True |
+| 2.5 | `enable_remediation` | ✅ True |
+| 2.6 | `enable_spontaneous_discovery` | ✅ True |
+| 3 | `enable_multi_agent` | ✅ True |
+| 4 | `enable_sandbox` | ✅ True |
+| 5-6 | Policy gates & Reporting | ✅ Always |
 
 ### Data Flow
 

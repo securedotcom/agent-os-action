@@ -17,13 +17,80 @@ Agent-OS Security Action is a **production security control plane** for GitHub r
 
 | Feature | Purpose | Components |
 |---------|---------|------------|
-| **Multi-Scanner Orchestration** | Run 4 security scanners in parallel | Semgrep, Trivy, TruffleHog, Checkov |
+| **Multi-Scanner Orchestration** | Run 5 security scanners in parallel | Semgrep, Trivy, TruffleHog, Gitleaks, Checkov |
 | **AI Triage & Noise Reduction** | Suppress false positives using AI | Claude Sonnet, OpenAI GPT-4, Ollama (local) |
+| **Automated Remediation** | AI-generated fix suggestions | remediation_engine.py |
+| **Spontaneous Discovery** | Find issues beyond scanner rules | spontaneous_discovery.py |
+| **Multi-Agent Personas** | Specialized AI experts for different domains | agent_personas.py |
+| **Sandbox Validation** | Docker-based exploit verification | sandbox_validator.py |
 | **Policy Enforcement** | Block PRs based on verified threats | Rego policy engine, quality gates |
-| **SBOM Generation** | Track dependencies and vulnerabilities | Syft SBOM generator |
 | **SARIF Integration** | Upload findings to GitHub Code Scanning | SARIF report generator |
 | **Threat Modeling** | Generate threat models from architecture | PyTM integration |
-| **Exploit Analysis** | Assess exploitability of vulnerabilities | Aardvark mode analyzer |
+
+## Security Pipeline (6 Phases)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 1: Fast Deterministic Scanning (30-60 sec)                │
+│   ├─ Semgrep (SAST - 2,000+ rules)                              │
+│   ├─ Trivy (CVE/Dependencies)                                   │
+│   ├─ Checkov (IaC security)                                     │
+│   ├─ TruffleHog (Verified secrets)                              │
+│   └─ Gitleaks (Pattern-based secrets)                           │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2: AI Enrichment (2-5 min)                                │
+│   ├─ Claude/OpenAI/Ollama analysis                              │
+│   ├─ Noise scoring & false positive prediction                  │
+│   ├─ CWE mapping & risk scoring                                 │
+│   └─ Threat Model Generation (pytm + AI)                        │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2.5: Automated Remediation                                │
+│   └─ AI-Generated Fix Suggestions (remediation_engine.py)       │
+│       - SQL Injection → Parameterized queries                   │
+│       - XSS → Output escaping, CSP                              │
+│       - Command Injection → Input sanitization                  │
+│       - Path Traversal, SSRF, XXE, CSRF, etc.                   │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 2.6: Spontaneous Discovery                                │
+│   └─ Find issues BEYOND scanner rules (spontaneous_discovery.py)│
+│       - Architecture risk analysis (missing auth, weak crypto)  │
+│       - Hidden vulnerability detection (race conditions, logic) │
+│       - Configuration security checks                           │
+│       - Data security analysis (PII exposure)                   │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 3: Multi-Agent Persona Review (agent_personas.py)         │
+│   ├─ SecretHunter      - API keys, credentials expert           │
+│   ├─ ArchitectureReviewer - Design flaws, security gaps         │
+│   ├─ ExploitAssessor   - Real-world exploitability analysis     │
+│   ├─ FalsePositiveFilter - Noise suppression, test code ID      │
+│   └─ ThreatModeler     - Attack chains, threat scenarios        │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 4: Sandbox Validation (sandbox_validator.py)              │
+│   └─ Docker-based Exploit Validation                            │
+│       - Isolated container execution                            │
+│       - Multi-language support (Python, JS, Java, Go)           │
+│       - 14 exploit types supported                              │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 5: Policy Gates (gate.py)                                 │
+│   └─ Rego/OPA policy evaluation → PASS/FAIL                     │
+├─────────────────────────────────────────────────────────────────┤
+│ PHASE 6: Reporting                                              │
+│   ├─ SARIF (GitHub code scanning)                               │
+│   ├─ JSON (programmatic access)                                 │
+│   └─ Markdown (PR comments)                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Default Phase Configuration (hybrid_analyzer.py):**
+| Phase | Flag | Default |
+|-------|------|---------|
+| 1 | `enable_semgrep`, `enable_trivy`, `enable_checkov` | ✅ True |
+| 2 | `enable_ai_enrichment` | ✅ True |
+| 2.5 | `enable_remediation` | ✅ True |
+| 2.6 | `enable_spontaneous_discovery` | ✅ True |
+| 3 | `enable_multi_agent` | ✅ True |
+| 4 | `enable_sandbox` | ✅ True |
+| 5-6 | Policy gates & Reporting | ✅ Always |
 
 ## Architecture Diagram
 
@@ -128,13 +195,14 @@ graph TB
 
 ## Key Components
 
-### Security Scanners
+### Phase 1: Security Scanners
 
 | Scanner | Purpose | What It Detects | Strength |
 |---------|---------|-----------------|----------|
 | **Semgrep** | Static analysis (SAST) | Code vulnerabilities, anti-patterns (2000+ rules) | Language-aware, low false positives |
 | **Trivy** | Dependency scanning | CVEs in dependencies, containers, IaC | Comprehensive vulnerability database |
 | **TruffleHog** | Verified secret detection | API keys, tokens, credentials (with verification) | High precision via API validation |
+| **Gitleaks** | Pattern-based secrets | Secrets in code and git history | Fast pattern matching |
 | **Checkov** | Infrastructure as Code | IaC misconfigurations, security issues | Cloud-native security best practices |
 
 ### AI Triage System
@@ -146,6 +214,15 @@ graph TB
 | **Ollama** | Local AI triage (self-hosted models) | $0 (local inference) | ⭐⭐⭐⭐ |
 | **Noise Scorer** | ML-based false positive detection | $0 (local) | 60-70% noise reduction |
 
+### Phases 2.5-4: AI-Powered Modules
+
+| Module | Phase | Purpose | Key Features |
+|--------|-------|---------|--------------|
+| **remediation_engine.py** | 2.5 | AI-generated fix suggestions | Unified diffs, testing recommendations |
+| **spontaneous_discovery.py** | 2.6 | Find issues beyond scanner rules | Architecture risks, hidden vulns, >0.7 confidence |
+| **agent_personas.py** | 3 | Multi-agent persona review | 5 specialized experts (SecretHunter, etc.) |
+| **sandbox_validator.py** | 4 | Docker-based exploit validation | 14 exploit types, isolated execution |
+
 ### Analysis Pipeline
 
 | Component | Purpose | Input | Output |
@@ -153,7 +230,7 @@ graph TB
 | **Deduplicator** | Remove duplicate findings | Raw scanner results | Unique findings |
 | **Correlator** | Group related findings | Deduplicated findings | Correlated findings |
 | **Risk Scorer** | Calculate risk scores | Correlated findings | Risk-scored findings |
-| **Exploit Analyzer** | Assess exploitability (Aardvark mode) | Risk-scored findings | Exploitability ratings |
+| **Exploit Analyzer** | Assess exploitability | Risk-scored findings | Exploitability ratings |
 
 ### Policy Engine
 
@@ -183,57 +260,69 @@ graph TB
 - **Artifacts**: Workflow artifacts
 - **Integration**: GitHub Code Scanning (SARIF)
 
-## Data Flow
+## Data Flow (6 Phases)
 
-### 1. Trigger & Initialization
+### Phase 1: Fast Deterministic Scanning (30-60 sec)
 1. GitHub Action triggered (PR, push, schedule)
 2. Load configuration from `action.yml` inputs
-3. Select files to scan (filters, limits)
-4. Estimate cost (if using paid AI)
-
-### 2. Parallel Scanning
-1. Run 4 scanners in parallel:
-   - Semgrep: SAST rules
-   - Trivy: CVE scanning
-   - TruffleHog: Verified secrets
+3. Run 5 scanners in parallel:
+   - Semgrep: SAST rules (2,000+)
+   - Trivy: CVE/dependency scanning
    - Checkov: IaC security
-2. Each scanner outputs findings in normalized format
+   - TruffleHog: Verified secrets
+   - Gitleaks: Pattern-based secrets
+4. Each scanner outputs findings in normalized format
 
-### 3. Deduplication & Correlation
+### Phase 2: AI Enrichment (2-5 min)
 1. Deduplicate findings across scanners
-2. Correlate related findings (same file/line)
-3. Normalize to common format
-
-### 4. AI Triage
-1. Send findings to AI (Claude, OpenAI, or Ollama)
-2. AI assesses each finding:
+2. Send findings to AI (Claude, OpenAI, or Ollama)
+3. AI assesses each finding:
    - Is it a real issue or false positive?
-   - What's the severity?
-   - What's the exploitability?
-3. Noise scorer calculates confidence
+   - What's the severity and exploitability?
+   - CWE mapping and risk scoring
+4. Threat model generation (pytm + AI)
 
-### 5. Risk Scoring & Exploit Analysis
-1. Calculate risk scores (CVSS × Exploitability × Reachability)
-2. Aardvark mode: Analyze exploit chains
-3. Generate test cases for exploits
+### Phase 2.5: Automated Remediation
+1. `remediation_engine.py` generates fix suggestions
+2. AI-powered code patches for common vulnerabilities
+3. Unified diff generation for easy patching
+4. Testing recommendations for each fix
 
-### 6. Policy Enforcement
-1. Apply Rego policies
-2. Check quality gates
-3. Determine if workflow should fail
+### Phase 2.6: Spontaneous Discovery
+1. `spontaneous_discovery.py` analyzes codebase
+2. Finds issues BEYOND scanner rules:
+   - Architecture risks (missing auth, weak crypto)
+   - Hidden vulnerabilities (race conditions, logic flaws)
+   - Configuration security issues
+   - Data security problems (PII exposure)
+3. Only returns findings with >0.7 confidence
 
-### 7. Report Generation
-1. Generate SARIF report (for Code Scanning)
+### Phase 3: Multi-Agent Persona Review
+1. `agent_personas.py` routes findings to specialized agents:
+   - SecretHunter: API keys, credentials
+   - ArchitectureReviewer: Design flaws
+   - ExploitAssessor: Exploitability analysis
+   - FalsePositiveFilter: Noise suppression
+   - ThreatModeler: Attack chains
+2. Each agent provides domain-expert analysis
+
+### Phase 4: Sandbox Validation
+1. `sandbox_validator.py` validates exploits in Docker
+2. Isolated container execution for safety
+3. Tests 14 exploit types (SQL injection, XSS, SSRF, etc.)
+4. Categorizes results: EXPLOITABLE, NOT_EXPLOITABLE, PARTIAL
+
+### Phase 5: Policy Gates
+1. `gate.py` applies Rego/OPA policies
+2. Check quality gates (PR gate, release gate)
+3. Determine if workflow should PASS or BLOCK
+
+### Phase 6: Reporting
+1. Generate SARIF report (for GitHub Code Scanning)
 2. Generate JSON report (structured data)
-3. Generate Markdown report (human-readable)
-4. Generate metrics (cost, duration, findings)
-5. Generate SBOM (dependencies)
-
-### 8. GitHub Integration
-1. Upload SARIF to Code Scanning
-2. Post PR comment with findings
-3. Upload artifacts (reports, metrics)
-4. Fail workflow if blockers found
+3. Generate Markdown report (PR comments)
+4. Upload artifacts to GitHub
+5. Fail workflow if blockers found
 
 ## Integration Points
 
