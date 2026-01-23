@@ -103,9 +103,25 @@ The Docker container runs **all 6 phases automatically**:
 - **Docker-based Validation** - Exploit testing
 - **Proof-of-Concept** - Vulnerability verification
 
-### ✅ Phase 5: Policy Gate Evaluation (0-1s)
+### ⚠️ Phase 5: Policy Gate Evaluation (0-1s) - **AMD64 Only**
 - **Rego/OPA Enforcement** - Policy compliance
 - **PR/Release Gates** - Automated blocking
+
+**Note:** OPA (Open Policy Agent) prebuilt binaries have compatibility issues on ARM64 Linux containers. Phase 5 will be skipped on ARM64 (Apple Silicon M1/M2/M3).
+
+**Workaround for ARM64:**
+```bash
+# Install OPA on host (macOS ARM64)
+brew install opa
+
+# Mount OPA binary into container
+docker run --rm \
+  -v $(which opa):/usr/local/bin/opa \
+  -v /path/to/repo:/workspace:ro \
+  ... agent-os-scanner:latest
+```
+
+Alternatively, run scans directly on the host without Docker to enable all 6 phases.
 
 ---
 

@@ -58,8 +58,30 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
-# Note: OPA (Phase 5 Policy Gates) is optional and can be installed separately if needed
-# It has architecture compatibility issues with some container platforms
+# Install OPA (Open Policy Agent) for Phase 5 Policy Gates
+# Note: OPA precompiled binaries have compatibility issues on some ARM64 platforms
+# Phase 5 (Policy Gates) is optional - if OPA installation fails, it will be skipped
+# For production use on ARM64, consider installing OPA on the host and mounting it
+RUN set -e && \
+    ( \
+        echo "Attempting OPA installation (amd64 only - ARM64 has known issues)..." && \
+        apt-get update && \
+        apt-get install -y wget && \
+        ARCH=$(dpkg --print-architecture) && \
+        OPA_VERSION="0.71.0" && \
+        if [ "$ARCH" = "amd64" ]; then \
+            wget -q "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static" -O /usr/local/bin/opa && \
+            chmod +x /usr/local/bin/opa && \
+            /usr/local/bin/opa version && \
+            echo "✅ OPA ${OPA_VERSION} installed successfully for amd64"; \
+        else \
+            echo "⚠️  OPA prebuilt binaries not available for $ARCH" && \
+            echo "⚠️  Phase 5 (Policy Gates) will be skipped" && \
+            echo "ℹ️  To enable Phase 5 on ARM64, install OPA on host and mount as volume:"; \
+            echo "    docker run -v /usr/local/bin/opa:/usr/local/bin/opa ..."; \
+            false; \
+        fi \
+    ) || true
 
 # Create app directory
 WORKDIR /app
