@@ -52,13 +52,37 @@ class DockerManager:
             raise RuntimeError("Docker Python SDK not available. Install with: pip install docker")
 
         try:
+            # Try to connect using environment variables first
             self.client = docker.from_env()
             self.client.ping()
         except DockerException as e:
-            logger.exception("Failed to connect to Docker daemon")
-            raise RuntimeError(
-                "Docker is not available or not running. Please ensure Docker is installed and running."
-            ) from e
+            # Fall back to common Docker socket paths (macOS Docker Desktop uses ~/.docker/run/docker.sock)
+            logger.info("Failed to connect with from_env(), trying alternative socket paths...")
+            socket_paths = [
+                f"{Path.home()}/.docker/run/docker.sock",  # macOS Docker Desktop
+                "/var/run/docker.sock",  # Linux default
+                "/run/user/1000/docker.sock",  # Rootless Docker
+            ]
+
+            connected = False
+            for socket_path in socket_paths:
+                if Path(socket_path).exists():
+                    try:
+                        logger.info(f"Trying Docker socket at: {socket_path}")
+                        self.client = docker.DockerClient(base_url=f"unix://{socket_path}")
+                        self.client.ping()
+                        logger.info(f"✅ Connected to Docker via {socket_path}")
+                        connected = True
+                        break
+                    except Exception as sock_err:
+                        logger.debug(f"Failed to connect to {socket_path}: {sock_err}")
+                        continue
+
+            if not connected:
+                logger.exception("Failed to connect to Docker daemon")
+                raise RuntimeError(
+                    "Docker is not available or not running. Please ensure Docker is installed and running."
+                ) from e
 
         self.image = image or self.DEFAULT_IMAGE
         self._containers: dict[str, Container] = {}
