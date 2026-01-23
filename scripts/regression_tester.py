@@ -604,7 +604,14 @@ func TestNormalInput{function_name.title()}(t *testing.T) {{
                 logger.error(f"⚠️  Error running test {test.test_id}: {e}")
 
         self._print_results(results)
-        self._save_results(results)
+
+        # Try to save results, but don't fail if filesystem is read-only (Docker containers)
+        try:
+            self._save_results(results)
+        except (PermissionError, OSError) as e:
+            logger.warning(f"Could not save regression test results (read-only filesystem?): {e}")
+            logger.info("Results displayed above but not persisted to disk")
+
         return results
 
     def _run_pytest(self, test: RegressionTest) -> tuple[bool, str]:

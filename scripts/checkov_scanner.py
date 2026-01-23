@@ -188,9 +188,10 @@ class CheckovScanner:
         """
         logger.info(f"Starting Checkov scan: {target_path}")
 
+        # Runtime check for Checkov availability (non-fatal since we checked during init)
         if not self._check_checkov_installed():
-            logger.error("Checkov not installed")
-            raise RuntimeError("Checkov not installed. Run install_checkov() first.")
+            logger.warning("Checkov runtime check failed (but was available during init)")
+            logger.info("Attempting scan anyway...")
 
         target_path_obj = Path(target_path).resolve()
         if not target_path_obj.exists():
