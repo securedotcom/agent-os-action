@@ -77,6 +77,7 @@ echo ""
 docker run --rm \
     -v "$TARGET_REPO:/workspace:ro" \
     -v "$OUTPUT_DIR:/output" \
+    -v "$OUTPUT_DIR/.cache:/cache" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
     -e OPENAI_API_KEY="$OPENAI_API_KEY" \

@@ -58,6 +58,10 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
+# Install OPA (Open Policy Agent) for Phase 5 Policy Gates
+RUN curl -L -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v0.71.0/opa_linux_$(dpkg --print-architecture) && \
+    chmod +x /usr/local/bin/opa
+
 # Create app directory
 WORKDIR /app
 
