@@ -1,0 +1,94 @@
+# Agent-OS Complete Security Scanner
+# All-in-one container with all security tools pre-installed
+
+FROM python:3.11-slim-bookworm
+
+LABEL org.opencontainers.image.title="Agent-OS Complete Security Scanner"
+LABEL org.opencontainers.image.description="6-Phase Security Pipeline with All Tools Pre-installed"
+LABEL org.opencontainers.image.vendor="Agent OS"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/securedotcom/agent-os-action"
+
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /bin/uv
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PYTHONPATH=/app \
+    PATH="/app/.venv/bin:/usr/local/bin:$PATH" \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies and ALL security tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Basic tools
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    # Build tools for some Python packages
+    gcc \
+    g++ \
+    make \
+    # Docker CLI for nested container support
+    docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Trivy (CVE Scanner)
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
+
+# Install Checkov (IaC Scanner)
+RUN pip install --no-cache-dir checkov==3.2.491
+
+# Install Semgrep (SAST)
+RUN pip install --no-cache-dir semgrep==1.100.0
+
+# Install GitHub CLI (for issue reporting)
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y gh && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy dependency files
+COPY requirements.txt pyproject.toml setup.py ./
+
+# Install Python dependencies
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# Copy application code
+COPY scripts/ ./scripts/
+COPY policy/ ./policy/
+COPY profiles/ ./profiles/
+COPY schemas/ ./schemas/
+
+# Create necessary directories
+RUN mkdir -p /workspace /output /cache && \
+    chmod 755 /workspace /output /cache
+
+# Pre-download Trivy DB to speed up scans
+RUN trivy image --download-db-only || true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import scripts.hybrid_analyzer; print('healthy')" || exit 1
+
+# Set working directory for analysis
+WORKDIR /workspace
+
+# Default entrypoint - run hybrid analyzer
+ENTRYPOINT ["python", "/app/scripts/hybrid_analyzer.py"]
+
+# Default command shows help
+CMD ["--help"]

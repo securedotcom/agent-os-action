@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Agent-OS Complete 6-Phase Security Scanner
+  agent-os-scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    image: agent-os-scanner:latest
+    container_name: agent-os-scanner
+    environment:
+      # AI Provider Configuration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_ENDPOINT=${OLLAMA_ENDPOINT:-}
+
+      # Phase Enablement (all 6 phases)
+      - ENABLE_REMEDIATION=true
+      - ENABLE_THREAT_INTEL=true
+      - ENABLE_MULTI_AGENT=true
+      - ENABLE_SANDBOX=true
+      - ENABLE_SPONTANEOUS_DISCOVERY=true
+      - ENABLE_HEURISTICS=true
+
+      # Tool Enablement
+      - SEMGREP_ENABLED=true
+      - TRIVY_ENABLED=true
+      - CHECKOV_ENABLED=true
+
+      # Performance
+      - PYTHONUNBUFFERED=1
+
+    volumes:
+      # Mount target repository to analyze
+      - ${TARGET_REPO:-./target}:/workspace:ro
+
+      # Mount output directory for results
+      - ${OUTPUT_DIR:-./output}:/output
+
+      # Cache directory for faster subsequent scans
+      - agent-os-cache:/cache
+
+      # Docker socket for Phase 4 Sandbox Validation
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    working_dir: /workspace
+
+    # Network configuration
+    networks:
+      - agent-os-network
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import scripts.hybrid_analyzer; print('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  agent-os-cache:
+    name: agent-os-cache
+
+networks:
+  agent-os-network:
+    name: agent-os-network
+    driver: bridge
