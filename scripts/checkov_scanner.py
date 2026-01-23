@@ -316,9 +316,24 @@ class CheckovScanner:
         """
         findings = []
 
-        # Checkov structure: results -> failed_checks (array)
-        results = checkov_output.get("results", {})
-        failed_checks = results.get("failed_checks", [])
+        # Checkov can return either a list or dict format
+        # Handle both cases
+        if isinstance(checkov_output, list):
+            # List format: directly iterate
+            failed_checks = checkov_output
+        elif isinstance(checkov_output, dict):
+            # Dict format: results -> failed_checks (array)
+            results = checkov_output.get("results", {})
+            if isinstance(results, dict):
+                failed_checks = results.get("failed_checks", [])
+            elif isinstance(results, list):
+                failed_checks = results
+            else:
+                failed_checks = []
+        else:
+            # Unexpected format
+            logger.warning(f"Unexpected Checkov output format: {type(checkov_output)}")
+            return findings
 
         for check in failed_checks:
             try:
@@ -495,9 +510,22 @@ class CheckovScanner:
         """Extract list of frameworks that were scanned"""
         frameworks = set()
 
-        results = checkov_output.get("results", {})
-        for check in results.get("failed_checks", []) + results.get("passed_checks", []):
-            check_class = check.get("check_class", "")
+        # Handle both list and dict formats
+        if isinstance(checkov_output, list):
+            checks = checkov_output
+        elif isinstance(checkov_output, dict):
+            results = checkov_output.get("results", {})
+            if isinstance(results, dict):
+                checks = results.get("failed_checks", []) + results.get("passed_checks", [])
+            elif isinstance(results, list):
+                checks = results
+            else:
+                checks = []
+        else:
+            checks = []
+
+        for check in checks:
+            check_class = check.get("check_class", "") if isinstance(check, dict) else ""
             if check_class:
                 # Extract framework from check_class (e.g., "checkov.terraform.checks...")
                 parts = check_class.split(".")

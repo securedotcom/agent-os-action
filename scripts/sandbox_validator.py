@@ -108,8 +108,21 @@ class SandboxValidator:
             results_dir: Directory to save validation results
         """
         self.docker_manager = docker_manager or DockerManager()
-        self.results_dir = Path(results_dir) if results_dir else Path(".agent-os/sandbox-results")
-        self.results_dir.mkdir(parents=True, exist_ok=True)
+
+        # Try default results location, fallback to /cache for Docker read-only workspaces
+        default_results = Path(results_dir) if results_dir else Path(".agent-os/sandbox-results")
+        try:
+            default_results.mkdir(parents=True, exist_ok=True)
+            # Test if writable
+            test_file = default_results / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+            self.results_dir = default_results
+        except (PermissionError, OSError):
+            # Fallback to /cache for Docker read-only mounts
+            self.results_dir = Path("/cache/sandbox-results")
+            self.results_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"Using fallback results directory: {self.results_dir}")
 
         self._validation_count = 0
         self._metrics: list[ValidationMetrics] = []

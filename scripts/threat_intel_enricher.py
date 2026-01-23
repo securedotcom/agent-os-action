@@ -108,8 +108,21 @@ class ThreatIntelEnricher:
             cache_dir: Directory for caching API responses
             use_progress: Whether to show progress bars (requires rich)
         """
-        self.cache_dir = cache_dir or Path(".agent-os-cache/threat-intel")
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Try default cache location, fallback to /cache for Docker read-only workspaces
+        default_cache = cache_dir or Path(".agent-os-cache/threat-intel")
+        try:
+            default_cache.mkdir(parents=True, exist_ok=True)
+            # Test if writable
+            test_file = default_cache / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+            self.cache_dir = default_cache
+        except (PermissionError, OSError):
+            # Fallback to /cache for Docker read-only mounts
+            self.cache_dir = Path("/cache/threat-intel")
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"Using fallback cache directory: {self.cache_dir}")
+
         self.use_progress = use_progress
 
         # Rate limiting state
