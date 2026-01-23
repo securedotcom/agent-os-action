@@ -1,110 +1,62 @@
 #!/bin/bash
-# Agent-OS Complete 6-Phase Security Scanner
-# Quick scan script for any repository
+# Agent-OS Complete Security Scanner - Simple Wrapper
+# Usage: ./scan-repo.sh /path/to/repo [output-dir]
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
+# Colors
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Banner
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}   Agent-OS Complete 6-Phase Security Scanner${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+REPO_PATH="${1:-.}"
+OUTPUT_DIR="${2:-./security-reports}"
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}❌ Error: Docker is not running${NC}"
-    echo -e "${YELLOW}Please start Docker and try again${NC}"
-    exit 1
-fi
-
-# Check for required environment variables
-if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
-    echo -e "${RED}❌ Error: No AI API key found${NC}"
-    echo -e "${YELLOW}Please set ANTHROPIC_API_KEY or OPENAI_API_KEY:${NC}"
-    echo -e "  export ANTHROPIC_API_KEY=your-key-here"
-    exit 1
-fi
-
-# Parse arguments
-TARGET_REPO="${1:-.}"
-OUTPUT_DIR="${2:-./output}"
-
-if [ "$TARGET_REPO" = "--help" ] || [ "$TARGET_REPO" = "-h" ]; then
-    echo ""
-    echo "Usage: $0 [target_repo] [output_dir]"
-    echo ""
-    echo "Examples:"
-    echo "  $0                              # Scan current directory"
-    echo "  $0 /path/to/repo               # Scan specific repository"
-    echo "  $0 /path/to/repo /path/output  # Scan with custom output directory"
-    echo ""
-    echo "Environment Variables:"
-    echo "  ANTHROPIC_API_KEY - Claude API key (required)"
-    echo "  OPENAI_API_KEY    - OpenAI API key (alternative)"
-    echo ""
-    exit 0
-fi
-
-# Convert to absolute paths
-TARGET_REPO=$(cd "$TARGET_REPO" && pwd)
-mkdir -p "$OUTPUT_DIR"
-OUTPUT_DIR=$(cd "$OUTPUT_DIR" && pwd)
-
-echo -e "${GREEN}✅ Docker is running${NC}"
-echo -e "${GREEN}✅ AI API key configured${NC}"
-echo -e "${BLUE}📁 Target: $TARGET_REPO${NC}"
-echo -e "${BLUE}📄 Output: $OUTPUT_DIR${NC}"
+echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║         Agent-OS Complete Security Scanner                  ║${NC}"
+echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Build image if it doesn't exist
-if [[ "$(docker images -q agent-os-scanner:latest 2> /dev/null)" == "" ]]; then
-    echo -e "${YELLOW}🏗️  Building Agent-OS scanner image (first time only)...${NC}"
-    docker-compose build
-    echo -e "${GREEN}✅ Image built successfully${NC}"
+# Check if API key is set
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "❌ Error: ANTHROPIC_API_KEY environment variable not set"
     echo ""
+    echo "Set it with:"
+    echo "  export ANTHROPIC_API_KEY=your-key-here"
+    echo ""
+    echo "Get a key from: https://console.anthropic.com/"
+    exit 1
 fi
+
+# Check if repo path exists
+if [ ! -d "$REPO_PATH" ]; then
+    echo "❌ Error: Repository path not found: $REPO_PATH"
+    exit 1
+fi
+
+# Create output directory
+mkdir -p "$OUTPUT_DIR"
+
+echo -e "${GREEN}📂 Repository:${NC} $(realpath $REPO_PATH)"
+echo -e "${GREEN}📁 Output:${NC} $(realpath $OUTPUT_DIR)"
+echo -e "${GREEN}🔑 API Key:${NC} ****${ANTHROPIC_API_KEY:  -8}"
+echo ""
+echo "🚀 Starting security scan..."
+echo ""
 
 # Run the scan
-echo -e "${BLUE}🔍 Starting 6-Phase Security Scan...${NC}"
-echo ""
-
 docker run --rm \
-    -v "$TARGET_REPO:/workspace:ro" \
-    -v "$OUTPUT_DIR:/output" \
-    -v "$OUTPUT_DIR/.cache:/cache" \
-    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$(realpath $REPO_PATH):/workspace" \
+    -v "$(realpath $OUTPUT_DIR):/output" \
     -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-    -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-    -e ENABLE_REMEDIATION=true \
-    -e ENABLE_THREAT_INTEL=true \
-    agent-os-scanner:latest \
-    /workspace \
-    --enable-ai-enrichment \
-    --ai-provider anthropic \
-    --enable-semgrep \
-    --enable-trivy \
-    --enable-checkov \
-    --enable-api-security \
-    --enable-supply-chain \
-    --enable-threat-intel \
-    --enable-remediation \
-    --enable-regression-testing \
-    --output-dir /output
-
-EXIT_CODE=$?
+    agent-os:complete \
+    . security --provider anthropic
 
 echo ""
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}✅ Scan completed successfully!${NC}"
-    echo -e "${BLUE}📊 Results saved to: $OUTPUT_DIR${NC}"
-else
-    echo -e "${RED}❌ Scan failed with exit code $EXIT_CODE${NC}"
-fi
-
-exit $EXIT_CODE
+echo -e "${GREEN}✅ Scan complete!${NC}"
+echo ""
+echo "📊 Reports generated:"
+echo "  - Security Report: $OUTPUT_DIR/security-report.md"
+echo "  - SARIF: $OUTPUT_DIR/results.sarif"
+echo "  - JSON: $OUTPUT_DIR/results.json"
+echo ""

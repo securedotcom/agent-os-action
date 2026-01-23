@@ -1,96 +1,55 @@
-# Agent-OS Complete Security Scanner
-# All-in-one container with all security tools pre-installed
-
 FROM python:3.11-slim-bookworm
 
 LABEL org.opencontainers.image.title="Agent-OS Complete Security Scanner"
-LABEL org.opencontainers.image.description="6-Phase Security Pipeline with All Tools Pre-installed"
+LABEL org.opencontainers.image.description="All-in-one security scanner with Semgrep, Trivy, Checkov, TruffleHog, Gitleaks, and AI triage"
 LABEL org.opencontainers.image.vendor="Agent OS"
-LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.source="https://github.com/securedotcom/agent-os-action"
 
-# Install uv for fast dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /bin/uv
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1 \
-    PYTHONPATH=/app \
-    PATH="/app/.venv/bin:/usr/local/bin:$PATH" \
-    DEBIAN_FRONTEND=noninteractive
-
-# Install system dependencies and ALL security tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Basic tools
     git \
     curl \
     wget \
     ca-certificates \
     gnupg \
-    lsb-release \
-    software-properties-common \
-    # Build tools for some Python packages
-    gcc \
-    g++ \
-    make \
-    # Docker CLI for nested container support
-    docker.io \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Trivy (CVE Scanner)
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
-
-# Install Checkov (IaC Scanner)
-RUN pip install --no-cache-dir checkov==3.2.491
-
-# Install Semgrep (SAST)
-RUN pip install --no-cache-dir semgrep==1.100.0
-
-# Install GitHub CLI (for issue reporting)
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
+# Install Trivy
+RUN wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | tee /etc/apt/sources.list.d/trivy.list && \
     apt-get update && \
-    apt-get install -y gh && \
+    apt-get install -y trivy && \
     rm -rf /var/lib/apt/lists/*
 
-# Install OPA (Open Policy Agent) for Phase 5 Policy Gates
-# Note: OPA precompiled binaries have compatibility issues on some ARM64 platforms
-# Phase 5 (Policy Gates) is optional - if OPA installation fails, it will be skipped
-# For production use on ARM64, consider installing OPA on the host and mounting it
-RUN set -e && \
-    ( \
-        echo "Attempting OPA installation (amd64 only - ARM64 has known issues)..." && \
-        apt-get update && \
-        apt-get install -y wget && \
-        ARCH=$(dpkg --print-architecture) && \
-        OPA_VERSION="0.71.0" && \
-        if [ "$ARCH" = "amd64" ]; then \
-            wget -q "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static" -O /usr/local/bin/opa && \
-            chmod +x /usr/local/bin/opa && \
-            /usr/local/bin/opa version && \
-            echo "✅ OPA ${OPA_VERSION} installed successfully for amd64"; \
-        else \
-            echo "⚠️  OPA prebuilt binaries not available for $ARCH" && \
-            echo "⚠️  Phase 5 (Policy Gates) will be skipped" && \
-            echo "ℹ️  To enable Phase 5 on ARM64, install OPA on host and mount as volume:"; \
-            echo "    docker run -v /usr/local/bin/opa:/usr/local/bin/opa ..."; \
-            false; \
-        fi \
-    ) || true
+# Install TruffleHog
+RUN curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
 
-# Create app directory
+# Install Gitleaks
+RUN wget -qO - https://github.com/gitleaks/gitleaks/releases/download/v8.18.1/gitleaks_8.18.1_linux_x64.tar.gz | tar -xzC /usr/local/bin
+
+# Set Python environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
+
 WORKDIR /app
 
-# Copy dependency files
-COPY requirements.txt pyproject.toml setup.py ./
+# Copy Python dependencies
+COPY requirements.txt .
 
-# Install Python dependencies
-RUN uv pip install --system --no-cache -r requirements.txt
+# Install Python packages including all scanners
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+    semgrep \
+    checkov \
+    pytm \
+    anthropic \
+    openai \
+    tenacity \
+    pyyaml \
+    requests \
+    rich
 
 # Copy application code
 COPY scripts/ ./scripts/
@@ -98,22 +57,17 @@ COPY policy/ ./policy/
 COPY profiles/ ./profiles/
 COPY schemas/ ./schemas/
 
-# Create necessary directories
-RUN mkdir -p /workspace /output /cache && \
-    chmod 755 /workspace /output /cache
+# Create workspace and output directories
+RUN mkdir -p /workspace /output && \
+    chmod 755 /workspace /output
 
-# Pre-download Trivy DB to speed up scans
+# Initialize Trivy database
 RUN trivy image --download-db-only || true
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import scripts.hybrid_analyzer; print('healthy')" || exit 1
-
-# Set working directory for analysis
 WORKDIR /workspace
 
-# Default entrypoint - run hybrid analyzer
-ENTRYPOINT ["python", "/app/scripts/hybrid_analyzer.py"]
+# Set entrypoint to the main scanner
+ENTRYPOINT ["python", "/app/scripts/run_ai_audit.py"]
 
-# Default command shows help
+# Default: show help
 CMD ["--help"]
