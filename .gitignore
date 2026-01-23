@@ -85,5 +85,6 @@ deployment/
 CODE_ANALYSIS_IMPROVEMENT_PLAN.md
 COMPREHENSIVE_IMPROVEMENT_PLAN.md
 
-# Cache directory
+# Cache and output directories
 .agent-os-cache/
+.agent-os/
