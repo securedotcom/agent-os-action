@@ -129,7 +129,13 @@ class TrivyScanner:
         ]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5 minute timeout
+            # Set environment to bypass Docker credential helpers
+            import os
+            env = os.environ.copy()
+            env['DOCKER_CONFIG'] = '/tmp/.docker-fake'  # Use fake config to avoid credential helper issues
+            env['TRIVY_NO_PROGRESS'] = 'true'
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)  # 5 minute timeout
 
             if result.returncode != 0:
                 logger.error(f"❌ Trivy scan failed: {result.stderr}")

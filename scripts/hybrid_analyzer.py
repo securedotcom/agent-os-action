@@ -39,7 +39,10 @@ Architecture:
 │  PHASE 4: Sandbox Validation (Optional)                         │
 │  └─ Docker-based Exploit Validation                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  PHASE 5: Report Generation                                     │
+│  PHASE 5: Policy Gate Evaluation (Optional)                     │
+│  └─ Rego policy enforcement (PR/release gates)                  │
+├─────────────────────────────────────────────────────────────────┤
+│  PHASE 6: Report Generation                                     │
 │  └─ SARIF + JSON + Markdown                                     │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -667,30 +670,33 @@ class HybridSecurityAnalyzer:
         elif self.enable_spontaneous_discovery and not self.spontaneous_discovery:
             logger.info("   ⚠️  Skipping Phase 2.6: Spontaneous discovery not initialized")
 
-        # PHASE 3: Agent-OS Integration (Optional)
-        if self.enable_agent_os and all_findings:
+        # PHASE 3: Multi-Agent Persona Review (Optional)
+        if self.enable_multi_agent and self.agent_personas and all_findings:
             logger.info("")
             logger.info("─" * 80)
-            logger.info("🎯 PHASE 3: Agent-OS Multi-Agent Review")
+            logger.info("🎯 PHASE 3: Multi-Agent Persona Review")
             logger.info("─" * 80)
 
             phase3_start = time.time()
 
-            # Run multi-agent consensus review on findings
+            # Run multi-agent persona review on findings
             try:
                 enriched_findings = self._run_agent_os_review(all_findings, target_path)
                 all_findings = enriched_findings
-                logger.info(f"   ✅ Agent-OS review complete: {len(all_findings)} findings reviewed")
+                logger.info(f"   ✅ Multi-agent persona review complete: {len(all_findings)} findings reviewed")
             except Exception as e:
-                logger.error(f"   ❌ Agent-OS review failed: {e}")
+                logger.error(f"   ❌ Multi-agent persona review failed: {e}")
                 logger.info("   💡 Continuing with findings from Phase 1 & 2")
 
-            phase_timings["phase3_agent_os"] = time.time() - phase3_start
-        elif self.enable_agent_os and not all_findings:
+            phase_timings["phase3_multi_agent_personas"] = time.time() - phase3_start
+            logger.info(f"   ⏱️  Phase 3 duration: {phase_timings['phase3_multi_agent_personas']:.1f}s")
+        elif self.enable_multi_agent and not all_findings:
             logger.info("   ⚠️  Skipping Phase 3: No findings to review")
+        elif self.enable_multi_agent and not self.agent_personas:
+            logger.info("   ⚠️  Skipping Phase 3: Multi-agent personas not initialized")
 
         # PHASE 4: Sandbox Validation (Optional)
-        if self.enable_sandbox and all_findings:
+        if self.enable_sandbox and self.sandbox_validator and all_findings:
             logger.info("")
             logger.info("─" * 80)
             logger.info("🐳 PHASE 4: Sandbox Validation (Docker)")
@@ -707,8 +713,85 @@ class HybridSecurityAnalyzer:
                 logger.info("   💡 Continuing with unvalidated findings...")
 
             phase_timings["phase4_sandbox_validation"] = time.time() - phase4_start
+            logger.info(f"   ⏱️  Phase 4 duration: {phase_timings['phase4_sandbox_validation']:.1f}s")
         elif self.enable_sandbox and not all_findings:
             logger.info("   ⚠️  Skipping Phase 4: No findings to validate")
+        elif self.enable_sandbox and not self.sandbox_validator:
+            logger.info("   ⚠️  Skipping Phase 4: Sandbox validator not initialized")
+
+        # PHASE 5: Policy Gate Evaluation (Optional)
+        policy_gate_result = None
+        if all_findings:
+            logger.info("")
+            logger.info("─" * 80)
+            logger.info("📋 PHASE 5: Policy Gate Evaluation")
+            logger.info("─" * 80)
+
+            phase5_start = time.time()
+
+            try:
+                from gate import PolicyGate
+
+                # Determine stage from config (default to 'pr')
+                stage = self.config.get("policy_stage", "pr")
+                policy_dir = self.config.get("policy_dir", "policy/rego")
+
+                # Initialize policy gate
+                policy_gate = PolicyGate(policy_dir=policy_dir)
+
+                # Convert HybridFindings to dict format expected by PolicyGate
+                findings_dict = []
+                for finding in all_findings:
+                    finding_dict = {
+                        "id": finding.finding_id,
+                        "source_tool": finding.source_tool,
+                        "severity": finding.severity,
+                        "category": finding.category,
+                        "title": finding.title,
+                        "description": finding.description,
+                        "path": finding.file_path,
+                        "line": finding.line_number,
+                        "cwe_id": finding.cwe_id,
+                        "cve_id": finding.cve_id,
+                        "cvss_score": finding.cvss_score,
+                        "exploitability": finding.exploitability,
+                        "confidence": finding.confidence,
+                    }
+                    findings_dict.append(finding_dict)
+
+                # Evaluate policy gate
+                logger.info(f"   🔍 Evaluating {len(findings_dict)} findings against {stage} policy...")
+                policy_gate_result = policy_gate.evaluate(
+                    stage=stage,
+                    findings=findings_dict,
+                    metadata=self.config.get("policy_metadata", {})
+                )
+
+                # Log policy gate results
+                decision = policy_gate_result.get("decision", "pass")
+                blocks = policy_gate_result.get("blocks", [])
+                warnings = policy_gate_result.get("warnings", [])
+                reasons = policy_gate_result.get("reasons", [])
+
+                if decision == "pass":
+                    logger.info(f"   ✅ Policy gate PASSED: {len(findings_dict)} findings evaluated")
+                    if warnings:
+                        logger.info(f"   ⚠️  {len(warnings)} warnings (non-blocking)")
+                else:
+                    logger.warning(f"   ❌ Policy gate FAILED: {len(blocks)} blocking issues")
+                    for reason in reasons[:5]:  # Show first 5 reasons
+                        logger.warning(f"      • {reason}")
+
+            except ImportError:
+                logger.warning("   ⚠️  PolicyGate not available - skipping policy evaluation")
+            except Exception as e:
+                logger.error(f"   ❌ Policy gate evaluation failed: {e}")
+                logger.info("   💡 Continuing without policy enforcement...")
+
+            phase_timings["phase5_policy_gate"] = time.time() - phase5_start
+            logger.info(f"   ⏱️  Phase 5 duration: {phase_timings['phase5_policy_gate']:.1f}s")
+        else:
+            logger.info("   ⚠️  Skipping Phase 5: No findings to evaluate")
 
         # Calculate statistics
         overall_duration = time.time() - overall_start
@@ -961,24 +1044,27 @@ class HybridSecurityAnalyzer:
 
         try:
             # Run Supply Chain scanner
-            supply_chain_result = self.supply_chain_scanner.scan(target_path)
+            # Note: SupplyChainAnalyzer.analyze_dependency_diff returns ThreatAssessment objects
+            supply_chain_result = self.supply_chain_scanner.analyze_dependency_diff()
 
             # Convert to HybridFinding format
+            # supply_chain_result is a list of ThreatAssessment objects
             if isinstance(supply_chain_result, list):
-                for sc_finding in supply_chain_result:
+                for sc_threat in supply_chain_result:
+                    # ThreatAssessment has: package_name, ecosystem, threat_level, threat_types, evidence, recommendations
                     finding = HybridFinding(
-                        finding_id=sc_finding.get("id", "unknown"),
+                        finding_id=f"supply-chain-{sc_threat.package_name}",
                         source_tool="supply-chain",
-                        severity=self._normalize_severity(sc_finding.get("severity", "medium")),
+                        severity=self._normalize_severity(sc_threat.threat_level.value),
                         category="supply-chain",
-                        title=sc_finding.get("title", "Supply Chain Threat"),
-                        description=sc_finding.get("description", ""),
-                        file_path=sc_finding.get("file_path", target_path),
-                        line_number=sc_finding.get("line_number"),
-                        cwe_id=sc_finding.get("cwe_id"),
-                        recommendation=sc_finding.get("recommendation", ""),
-                        references=sc_finding.get("references", []),
-                        confidence=sc_finding.get("confidence", 0.9),
+                        title=f"Supply Chain Threat: {sc_threat.package_name} ({', '.join(sc_threat.threat_types)})",
+                        description="\n".join(sc_threat.evidence) if sc_threat.evidence else f"Detected threats: {', '.join(sc_threat.threat_types)}",
+                        file_path=sc_threat.change_info.file_path if sc_threat.change_info else target_path,
+                        line_number=None,
+                        cwe_id=None,
+                        recommendation="\n".join(sc_threat.recommendations) if sc_threat.recommendations else "",
+                        references=sc_threat.similar_legitimate_packages if sc_threat.similar_legitimate_packages else [],
+                        confidence=0.95,  # Supply chain threats are highly confident when detected
                         llm_enriched=False,
                     )
                     findings.append(finding)
@@ -1149,27 +1235,24 @@ class HybridSecurityAnalyzer:
         try:
             logger.info("   🧪 Checking for security regressions...")
 
-            # Detect regressions
-            regressions = self.regression_tester.detect_regression(
-                current_findings=current_findings,
-                target_path=target_path
-            )
+            # Run all regression tests
+            results = self.regression_tester.run_all_tests()
 
-            # Convert to HybridFinding format
-            for regression in regressions:
+            # Convert failed tests to HybridFinding format (failures indicate regressions)
+            for failure in results.get("failures", []):
                 finding = HybridFinding(
-                    finding_id=regression.get("id", "unknown"),
+                    finding_id=failure.get("test_id", "unknown"),
                     source_tool="regression-testing",
                     severity="high",  # Regressions are always high severity
                     category="regression",
-                    title=f"Security Regression: {regression.get('title', 'Fixed vulnerability reappeared')}",
-                    description=regression.get("description", ""),
-                    file_path=regression.get("file_path", target_path),
-                    line_number=regression.get("line_number"),
-                    cwe_id=regression.get("cwe_id"),
-                    cve_id=regression.get("cve_id"),
-                    recommendation=regression.get("recommendation", ""),
-                    references=regression.get("references", []),
+                    title=f"Security Regression: {failure.get('vulnerability', 'Fixed vulnerability reappeared')}",
+                    description=f"Previously fixed {failure.get('vulnerability', 'vulnerability')} has reappeared. Test output: {failure.get('output', '')}",
+                    file_path=failure.get("file", target_path),
+                    line_number=None,
+                    cwe_id=None,
+                    cve_id=None,
+                    recommendation="Review and re-apply the security fix for this vulnerability",
+                    references=[],
                     confidence=1.0,  # Regressions are confirmed
                     llm_enriched=False,
                 )
