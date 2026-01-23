@@ -1,0 +1,227 @@
+# Agent-OS Security Action - External Tool Dependencies
+# Version: 1.1.0
+# Updated: 2026-01-15
+#
+# This file defines all external tools required by Agent-OS Security Action
+# Format:
+#   - name: Tool name
+#     version: Minimum version requirement (use >= operator)
+#     check: Command to check if tool is installed
+#     install: Installation instructions by platform
+#     optional: Whether tool is optional (default: false)
+#     description: Brief description of tool purpose
+
+tools:
+  # Core Security Scanners
+  - name: semgrep
+    version: ">=1.100.0"
+    check: "semgrep --version"
+    description: "Fast SAST scanner with 2,000+ security rules"
+    optional: false
+    install:
+      pip: "pip install semgrep>=1.100.0"
+      macos: "brew install semgrep"
+      linux: "pip install semgrep>=1.100.0"
+      windows: "pip install semgrep>=1.100.0"
+    documentation: "https://semgrep.dev/docs/"
+
+  - name: trivy
+    version: ">=0.48.0"
+    check: "trivy --version"
+    description: "CVE and dependency vulnerability scanner"
+    optional: false
+    install:
+      macos: "brew install trivy"
+      linux: |
+        sudo apt-get install wget apt-transport-https gnupg lsb-release
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install trivy
+      windows: "choco install trivy"
+    documentation: "https://trivy.dev/latest/"
+
+  - name: trufflehog
+    version: ">=3.60.0"
+    check: "trufflehog --version"
+    description: "Verified secret detection scanner"
+    optional: false
+    install:
+      macos: "brew install trufflehog"
+      linux: |
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+      windows: "choco install trufflehog"
+    documentation: "https://github.com/trufflesecurity/trufflehog"
+
+  - name: gitleaks
+    version: ">=8.18.0"
+    check: "gitleaks version"
+    description: "Pattern-based secret scanning"
+    optional: false
+    install:
+      macos: "brew install gitleaks"
+      linux: |
+        wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+        tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+        sudo mv gitleaks /usr/local/bin/
+      windows: "choco install gitleaks"
+    documentation: "https://github.com/gitleaks/gitleaks"
+
+  - name: checkov
+    version: ">=3.1.0"
+    check: "checkov --version"
+    description: "Infrastructure-as-Code security scanner (Terraform, K8s, Docker, etc.)"
+    optional: false
+    install:
+      pip: "pip install checkov>=3.1.0"
+      macos: "brew install checkov"
+      linux: "pip install checkov>=3.1.0"
+      windows: "pip install checkov>=3.1.0"
+    documentation: "https://www.checkov.io/"
+
+  # Dynamic & Runtime Security Tools
+  - name: nuclei
+    version: ">=3.6.0"
+    check: "nuclei -version"
+    description: "DAST scanner with 4,000+ templates for dynamic testing"
+    optional: true
+    install:
+      macos: "brew install nuclei"
+      linux: |
+        wget https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_3.6.0_linux_amd64.zip
+        unzip nuclei_3.6.0_linux_amd64.zip
+        sudo mv nuclei /usr/local/bin/
+      windows: "choco install nuclei"
+    documentation: "https://nuclei.projectdiscovery.io/"
+
+  - name: falco
+    version: ">=0.37.0"
+    check: "falco --version"
+    description: "Container runtime security monitoring"
+    optional: true
+    install:
+      macos: "brew install falco"
+      linux: |
+        curl -s https://falco.org/repo/falcosecurity-3672BA8F.asc | apt-key add -
+        echo "deb https://download.falco.org/packages/deb stable main" | tee -a /etc/apt/sources.list.d/falcosecurity.list
+        apt-get update -y
+        apt-get install -y falco
+      windows: "Not supported on Windows"
+    documentation: "https://falco.org/docs/"
+
+  # Container & Orchestration Tools
+  - name: docker
+    version: ">=20.10.0"
+    check: "docker --version"
+    description: "Container runtime for sandbox validation"
+    optional: false
+    install:
+      macos: "brew install --cask docker"
+      linux: |
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+      windows: "choco install docker-desktop"
+    documentation: "https://docs.docker.com/"
+
+  # Policy & Compliance Tools
+  - name: opa
+    version: ">=0.60.0"
+    check: "opa version"
+    description: "Open Policy Agent for policy enforcement"
+    optional: true
+    install:
+      macos: "brew install opa"
+      linux: |
+        curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+        chmod 755 ./opa
+        sudo mv opa /usr/local/bin/
+      windows: "choco install opa"
+    documentation: "https://www.openpolicyagent.org/docs/"
+
+  # Git & Version Control
+  - name: git
+    version: ">=2.40.0"
+    check: "git --version"
+    description: "Version control system"
+    optional: false
+    install:
+      macos: "brew install git"
+      linux: "sudo apt-get install git"
+      windows: "choco install git"
+    documentation: "https://git-scm.com/doc"
+
+  # Python & Package Management
+  - name: python
+    version: ">=3.9.0"
+    check: "python --version"
+    description: "Python interpreter"
+    optional: false
+    install:
+      macos: "brew install python@3.11"
+      linux: "sudo apt-get install python3.11"
+      windows: "choco install python311"
+    documentation: "https://docs.python.org/3/"
+
+  - name: pip
+    version: ">=23.0.0"
+    check: "pip --version"
+    description: "Python package manager"
+    optional: false
+    install:
+      macos: "python -m ensurepip --upgrade"
+      linux: "python -m ensurepip --upgrade"
+      windows: "python -m ensurepip --upgrade"
+    documentation: "https://pip.pypa.io/en/stable/"
+
+# API Keys and Environment Variables
+environment_variables:
+  - name: ANTHROPIC_API_KEY
+    description: "API key for Claude AI (Anthropic)"
+    required: false
+    provider: "anthropic"
+    obtain_from: "https://console.anthropic.com/"
+
+  - name: OPENAI_API_KEY
+    description: "API key for OpenAI GPT models"
+    required: false
+    provider: "openai"
+    obtain_from: "https://platform.openai.com/api-keys"
+
+  - name: GITHUB_TOKEN
+    description: "GitHub token for API access and SARIF upload"
+    required: false
+    provider: "github"
+    obtain_from: "https://github.com/settings/tokens"
+
+# Minimum System Requirements
+system_requirements:
+  os:
+    - name: "macOS"
+      versions: ["12.0+", "13.0+", "14.0+"]
+    - name: "Linux"
+      distributions: ["Ubuntu 20.04+", "Debian 11+", "RHEL 8+", "CentOS 8+"]
+    - name: "Windows"
+      versions: ["10", "11"]
+      notes: "Some tools (Falco) not supported on Windows"
+
+  hardware:
+    min_memory_gb: 4
+    recommended_memory_gb: 8
+    min_disk_gb: 10
+    recommended_disk_gb: 20
+    cpu_cores: 2
+
+  network:
+    required_ports:
+      - port: 443
+        description: "HTTPS for API calls and tool downloads"
+      - port: 80
+        description: "HTTP for tool downloads"
+    required_domains:
+      - "api.anthropic.com"
+      - "api.openai.com"
+      - "github.com"
+      - "pypi.org"
+      - "aquasecurity.github.io"
+      - "download.falco.org"

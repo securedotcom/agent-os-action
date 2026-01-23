@@ -1,0 +1,182 @@
+name: Health Check
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      save-report:
+        description: 'Save health check report as artifact'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      status:
+        description: 'Overall health check status'
+        value: ${{ jobs.health-check.outputs.status }}
+
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: choice
+        options:
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        default: '3.11'
+      save-report:
+        description: 'Save health check report as artifact'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: Environment Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    outputs:
+      status: ${{ steps.health-check.outputs.status }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      - name: Cache external tools
+        uses: actions/cache@3624ceb22c1c5a301c8db4169662070a689d9ea8  # v4.1.1
+        id: cache-tools
+        with:
+          path: |
+            ~/.local/bin
+            /usr/local/bin
+          key: ${{ runner.os }}-tools-v1-${{ hashFiles('external-tools.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-tools-v1-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install external security tools
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          # Install core security scanners
+
+          # Semgrep
+          pip install semgrep>=1.100.0
+
+          # Trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+          # TruffleHog
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+
+          # Gitleaks
+          wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+          rm gitleaks_8.18.0_linux_x64.tar.gz
+
+          # Checkov
+          pip install checkov>=3.1.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349  # v3.7.1
+
+      - name: Run health check
+        id: health-check
+        run: |
+          python scripts/health_check.py --output health-report.json --verbose
+
+          # Capture exit code
+          EXIT_CODE=$?
+
+          # Set output based on exit code
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+
+          # Always show summary
+          cat health-report.json
+
+          exit $EXIT_CODE
+
+      - name: Generate health check summary
+        if: always()
+        run: |
+          echo "## 🏥 Health Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse JSON report and format for GitHub
+          if [ -f health-report.json ]; then
+            OVERALL_STATUS=$(jq -r '.overall_status' health-report.json)
+            TOTAL_CHECKS=$(jq -r '.total_checks' health-report.json)
+            PASSED=$(jq -r '.passed' health-report.json)
+            FAILED=$(jq -r '.failed' health-report.json)
+            WARNINGS=$(jq -r '.warnings' health-report.json)
+
+            echo "**Overall Status:** $OVERALL_STATUS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Checks | $TOTAL_CHECKS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚠️ Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Show failed checks if any
+            if [ $FAILED -gt 0 ]; then
+              echo "### ❌ Failed Checks" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.checks[] | select(.status=="failed") | "- **\(.name)**: \(.message)"' health-report.json >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Show warnings if any
+            if [ $WARNINGS -gt 0 ]; then
+              echo "### ⚠️ Warnings" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.checks[] | select(.status=="warning") | "- **\(.name)**: \(.message)"' health-report.json >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ Health check report not generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload health check report
+        if: always() && inputs.save-report
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+        with:
+          name: health-check-report-py${{ inputs.python-version }}
+          path: health-report.json
+          retention-days: 30
+
+      - name: Fail job if health check failed
+        if: steps.health-check.outputs.status == 'failed'
+        run: |
+          echo "❌ Health check failed. Please review the report above."
+          exit 1

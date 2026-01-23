@@ -126,7 +126,8 @@ class CheckovScanner:
     def _check_checkov_installed(self) -> bool:
         """Check if Checkov is available"""
         try:
-            result = subprocess.run(["checkov", "--version"], capture_output=True, text=True, timeout=10)
+            # Use 'which' for faster check (checkov --version can take 10+ seconds on first run)
+            result = subprocess.run(["which", "checkov"], capture_output=True, text=True, timeout=5)
             return result.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
             return False

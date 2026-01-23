@@ -1,0 +1,118 @@
+{
+  "tool": "semgrep",
+  "version": "1.142.0",
+  "timestamp": "2026-01-15T08:03:09.021876",
+  "target": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+  "findings_count": 9,
+  "findings": [
+    {
+      "rule_id": "python.flask.security.dangerous-template-string.dangerous-template-string",
+      "severity": "critical",
+      "message": "Found a template created with string formatting. This is susceptible to server-side template injection and cross-site scripting attacks.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 35,
+      "end_line": 36,
+      "code_snippet": "requires login",
+      "cwe": "CWE-96: Improper Neutralization of Directives in Statically Saved Code ('Static Code Injection')",
+      "owasp": "A03:2021 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.flask.security.audit.render-template-string.render-template-string",
+      "severity": "high",
+      "message": "Found a template created with string formatting. This is susceptible to server-side template injection and cross-site scripting attacks.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 36,
+      "end_line": 36,
+      "code_snippet": "requires login",
+      "cwe": "CWE-96: Improper Neutralization of Directives in Statically Saved Code ('Static Code Injection')",
+      "owasp": "A03:2021 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+      "severity": "critical",
+      "message": "Found 'subprocess' function 'run' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 44,
+      "end_line": 44,
+      "code_snippet": "requires login",
+      "cwe": "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+      "owasp": "A01:2017 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.django.security.injection.code.user-eval.user-eval",
+      "severity": "high",
+      "message": "Found user data in a call to 'eval'. This is extremely dangerous because it can enable an attacker to execute arbitrary remote code on the system. Instead, refactor your code to not use 'eval' and instead use a safe library for the specific functionality you need.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 61,
+      "end_line": 63,
+      "code_snippet": "requires login",
+      "cwe": "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')",
+      "owasp": "A03:2021 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.flask.security.injection.user-eval.eval-injection",
+      "severity": "critical",
+      "message": "Detected user data flowing into eval. This is code injection and should be avoided.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 63,
+      "end_line": 63,
+      "code_snippet": "requires login",
+      "cwe": "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')",
+      "owasp": "A03:2021 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.lang.security.audit.eval-detected.eval-detected",
+      "severity": "high",
+      "message": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 63,
+      "end_line": 63,
+      "code_snippet": "requires login",
+      "cwe": "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')",
+      "owasp": "A03:2021 - Injection",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.lang.security.deserialization.pickle.avoid-pickle",
+      "severity": "high",
+      "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 91,
+      "end_line": 91,
+      "code_snippet": "requires login",
+      "cwe": "CWE-502: Deserialization of Untrusted Data",
+      "owasp": "A08:2017 - Insecure Deserialization",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
+      "severity": "high",
+      "message": "Running flask app with host 0.0.0.0 could expose the server publicly.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 97,
+      "end_line": 97,
+      "code_snippet": "requires login",
+      "cwe": "CWE-668: Exposure of Resource to Wrong Sphere",
+      "owasp": "A01:2021 - Broken Access Control",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "python.flask.security.audit.debug-enabled.debug-enabled",
+      "severity": "high",
+      "message": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.",
+      "file_path": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app/vulnerable_api.py",
+      "start_line": 97,
+      "end_line": 97,
+      "code_snippet": "requires login",
+      "cwe": "CWE-489: Active Debug Code",
+      "owasp": null,
+      "confidence": "HIGH"
+    }
+  ],
+  "raw_output": null
+}

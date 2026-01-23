@@ -1,0 +1,43 @@
+{
+  "cache_hit_performance": {
+    "avg_miss_ms": 0.9115746000134095,
+    "avg_hit_ms": 0.5530453999767815,
+    "speedup": 1.648281678234156,
+    "hit_rate": 1.0,
+    "cache_size_mb": 0.0
+  },
+  "cache_directory": {
+    "total_entries": 10,
+    "total_size_mb": 0.01,
+    "scanners": [
+      "benchmark-scanner",
+      "semgrep",
+      "trufflehog",
+      "trivy"
+    ]
+  },
+  "progress_tracker_modes": {
+    "terminal_time_s": 0.3124000000000251,
+    "ci_time_s": 0.31134641699986787,
+    "overhead_percent": 0.33839573627008507
+  },
+  "environment_detection": {
+    "auto_detected": "False",
+    "ci_detected": "False",
+    "github_actions_detected": "False"
+  },
+  "real_world_workflow": {
+    "run_1_time_s": 0.027024583999946117,
+    "run_2_time_s": 0.02397033400006876,
+    "speedup": 1.1274179158233086,
+    "cache_hits": 18,
+    "cache_misses": 0,
+    "cache_hit_rate": 1.0
+  },
+  "multi_scanner": {
+    "total_time_s": 0.2470659999999043,
+    "files_scanned": 20,
+    "scanners_completed": 4,
+    "cache_entries": 21
+  }
+}

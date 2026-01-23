@@ -1,0 +1,46 @@
+# Agent-OS Security Action - Development Dependencies
+# Version: 1.1.0
+# Updated: 2026-01-15
+
+# Install production dependencies first
+-r requirements.txt
+
+# Testing framework
+pytest>=7.0.0,<9.0.0              # Testing framework
+pytest-cov>=4.0.0,<6.0.0          # Coverage reporting
+pytest-mock>=3.10.0,<4.0.0        # Mocking support
+pytest-asyncio>=0.21.0,<1.0.0     # Async test support
+pytest-timeout>=2.1.0,<3.0.0      # Test timeout handling
+pytest-xdist>=3.3.0,<4.0.0        # Parallel test execution
+
+# Code quality and linting
+ruff>=0.8.0,<1.0.0                # Fast linter/formatter (replaces black, pylint, isort, flake8)
+mypy>=1.0.0,<2.0.0                # Static type checking
+types-requests>=2.31.0            # Type stubs for requests
+types-PyYAML>=6.0.0               # Type stubs for PyYAML
+types-setuptools>=65.0.0          # Type stubs for setuptools
+
+# Security scanning (for testing)
+bandit>=1.7.0,<2.0.0              # Security issue scanner
+safety>=3.0.0,<4.0.0              # Dependency vulnerability scanner
+
+# Documentation
+sphinx>=7.0.0,<8.0.0              # Documentation generator
+sphinx-rtd-theme>=2.0.0,<3.0.0    # ReadTheDocs theme
+myst-parser>=2.0.0,<3.0.0         # Markdown support for Sphinx
+
+# Development utilities
+ipython>=8.12.0,<9.0.0            # Interactive Python shell
+ipdb>=0.13.13,<1.0.0              # IPython debugger
+pre-commit>=3.5.0,<4.0.0          # Git pre-commit hooks
+tox>=4.0.0,<5.0.0                 # Testing automation
+
+# Performance profiling
+py-spy>=0.3.14,<1.0.0             # Sampling profiler
+memory-profiler>=0.61.0,<1.0.0    # Memory usage profiler
+
+# Build tools
+build>=1.0.0,<2.0.0               # PEP 517 build frontend
+twine>=5.0.0,<6.0.0               # PyPI package uploader
+wheel>=0.43.0                     # Wheel packaging
+setuptools>=69.0.0                # Package setup tools

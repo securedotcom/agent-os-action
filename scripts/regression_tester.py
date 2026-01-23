@@ -58,8 +58,23 @@ class RegressionTester:
     SUPPORTED_LANGUAGES = ["python", "javascript", "typescript", "go", "java"]
 
     def __init__(self, test_dir: Path = None):
-        self.test_dir = test_dir or Path("tests/security_regression")
-        self.test_dir.mkdir(parents=True, exist_ok=True)
+        # Use /cache for Docker containers with read-only workspace, otherwise use tests/
+        default_dir = Path("tests/security_regression")
+        if test_dir:
+            self.test_dir = test_dir
+        else:
+            # Try to use default, fallback to /cache if not writable
+            try:
+                default_dir.mkdir(parents=True, exist_ok=True)
+                # Test if writable
+                test_file = default_dir / ".write_test"
+                test_file.touch()
+                test_file.unlink()
+                self.test_dir = default_dir
+            except (PermissionError, OSError):
+                # Fallback to /cache for Docker read-only mounts
+                self.test_dir = Path("/cache/security_regression")
+                self.test_dir.mkdir(parents=True, exist_ok=True)
 
         self.tests: List[RegressionTest] = []
         self._load_existing_tests()

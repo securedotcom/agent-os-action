@@ -1,0 +1,15 @@
+{
+  "tool": "trufflehog",
+  "version": "trufflehog 3.92.4",
+  "timestamp": "2026-01-15T13:03:20.619064",
+  "target": "/Users/waseem.ahmed/Repos/agent-os-action/tests/fixtures/vulnerable_app",
+  "scan_type": "filesystem",
+  "findings_count": 0,
+  "verified_count": 0,
+  "unverified_count": 0,
+  "findings": [],
+  "config": {
+    "verified_only": true,
+    "scan_depth": null
+  }
+}
