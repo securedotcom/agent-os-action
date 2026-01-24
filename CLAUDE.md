@@ -1,21 +1,41 @@
-# CLAUDE.md - Agent-OS Security Action Context
+# CLAUDE.md - Agent-OS Security Action
+
+> **🤖 Self-improving AI security platform with multi-agent orchestration for Claude Code**
+> 
+> Orchestrates 5 security scanners + 5 specialized AI personas for collaborative vulnerability analysis, spontaneous discovery, and intelligent false positive reduction.
+
+---
+
+## Quick Reference
+
+| Command | Purpose |
+|---------|---------|
+| `python scripts/run_ai_audit.py --project-type backend-api` | Run full security audit |
+| `./scripts/agentos gate --stage pr --input findings.json` | Apply policy gate |
+| `./scripts/agentos feedback record <id> --mark fp` | Record false positive |
+| `./scripts/agentos dashboard` | Launch observability dashboard |
+| `pytest -v --cov=scripts` | Run tests with coverage |
+| `ruff check scripts/ && ruff format scripts/` | Lint and format code |
+
+---
 
 ## Project Overview
 
 **Agent-OS Security Action** is a production-grade GitHub Action that orchestrates multiple security scanners (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov) with AI-powered triage to reduce false positives and enforce security policies. It acts as a security control plane that runs in GitHub Actions, providing comprehensive security scanning with intelligent noise reduction.
 
-Key capabilities:
-- Multi-scanner orchestration with parallel execution (5 scanners: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov)
-- AI triage using Claude/OpenAI/Ollama
-- 60-70% false positive reduction via ML noise scoring
-- **Automated remediation** with AI-generated fix suggestions
-- **Spontaneous discovery** to find issues beyond scanner rules
-- **Multi-agent persona review** (SecretHunter, ArchitectureReviewer, ExploitAssessor, etc.)
-- **Docker-based sandbox validation** for exploit verification
-- Policy enforcement via Rego
-- SARIF/JSON/Markdown reporting
-- Intelligent caching for scanner results and AI responses
-- Rich progress bars for real-time feedback
+### Key Capabilities
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Scanner Orchestration** | 5 scanners in parallel: TruffleHog, Gitleaks, Semgrep, Trivy, Checkov |
+| **AI Triage** | Claude/OpenAI/Ollama for 60-70% false positive reduction |
+| **Multi-Agent Personas** | 5 specialized agents: SecretHunter, ArchitectureReviewer, ExploitAssessor, FalsePositiveFilter, ThreatModeler |
+| **Spontaneous Discovery** | Find issues beyond scanner rules (+15-20% findings) |
+| **Automated Remediation** | AI-generated fix suggestions with code patches |
+| **Sandbox Validation** | Docker-based exploit verification |
+| **Policy Gates** | Rego/OPA policy enforcement for PR/release gates |
+| **Intelligent Caching** | 10-100x faster repeat scans |
+| **Rich Reporting** | SARIF, JSON, Markdown outputs |
 
 ## Security Pipeline (6 Phases)
 
