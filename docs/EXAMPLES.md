@@ -1,6 +1,6 @@
-# Agent-OS: Usage Examples & Cookbook
+# Argus: Usage Examples & Cookbook
 
-Practical examples for common Agent-OS use cases.
+Practical examples for common Argus use cases.
 
 ---
 
@@ -778,7 +778,7 @@ with:
 2. Week 3-4: Block on critical only
 3. Week 5+: Block on critical + high
 
-### Testing Agent-OS Changes
+### Testing Argus Changes
 
 ```yaml
 # Test on feature branches before main

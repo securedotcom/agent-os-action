@@ -1,6 +1,6 @@
 # ⚡ 5-Minute Quick Start Guide
 
-Get Agent-OS running in 5 minutes or less!
+Get Argus running in 5 minutes or less!
 
 ---
 
@@ -91,7 +91,7 @@ Try it on our demo repository:
 git clone https://github.com/devatsecure/vulnerable-demo-app
 cd vulnerable-demo-app
 
-# Run Agent-OS
+# Run Argus
 docker run --rm \
   -v $(pwd):/workspace \
   -e ANTHROPIC_API_KEY=your_key_here \
@@ -120,7 +120,7 @@ docker run --rm \
 
 ### Use Case 1: PR Review Automation
 
-**Before Agent-OS:**
+**Before Argus:**
 ```
 1. Developer creates PR
 2. Wait for security team review (2-3 days)
@@ -128,10 +128,10 @@ docker run --rm \
 4. Finally merge after 1 week
 ```
 
-**After Agent-OS:**
+**After Argus:**
 ```
 1. Developer creates PR
-2. Agent-OS reviews in 5 minutes
+2. Argus reviews in 5 minutes
 3. Clear findings with fix suggestions
 4. Merge same day ✅
 ```
@@ -167,7 +167,7 @@ jobs:
 # .git/hooks/pre-commit
 #!/bin/bash
 
-echo "🔍 Running Agent-OS security check..."
+echo "🔍 Running Argus security check..."
 
 docker run --rm \
   -v $(pwd):/workspace \
@@ -301,7 +301,7 @@ rate_limit:
 
 ### Output Files
 
-After running Agent-OS:
+After running Argus:
 
 ```
 .agent-os/
@@ -347,9 +347,9 @@ cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
 ## 🎓 Learning Resources
 
 ### Tutorials
-- [Video: Agent-OS in 5 Minutes](https://youtube.com/placeholder)
+- [Video: Argus in 5 Minutes](https://youtube.com/placeholder)
 - [Blog: Reducing False Positives by 60%](https://blog.placeholder.com)
-- [Case Study: How Company X Uses Agent-OS](https://example.com)
+- [Case Study: How Company X Uses Argus](https://example.com)
 
 ### Documentation
 - [Full Documentation](./README.md)
@@ -417,7 +417,7 @@ repos:
   - repo: local
     hooks:
       - id: agent-os
-        name: Agent-OS Security Check
+        name: Argus Security Check
         entry: docker run --rm -v $(pwd):/workspace -e ANTHROPIC_API_KEY ghcr.io/devatsecure/agent-os-action:latest /workspace
         language: system
         pass_filenames: false

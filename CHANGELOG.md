@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Agent-OS Security Action will be documented in this file.
+All notable changes to Argus Security will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -409,7 +409,7 @@ python scripts/run_ai_audit.py \
 
 **Inspired by:** [Slack Engineering: Streamlining Security Investigations with Agents](https://slack.engineering/streamlining-security-investigations-with-agents/)
 
-Slack's approach to multi-agent security investigation (7,500+ investigations/quarter) inspired our adaptation for proactive CI/CD security scanning. While Slack uses agents for reactive incident response, Agent-OS uses them for proactive vulnerability prevention.
+Slack's approach to multi-agent security investigation (7,500+ investigations/quarter) inspired our adaptation for proactive CI/CD security scanning. While Slack uses agents for reactive incident response, Argus uses them for proactive vulnerability prevention.
 
 ---
 
@@ -425,7 +425,7 @@ Slack's approach to multi-agent security investigation (7,500+ investigations/qu
 
 ### Overview
 
-**v4.1.0** achieves production readiness with 2 critical security fixes, completion of the supply chain analyzer, and comprehensive customer-facing documentation. This release transforms Agent-OS from 6.8/10 to **8.5/10 production ready** and reduces timeline to GA from 3-4 weeks to **2-3 days**.
+**v4.1.0** achieves production readiness with 2 critical security fixes, completion of the supply chain analyzer, and comprehensive customer-facing documentation. This release transforms Argus from 6.8/10 to **8.5/10 production ready** and reduces timeline to GA from 3-4 weeks to **2-3 days**.
 
 **Highlights:**
 - Fixed 2 critical security vulnerabilities (fuzzing sandbox, XML bombs)
@@ -730,7 +730,7 @@ enable-regression-testing: 'true'# Security regression tests
 
 ### Overview
 
-**v1.1.0** represents a major production readiness milestone with comprehensive security fixes, architectural improvements, and new functionality. This release transforms Agent-OS from a functional prototype into an enterprise-grade security platform with zero breaking changes.
+**v1.1.0** represents a major production readiness milestone with comprehensive security fixes, architectural improvements, and new functionality. This release transforms Argus from a functional prototype into an enterprise-grade security platform with zero breaking changes.
 
 **Highlights:**
 - 6 active scanners (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov + LLM analysis)

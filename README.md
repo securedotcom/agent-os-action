@@ -1,12 +1,12 @@
-# Agent-OS Security Action
+# 👁️ Argus Security
 
-> **🤖 Self-Improving AI-Powered Security Platform**
-> Orchestrates TruffleHog, Semgrep, Trivy, Checkov + AI triage + continuous learning
+> **🛡️ The All-Seeing AI Security Platform**
+> Multi-agent security analysis with 100 eyes watching your code — powered by Claude AI
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 [![AI-Powered](https://img.shields.io/badge/AI-Claude%20%7C%20OpenAI-blue.svg)](#ai-triage-options)
-[![Agent-Native](https://img.shields.io/badge/Architecture-Agent--Native-green.svg)](#agent-native-features)
+[![Multi-Agent](https://img.shields.io/badge/Architecture-Multi--Agent-purple.svg)](#multi-agent-security-analysis)
 
 ---
 
@@ -30,7 +30,7 @@
 
 ## What It Does
 
-**Agent-OS is a production-ready security platform that runs multiple scanners, uses AI to suppress false positives, and learns from your feedback to continuously improve.**
+**Argus is a production-ready security platform that runs multiple scanners, uses AI to suppress false positives, and learns from your feedback to continuously improve.**
 
 ### Core Capabilities
 
@@ -55,7 +55,7 @@
 
 ### Default Behavior
 
-**By default, Agent-OS:**
+**By default, Argus:**
 - ✅ Runs **9 scanners** (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST)
 - ✅ Enriches findings with **threat intelligence** (CVE, CISA KEV, EPSS, exploit availability)
 - ✅ Generates **AI-powered fix suggestions** with code patches and testing recommendations
@@ -76,11 +76,11 @@
 
 ## 🤖 Multi-Agent Analysis System (New!)
 
-Inspired by Slack's security investigation agents, **Agent-OS now uses specialized AI agents that collaborate to analyze findings with higher accuracy and discover security issues beyond traditional scanners.**
+Inspired by Slack's security investigation agents, **Argus uses specialized AI agents (like the mythical Argus Panoptes with 100 eyes) that collaborate to analyze findings with higher accuracy and discover security issues beyond traditional scanners.**
 
 ### Agent Personas
 
-Agent-OS deploys **5 specialized agents** that work together to provide comprehensive security analysis:
+Argus deploys **5 specialized agents** (like the eyes of Argus Panoptes) that work together to provide comprehensive security analysis:
 
 | Agent | Focus | Strengths |
 |-------|-------|-----------|
@@ -119,7 +119,7 @@ Agents don't work in isolation—they **discuss and debate findings**:
 Enable multi-agent analysis in your workflow:
 
 ```yaml
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -172,12 +172,12 @@ enable-multi-agent: 'false'  # Use standard AI triage only
 
 ## 🚀 NEW: Agent-Native Features
 
-Agent-OS now includes **continuous learning** and **self-observation** capabilities that make it the first truly agent-native security platform.
+Argus includes **continuous learning** and **self-observation** capabilities that make it the first truly all-seeing AI security platform.
 
 ### What Makes It Agent-Native?
 
 ```
-Traditional Tool          Agent-OS (Agent-Native)
+Traditional Tool          Argus (Agent-Native)
 ─────────────────        ───────────────────────
 Static AI rules    →     Learns from feedback
 No observability   →     Real-time dashboard
@@ -192,9 +192,9 @@ Manual tuning      →     Auto-improvement suggestions
 |---------|-------------|--------|--------|
 | **📊 Observability Dashboard** | Real-time visualization of AI decision quality, feedback stats, trends | ✅ Ready | `./scripts/agentos dashboard` |
 | **📝 Feedback Collection** | Mark findings as TP/FP → System learns → Fewer false positives | ✅ Ready | `./scripts/agentos feedback record <id> --mark fp --reason "..."` |
-| **🤖 Decision Telemetry** | Every AI decision logged with reasoning, confidence, model used | ✅ Auto | Automatic (see `.agent-os-cache/decisions.jsonl`) |
+| **🤖 Decision Telemetry** | Every AI decision logged with reasoning, confidence, model used | ✅ Auto | Automatic (see `.argus-cache/decisions.jsonl`) |
 | **🔍 Pattern Discovery** | AI automatically identifies trends (e.g., "always suppresses test files") | ✅ Auto | View in dashboard or run `decision_analyzer.py` |
-| **🔌 Plugin Architecture** | Load custom scanners from `~/.agent-os/plugins/` without code changes | ✅ Ready | `python scripts/scanner_registry.py list` |
+| **🔌 Plugin Architecture** | Load custom scanners from `~/.argus/plugins/` without code changes | ✅ Ready | `python scripts/scanner_registry.py list` |
 | **💡 Improvement Suggestions** | System recommends new heuristics based on discovered patterns | ✅ Auto | View in dashboard's "Improvements" section |
 | **📈 Few-Shot Learning** | Past feedback automatically used as examples in AI prompts | ✅ Auto | Automatic when feedback exists |
 
@@ -224,14 +224,14 @@ graph LR
 
 ## 🧠 NEW: Multi-Agent Security Analysis
 
-**Inspired by [Slack's Security Investigation Agents](https://slack.engineering/streamlining-security-investigations-with-agents/)**, Agent-OS now employs **specialized AI personas working collaboratively** to provide deeper, more accurate security analysis.
+**Inspired by [Slack's Security Investigation Agents](https://slack.engineering/streamlining-security-investigations-with-agents/)**, Argus now employs **specialized AI personas working collaboratively** to provide deeper, more accurate security analysis.
 
 ### The Multi-Agent Advantage
 
-Traditional security tools use a single AI model with generic prompts. Agent-OS deploys **5 specialized agents**, each an expert in a specific security domain:
+Traditional security tools use a single AI model with generic prompts. Argus deploys **5 specialized agents**, each an expert in a specific security domain:
 
 ```
-Traditional Approach          Multi-Agent Approach (Agent-OS)
+Traditional Approach          Multi-Agent Approach (Argus)
 ──────────────────           ─────────────────────────────────
 Single AI analyzes all  →    5 Specialized AI Personas:
 findings generically
@@ -279,7 +279,7 @@ No domain expertise          - Secret rotation detection
 **Usage:**
 ```yaml
 # GitHub Actions (enabled by default)
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-multi-agent: 'true'  # Default: enabled
@@ -322,7 +322,7 @@ python scripts/run_ai_audit.py \
 **Usage:**
 ```yaml
 # GitHub Actions (enabled by default)
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     enable-spontaneous-discovery: 'true'  # Default: enabled
 ```
@@ -380,7 +380,7 @@ Confidence: 0.91
 **Usage:**
 ```yaml
 # GitHub Actions (opt-in, costs more)
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     enable-collaborative-reasoning: 'true'  # Default: false (opt-in)
 ```
@@ -539,7 +539,7 @@ A: All agents use the same underlying LLM (Claude/OpenAI/Ollama) but with **spec
 
 A:
 
-| Aspect | Slack's Agent System | Agent-OS Multi-Agent |
+| Aspect | Slack's Agent System | Argus Multi-Agent |
 |--------|---------------------|---------------------|
 | **Use Case** | Security investigation (reactive) | Vulnerability prevention (proactive) |
 | **Agent Count** | 7,500+ investigations/quarter | 5 specialized personas |
@@ -577,7 +577,7 @@ For critical releases:
 
 ```yaml
 # .github/workflows/release.yml
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     enable-collaborative-reasoning: 'true'  # Maximum accuracy for releases
 ```
@@ -615,11 +615,11 @@ python scripts/decision_analyzer.py --days 7
 
 #### 1. Add Workflow File
 
-Create `.github/workflows/agent-os.yml`:
+Create `.github/workflows/argus.yml`:
 
 **Basic Configuration:**
 ```yaml
-name: Agent-OS Security
+name: Argus Security
 on: [pull_request]
 
 jobs:
@@ -631,14 +631,14 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: securedotcom/agent-os-action@v1
+      - uses: securedotcom/argus-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
 **Advanced Configuration (All Features):**
 ```yaml
-name: Agent-OS Security (Full Suite)
+name: Argus Security (Full Suite)
 on: [pull_request]
 
 jobs:
@@ -650,7 +650,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: securedotcom/agent-os-action@v1
+      - uses: securedotcom/argus-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -685,7 +685,7 @@ jobs:
 
 #### 3. Open a PR
 
-Agent-OS will:
+Argus will:
 - ✅ Scan your code with 9 security tools (TruffleHog, Gitleaks, Semgrep, Trivy, Checkov, API Security, Supply Chain, Fuzzing, DAST)
 - ✅ AI triages findings (suppresses test files, docs, low-confidence)
 - ✅ Enriches with threat intelligence (CVE, CISA KEV, EPSS)
@@ -702,8 +702,8 @@ Agent-OS will:
 #### 1. Clone & Install
 
 ```bash
-git clone https://github.com/securedotcom/agent-os-action.git
-cd agent-os-action
+git clone https://github.com/securedotcom/argus-action.git
+cd argus-action
 pip install -r requirements.txt
 ```
 
@@ -730,7 +730,7 @@ python scripts/run_ai_audit.py \
 
 ## Local CLI Usage
 
-Agent-OS includes a powerful CLI for local development and CI/CD integration.
+Argus includes a powerful CLI for local development and CI/CD integration.
 
 ### Available Commands
 
@@ -885,8 +885,8 @@ pytest tests/security/test_security_generated.py -v
 
 ```bash
 # Clone repository
-git clone https://github.com/securedotcom/agent-os-action.git
-cd agent-os-action
+git clone https://github.com/securedotcom/argus-action.git
+cd argus-action
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -937,7 +937,7 @@ pip install checkov
 
 ### 1. Multi-Scanner Orchestration
 
-Agent-OS runs **4 security scanners in parallel**:
+Argus runs **4 security scanners in parallel**:
 
 | Scanner | Focus | Rules | Output |
 |---------|-------|-------|--------|
@@ -1002,7 +1002,7 @@ python scripts/run_ai_audit.py --no-ai-enrichment
 - ✅ Invalidates on file change or scanner update
 - ✅ 10-100x speedup on repeat scans
 
-**Cache location:** `.agent-os-cache/`
+**Cache location:** `.argus-cache/`
 
 **Manage cache:**
 ```bash
@@ -1065,7 +1065,7 @@ By Scanner:
 ```
 
 **How feedback improves AI:**
-1. Past feedback stored in `.agent-os/feedback/feedback.jsonl`
+1. Past feedback stored in `.argus/feedback/feedback.jsonl`
 2. Similar findings retrieved based on scanner + finding type
 3. Few-shot examples automatically prepended to AI prompts
 4. AI learns patterns: "Test files are usually FP", "Config files need context"
@@ -1129,7 +1129,7 @@ python scripts/decision_analyzer.py --format json > analysis.json
 **Screenshot:**
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ 🔒 Agent-OS Observability Dashboard                       │
+│ 🔒 Argus Observability Dashboard                       │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
 │  Total Decisions: 1,247    User Feedback: 42              │
@@ -1178,7 +1178,7 @@ python scripts/scanner_registry.py info trufflehog
 **Create a custom scanner plugin:**
 
 ```python
-# ~/.agent-os/plugins/my_scanner.py
+# ~/.argus/plugins/my_scanner.py
 
 class MyCustomScanner:
     SCANNER_NAME = "my_scanner"
@@ -1250,7 +1250,7 @@ python scripts/run_ai_audit.py --scanners my_scanner,semgrep,trivy
 | `ANTHROPIC_API_KEY` | Claude API key | None (required for AI) |
 | `OPENAI_API_KEY` | OpenAI API key | None (optional) |
 | `OLLAMA_ENDPOINT` | Ollama server URL | `http://localhost:11434` |
-| `AGENT_OS_CACHE_DIR` | Cache directory | `.agent-os-cache` |
+| `AGENT_OS_CACHE_DIR` | Cache directory | `.argus-cache` |
 | `AGENT_OS_CACHE_TTL_DAYS` | Cache TTL in days | `7` |
 
 ### CLI Flags
@@ -1298,7 +1298,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: securedotcom/agent-os-action@v1
+      - uses: securedotcom/argus-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           review-type: 'security'
@@ -1334,7 +1334,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: securedotcom/agent-os-action@v1
+      - uses: securedotcom/argus-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           review-type: 'audit'
@@ -1488,7 +1488,7 @@ python scripts/run_ai_audit.py --output-file improved-findings.json
 ### File Locations
 
 ```
-.agent-os-cache/
+.argus-cache/
 ├── decisions.jsonl          # AI decision telemetry
 ├── semgrep/                 # Semgrep cached results
 ├── trivy/                   # Trivy cached results
@@ -1496,11 +1496,11 @@ python scripts/run_ai_audit.py --output-file improved-findings.json
 ├── checkov/                 # Checkov cached results
 └── metadata.json            # Cache statistics
 
-.agent-os/
+.argus/
 └── feedback/
     └── feedback.jsonl       # User feedback (TP/FP)
 
-~/.agent-os/
+~/.argus/
 └── plugins/                 # Custom scanner plugins
     ├── my_scanner.py
     └── other_scanner.py
@@ -1551,7 +1551,7 @@ python scripts/run_ai_audit.py --fail-on-blockers false
 
 ---
 
-#### 3. "Agent-OS is too slow"
+#### 3. "Argus is too slow"
 
 **Cause:** Scanning large repo, cache disabled, or slow AI calls
 
@@ -1620,7 +1620,7 @@ Enable detailed logging:
 python scripts/run_ai_audit.py --debug
 
 # View decision logs
-tail -f .agent-os-cache/decisions.jsonl
+tail -f .argus-cache/decisions.jsonl
 
 # View cache stats
 python scripts/cache_manager.py stats
@@ -1635,7 +1635,7 @@ python scripts/decision_analyzer.py --format json | jq '.analysis'
 
 ### General
 
-**Q: How much does it cost to run Agent-OS?**
+**Q: How much does it cost to run Argus?**
 
 A: **$0.20-0.50 per scan** with Claude/OpenAI (depends on findings count). Use Ollama for **$0.00** (free, local).
 
@@ -1643,11 +1643,11 @@ A: **$0.20-0.50 per scan** with Claude/OpenAI (depends on findings count). Use O
 
 A: **<5 minutes** for typical repos (p95). First scan: 2-5 min. Cached repeat: 30-90 sec.
 
-**Q: Does Agent-OS send my code to external services?**
+**Q: Does Argus send my code to external services?**
 
 A: **No full repository data is sent**. Only code snippets (~200 lines) around findings are sent to Claude/OpenAI for analysis. Use Ollama for 100% local processing.
 
-**Q: Can I use Agent-OS without AI?**
+**Q: Can I use Argus without AI?**
 
 A: **Yes!** Disable AI with `--no-ai-enrichment`. Heuristic filters + ML noise scoring still work (free).
 
@@ -1665,11 +1665,11 @@ A: Launch the **observability dashboard** with `./scripts/agentos dashboard`. Vi
 
 **Q: Can I create custom scanners?**
 
-A: **Yes!** Create a Python file in `~/.agent-os/plugins/` that implements `scan()` method. Auto-discovered on next run.
+A: **Yes!** Create a Python file in `~/.argus/plugins/` that implements `scan()` method. Auto-discovered on next run.
 
 **Q: Where are decisions logged?**
 
-A: `.agent-os-cache/decisions.jsonl` (JSONL format). Analyze with `decision_analyzer.py`.
+A: `.argus-cache/decisions.jsonl` (JSONL format). Analyze with `decision_analyzer.py`.
 
 ---
 
@@ -1752,14 +1752,14 @@ A: **Yes!** See [PLATFORM.md#kubernetes](PLATFORM.md#kubernetes) for CronJob exa
 
 ### vs Manual Security Scanning
 
-| Aspect | Manual | Agent-OS | Winner |
+| Aspect | Manual | Argus | Winner |
 |--------|--------|----------|--------|
-| **Setup Time** | 2-4 hours | 3 minutes | 🏆 Agent-OS |
-| **False Positives** | 100+ noisy | 10-20 actionable | 🏆 Agent-OS |
-| **Triage Time** | 2-4 hours/week | Automated | 🏆 Agent-OS |
-| **Learning** | Manual tuning | Auto-improvement | 🏆 Agent-OS |
-| **Observability** | None | Real-time dashboard | 🏆 Agent-OS |
-| **Cost** | Engineer time | $0.35/scan | 🏆 Agent-OS |
+| **Setup Time** | 2-4 hours | 3 minutes | 🏆 Argus |
+| **False Positives** | 100+ noisy | 10-20 actionable | 🏆 Argus |
+| **Triage Time** | 2-4 hours/week | Automated | 🏆 Argus |
+| **Learning** | Manual tuning | Auto-improvement | 🏆 Argus |
+| **Observability** | None | Real-time dashboard | 🏆 Argus |
+| **Cost** | Engineer time | $0.35/scan | 🏆 Argus |
 
 ---
 
@@ -1802,15 +1802,15 @@ A: **Yes!** See [PLATFORM.md#kubernetes](PLATFORM.md#kubernetes) for CronJob exa
 - **📖 Documentation Index**: [docs/index.md](docs/index.md) - Start here for all docs
 - **Quick Start**: [QUICKSTART.md](QUICKSTART.md) - 5-minute guide
 - **Platform Deployment**: [PLATFORM.md](PLATFORM.md) - Enterprise deployment
-- **Agent Context**: [CLAUDE.md](CLAUDE.md) - For AI agents developing with Agent-OS
+- **Agent Context**: [CLAUDE.md](CLAUDE.md) - For AI agents developing with Argus
 - **FAQ**: [docs/FAQ.md](docs/FAQ.md) - Frequently asked questions
 - **Examples**: [docs/EXAMPLES.md](docs/EXAMPLES.md) - Usage examples
 - **Architecture**: [docs/architecture/](docs/architecture/) - System design
 
 ### Get Help
 
-- **Bug Reports**: [GitHub Issues](https://github.com/securedotcom/agent-os-action/issues)
-- **Questions**: [GitHub Discussions](https://github.com/securedotcom/agent-os-action/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/securedotcom/argus-action/issues)
+- **Questions**: [GitHub Discussions](https://github.com/securedotcom/argus-action/discussions)
 - **Security Issues**: [SECURITY.md](SECURITY.md)
 
 ### Contributing
@@ -1823,8 +1823,8 @@ We welcome contributions! See [CONTRIBUTING.md](.github/CONTRIBUTING.md):
 
 **Quick start for contributors:**
 ```bash
-git clone https://github.com/securedotcom/agent-os-action.git
-cd agent-os-action
+git clone https://github.com/securedotcom/argus-action.git
+cd argus-action
 pip install -r requirements.txt -r tests/requirements.txt
 pytest tests/
 ```
@@ -1839,7 +1839,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-Agent-OS is built on outstanding open-source tools:
+Argus is built on outstanding open-source tools:
 
 - **TruffleHog** - Secret scanning with verification
 - **Semgrep** - Fast SAST analysis
@@ -1857,14 +1857,14 @@ Special thanks to the security community! 🙏
 
 ## Citation
 
-If you use Agent-OS in research or publications:
+If you use Argus in research or publications:
 
 ```bibtex
-@software{agent_os_2026,
-  title = {Agent-OS: Self-Improving AI-Powered Security Platform},
-  author = {Agent-OS Contributors},
+@software{argus_security_2026,
+  title = {Argus: Self-Improving AI-Powered Security Platform},
+  author = {Argus Security Contributors},
   year = {2026},
-  url = {https://github.com/securedotcom/agent-os-action},
+  url = {https://github.com/securedotcom/argus-action},
   note = {Agent-native security platform with continuous learning}
 }
 ```
@@ -1873,9 +1873,9 @@ If you use Agent-OS in research or publications:
 
 **🚀 Ready to get started?** [Jump to Quick Start](#quick-start-3-minutes)
 
-**💬 Have questions?** [Open a Discussion](https://github.com/securedotcom/agent-os-action/discussions)
+**💬 Have questions?** [Open a Discussion](https://github.com/securedotcom/argus-action/discussions)
 
-**🐛 Found a bug?** [Report an Issue](https://github.com/securedotcom/agent-os-action/issues)
+**🐛 Found a bug?** [Report an Issue](https://github.com/securedotcom/argus-action/issues)
 
 ---
 

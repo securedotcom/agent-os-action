@@ -1,12 +1,12 @@
-# Agent-OS Documentation
+# Argus Documentation
 
-Welcome to Agent-OS, the most comprehensive open-source AI-powered security platform for code analysis.
+Welcome to Argus, the most comprehensive open-source AI-powered security platform for code analysis.
 
 ---
 
 ## 🚀 Getting Started
 
-Start here if you're new to Agent-OS:
+Start here if you're new to Argus:
 
 - **[Quick Start Guide](../QUICKSTART.md)** - Get up and running in 5 minutes
 - **[Installation & Setup](../README.md#installation)** - Detailed installation instructions
@@ -19,7 +19,7 @@ Start here if you're new to Agent-OS:
 
 ### Features
 
-Learn about Agent-OS capabilities:
+Learn about Argus capabilities:
 
 - **[Scanner Overview](references/scanner-reference.md)** - All 13 integrated security features
   - TruffleHog - Verified secret detection
@@ -57,7 +57,7 @@ Learn about Agent-OS capabilities:
 
 ### Guides
 
-How to use Agent-OS effectively:
+How to use Argus effectively:
 
 - **[Best Practices](best-practices.md)** - Recommended patterns and configurations
 - **[Usage Examples](EXAMPLES.md)** - Common use cases and workflows
@@ -83,7 +83,7 @@ Technical documentation and API reference:
 
 ## 🏗️ Architecture
 
-Understand how Agent-OS works:
+Understand how Argus works:
 
 - **[System Overview](architecture/overview.md)** - High-level architecture and data flow
 - **[Multi-Scanner Architecture](adrs/0002-multi-scanner-architecture.md)** - Why we use 4+ scanners in parallel
@@ -229,7 +229,7 @@ SOC 2, PCI-DSS audit reports:
 **"Cost limit exceeded"** → Use Ollama (free) or increase limit
 **"Scanner X not found"** → Scanners auto-install on first run
 **"Too many false positives"** → Enable AI triage with Claude
-**"Agent-OS is too slow"** → Use `--only-changed` and `--max-files 50`
+**"Argus is too slow"** → Use `--only-changed` and `--max-files 50`
 
 See [README.md Troubleshooting](../README.md#troubleshooting) for more.
 
@@ -247,7 +247,7 @@ See [README.md Troubleshooting](../README.md#troubleshooting) for more.
 
 - Reducing False Positives by 60-70% (coming soon)
 - How We Built an Agent-Native Security Platform (coming soon)
-- Migrating from Manual Security Reviews to Agent-OS (coming soon)
+- Migrating from Manual Security Reviews to Argus (coming soon)
 
 ### Community
 
@@ -272,7 +272,7 @@ See what's coming next:
 
 ## 🤝 Contributing
 
-Agent-OS is open source and welcomes contributions!
+Argus is open source and welcomes contributions!
 
 - **[Contributing Guide](../.github/CONTRIBUTING.md)** - How to contribute code, docs, or ideas
 - **[Development Setup](../.github/CONTRIBUTING.md#development-setup)** - Set up your dev environment
