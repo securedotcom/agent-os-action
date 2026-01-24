@@ -151,7 +151,7 @@ Real-world scenarios:
 Block PRs with verified threats:
 
 ```yaml
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     fail-on-blockers: 'true'
@@ -187,7 +187,7 @@ python scripts/run_ai_audit.py --only-changed --max-files 20
 SOC 2, PCI-DSS audit reports:
 
 ```bash
-./scripts/agentos gate --stage release --sbom-present
+./scripts/argus gate --stage release --sbom-present
 ```
 
 **Benefits:** Automated compliance validation
@@ -221,8 +221,8 @@ SOC 2, PCI-DSS audit reports:
 ### Common Issues
 
 - **[FAQ](FAQ.md)** - Frequently asked questions
-- **[GitHub Issues](https://github.com/securedotcom/agent-os-action/issues)** - Known issues and bug reports
-- **[GitHub Discussions](https://github.com/securedotcom/agent-os-action/discussions)** - Community Q&A
+- **[GitHub Issues](https://github.com/securedotcom/argus-action/issues)** - Known issues and bug reports
+- **[GitHub Discussions](https://github.com/securedotcom/argus-action/discussions)** - Community Q&A
 
 ### Quick Fixes
 
@@ -251,7 +251,7 @@ See [README.md Troubleshooting](../README.md#troubleshooting) for more.
 
 ### Community
 
-- **[GitHub Discussions](https://github.com/securedotcom/agent-os-action/discussions)** - Ask questions, share tips
+- **[GitHub Discussions](https://github.com/securedotcom/argus-action/discussions)** - Ask questions, share tips
 - **[Contributing Guide](../.github/CONTRIBUTING.md)** - How to contribute
 - **[Code of Conduct](../.github/CODE_OF_CONDUCT.md)** - Community guidelines
 
@@ -295,14 +295,14 @@ Argus is open source and welcomes contributions!
 
 - **Documentation:** You're here!
 - **FAQ:** [Frequently Asked Questions](FAQ.md)
-- **GitHub Issues:** [Report bugs](https://github.com/securedotcom/agent-os-action/issues)
-- **GitHub Discussions:** [Ask questions](https://github.com/securedotcom/agent-os-action/discussions)
+- **GitHub Issues:** [Report bugs](https://github.com/securedotcom/argus-action/issues)
+- **GitHub Discussions:** [Ask questions](https://github.com/securedotcom/argus-action/discussions)
 
 ### Enterprise Support
 
 For commercial support, SLA, custom integrations, or consulting:
 
-- **Email:** enterprise@agent-os.io
+- **Email:** enterprise@argus.io
 - **Enterprise Docs:** [PLATFORM.md](../PLATFORM.md)
 
 ---
@@ -315,14 +315,14 @@ For commercial support, SLA, custom integrations, or consulting:
 - [PLATFORM.md](../PLATFORM.md) - Platform deployment guide
 
 ### Code
-- [GitHub Repository](https://github.com/securedotcom/agent-os-action)
-- [GitHub Releases](https://github.com/securedotcom/agent-os-action/releases)
-- [Docker Images](https://github.com/securedotcom/agent-os-action/pkgs/container/agent-os-action)
+- [GitHub Repository](https://github.com/securedotcom/argus-action)
+- [GitHub Releases](https://github.com/securedotcom/argus-action/releases)
+- [Docker Images](https://github.com/securedotcom/argus-action/pkgs/container/argus-action)
 
 ### Community
-- [GitHub Discussions](https://github.com/securedotcom/agent-os-action/discussions)
-- [Issue Tracker](https://github.com/securedotcom/agent-os-action/issues)
-- [Pull Requests](https://github.com/securedotcom/agent-os-action/pulls)
+- [GitHub Discussions](https://github.com/securedotcom/argus-action/discussions)
+- [Issue Tracker](https://github.com/securedotcom/argus-action/issues)
+- [Pull Requests](https://github.com/securedotcom/argus-action/pulls)
 
 ---
 
@@ -332,6 +332,6 @@ For commercial support, SLA, custom integrations, or consulting:
 
 *Making security scanning intelligent, observable, and self-improving.*
 
-[⭐ Star on GitHub](https://github.com/securedotcom/agent-os-action) | [📖 Read the Docs](#) | [💬 Join Discussions](https://github.com/securedotcom/agent-os-action/discussions)
+[⭐ Star on GitHub](https://github.com/securedotcom/argus-action) | [📖 Read the Docs](#) | [💬 Join Discussions](https://github.com/securedotcom/argus-action/discussions)
 
 </div>

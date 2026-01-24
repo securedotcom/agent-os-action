@@ -355,7 +355,7 @@ No breaking changes! Multi-agent features are enabled by default with minimal co
 **If you want to opt-out:**
 ```yaml
 # Disable multi-agent features (not recommended)
-- uses: securedotcom/agent-os-action@v4.2.0
+- uses: securedotcom/argus-action@v4.2.0
   with:
     enable-multi-agent: 'false'
     enable-spontaneous-discovery: 'false'
@@ -364,7 +364,7 @@ No breaking changes! Multi-agent features are enabled by default with minimal co
 **For maximum accuracy (release gates only):**
 ```yaml
 # Enable collaborative reasoning
-- uses: securedotcom/agent-os-action@v4.2.0
+- uses: securedotcom/argus-action@v4.2.0
   with:
     enable-collaborative-reasoning: 'true'  # Opt-in for critical deployments
 ```
@@ -416,7 +416,7 @@ Slack's approach to multi-agent security investigation (7,500+ investigations/qu
 ### 🔗 Links
 
 - **Documentation:** [Multi-Agent Guide](docs/MULTI_AGENT_GUIDE.md)
-- **PR:** [#43 - Multi-agent security analysis system](https://github.com/securedotcom/agent-os-action/pull/43)
+- **PR:** [#43 - Multi-agent security analysis system](https://github.com/securedotcom/argus-action/pull/43)
 - **Inspiration:** [Slack Engineering Blog Post](https://slack.engineering/streamlining-security-investigations-with-agents/)
 
 ---
@@ -692,7 +692,7 @@ enable-regression-testing: 'true'# Security regression tests
 **Optional New Features:**
 ```yaml
 # Enable all 10 features
-- uses: securedotcom/agent-os-action@v4.1.0
+- uses: securedotcom/argus-action@v4.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     enable-api-security: 'true'
@@ -1045,7 +1045,7 @@ Initial production release with comprehensive security scanning and AI triage ca
 
 1. **Try TruffleHog for Secret Detection**
 ```yaml
-- uses: securedotcom/agent-os-action@v1.1.0
+- uses: securedotcom/argus-action@v1.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     # TruffleHog enabled by default
@@ -1053,7 +1053,7 @@ Initial production release with comprehensive security scanning and AI triage ca
 
 2. **Try Checkov for IaC Scanning**
 ```yaml
-- uses: securedotcom/agent-os-action@v1.1.0
+- uses: securedotcom/argus-action@v1.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     # Checkov enabled by default
@@ -1061,7 +1061,7 @@ Initial production release with comprehensive security scanning and AI triage ca
 
 3. **Configure Cache TTL**
 ```yaml
-- uses: securedotcom/agent-os-action@v1.1.0
+- uses: securedotcom/argus-action@v1.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
   env:
@@ -1070,7 +1070,7 @@ Initial production release with comprehensive security scanning and AI triage ca
 
 4. **Disable Progress Bars (if needed)**
 ```yaml
-- uses: securedotcom/agent-os-action@v1.1.0
+- uses: securedotcom/argus-action@v1.1.0
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
   env:
@@ -1138,19 +1138,19 @@ Initial production release with comprehensive security scanning and AI triage ca
 
 ## Links
 
-- **Repository**: https://github.com/securedotcom/agent-os-action
-- **Documentation**: https://github.com/securedotcom/agent-os-action/blob/main/README.md
-- **Issue Tracker**: https://github.com/securedotcom/agent-os-action/issues
-- **Releases**: https://github.com/securedotcom/agent-os-action/releases
+- **Repository**: https://github.com/securedotcom/argus-action
+- **Documentation**: https://github.com/securedotcom/argus-action/blob/main/README.md
+- **Issue Tracker**: https://github.com/securedotcom/argus-action/issues
+- **Releases**: https://github.com/securedotcom/argus-action/releases
 
 ---
 
 ## Support
 
 For issues, questions, or feedback:
-- Open an issue on GitHub: https://github.com/securedotcom/agent-os-action/issues
-- Review the documentation: https://github.com/securedotcom/agent-os-action/blob/main/docs/
-- Check the FAQ: https://github.com/securedotcom/agent-os-action/blob/main/docs/FAQ.md
+- Open an issue on GitHub: https://github.com/securedotcom/argus-action/issues
+- Review the documentation: https://github.com/securedotcom/argus-action/blob/main/docs/
+- Check the FAQ: https://github.com/securedotcom/argus-action/blob/main/docs/FAQ.md
 
 ---
 

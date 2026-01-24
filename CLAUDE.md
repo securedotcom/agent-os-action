@@ -11,9 +11,9 @@
 | Command | Purpose |
 |---------|---------|
 | `python scripts/run_ai_audit.py --project-type backend-api` | Run full security audit |
-| `./scripts/agentos gate --stage pr --input findings.json` | Apply policy gate |
-| `./scripts/agentos feedback record <id> --mark fp` | Record false positive |
-| `./scripts/agentos dashboard` | Launch observability dashboard |
+| `./scripts/argus gate --stage pr --input findings.json` | Apply policy gate |
+| `./scripts/argus feedback record <id> --mark fp` | Record false positive |
+| `./scripts/argus dashboard` | Launch observability dashboard |
 | `pytest -v --cov=scripts` | Run tests with coverage |
 | `ruff check scripts/ && ruff format scripts/` | Lint and format code |
 
@@ -150,7 +150,7 @@ argus-action/
 ├── scripts/                    # Core application (40+ Python modules)
 │   ├── run_ai_audit.py        # Main orchestrator (3,800+ lines)
 │   ├── hybrid_analyzer.py     # Multi-scanner orchestrator (all 6 phases)
-│   ├── agentos                # CLI entry point
+│   ├── argus                # CLI entry point
 │   │
 │   ├── # PHASE 1: Scanners
 │   ├── semgrep_scanner.py     # SAST scanning
@@ -353,9 +353,9 @@ python scripts/run_ai_audit.py \
   --ai-provider anthropic \
   --output-file report.json
 
-# Use agentos CLI
-./scripts/agentos normalize --inputs semgrep.sarif trivy.json --output findings.json
-./scripts/agentos gate --stage pr --input findings.json
+# Use argus CLI
+./scripts/argus normalize --inputs semgrep.sarif trivy.json --output findings.json
+./scripts/argus gate --stage pr --input findings.json
 
 # Available AI providers: anthropic, openai, ollama
 ```
@@ -405,7 +405,7 @@ When asked "What security checks can you run for SQL injection?":
 
 ```bash
 # Discover scanners with SQL injection detection
-./scripts/agentos list-scanners --capability sql-injection
+./scripts/argus list-scanners --capability sql-injection
 # Output: semgrep (cwe-89, cwe-564)
 
 # Get details on specific scanner rules
@@ -432,7 +432,7 @@ python scripts/run_ai_audit.py \
 # (Built into run_ai_audit.py when AI provider is configured)
 
 # Step 4: Apply policy gate
-./scripts/agentos gate --stage pr --input injection-findings.json
+./scripts/argus gate --stage pr --input injection-findings.json
 ```
 
 ### 3. Using Feedback for Continuous Improvement
@@ -441,12 +441,12 @@ When user says "This finding is wrong - test files should be ignored":
 
 ```bash
 # Record feedback to improve future scans
-./scripts/agentos feedback record finding-abc123 \
+./scripts/argus feedback record finding-abc123 \
   --mark fp \
   --reason "Test fixture file in tests/ directory"
 
 # View feedback statistics to track improvements
-./scripts/agentos feedback stats
+./scripts/argus feedback stats
 # Output: Shows FP rate by scanner, finding type, recent feedback
 
 # AI triage automatically incorporates past feedback as few-shot examples
@@ -515,10 +515,10 @@ By composing primitives, agents can create workflows without hard-coding:
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `run_ai_audit.py` | Full security audit with AI triage | `python scripts/run_ai_audit.py --project-type backend-api` |
-| `agentos normalize` | Normalize scanner outputs to unified format | `agentos normalize --inputs semgrep.sarif --output findings.json` |
-| `agentos gate` | Apply policy gates (PR/release) | `agentos gate --stage pr --input findings.json` |
-| `agentos feedback record` | Record finding feedback (TP/FP) | `agentos feedback record abc-123 --mark fp --reason "test file"` |
-| `agentos feedback stats` | View feedback statistics | `agentos feedback stats` |
+| `argus normalize` | Normalize scanner outputs to unified format | `argus normalize --inputs semgrep.sarif --output findings.json` |
+| `argus gate` | Apply policy gates (PR/release) | `argus gate --stage pr --input findings.json` |
+| `argus feedback record` | Record finding feedback (TP/FP) | `argus feedback record abc-123 --mark fp --reason "test file"` |
+| `argus feedback stats` | View feedback statistics | `argus feedback stats` |
 | `decision_analyzer.py` | Analyze AI decision quality | `python scripts/decision_analyzer.py --days 7` |
 | `feedback_collector.py` | Manage feedback data | `python scripts/feedback_collector.py stats` |
 
@@ -536,7 +536,7 @@ python scripts/run_ai_audit.py --output-file findings.json
 
 # 3. Record feedback
 cat pr-feedback.txt | while read finding_id feedback reason; do
-  ./scripts/agentos feedback record $finding_id --mark $feedback --reason "$reason"
+  ./scripts/argus feedback record $finding_id --mark $feedback --reason "$reason"
 done
 
 # 4. Re-run scan with improved AI using feedback

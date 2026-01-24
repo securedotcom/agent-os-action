@@ -37,7 +37,7 @@ Argus **complements** GitHub Security (you can use both), but adds AI triage and
 
 ### How do I get started in under 5 minutes?
 
-1. Create `.github/workflows/agent-os.yml`:
+1. Create `.github/workflows/argus.yml`:
    ```yaml
    name: Security
    on: [pull_request]
@@ -46,7 +46,7 @@ Argus **complements** GitHub Security (you can use both), but adds AI triage and
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         - uses: securedotcom/agent-os-action@v1
+         - uses: securedotcom/argus-action@v1
    ```
 
 2. Open a PR → Argus comments with findings
@@ -70,8 +70,8 @@ Argus **complements** GitHub Security (you can use both), but adds AI triage and
 Yes! Install locally:
 
 ```bash
-git clone https://github.com/securedotcom/agent-os-action.git
-cd agent-os-action
+git clone https://github.com/securedotcom/argus-action.git
+cd argus-action
 pip install -r requirements.txt
 python3 scripts/run_ai_audit.py /path/to/your/repo audit
 ```
@@ -186,7 +186,7 @@ Argus auto-suppresses findings with high "noise scores" (>0.7 by default):
 React with 👎 and comment why. Argus learns from feedback.
 
 **Option 2: Add to allowlist**  
-Create `.agent-os/allowlist.yml`:
+Create `.argus/allowlist.yml`:
 ```yaml
 suppressions:
   - fingerprint: "abc123def456"  # From finding metadata
@@ -347,7 +347,7 @@ env:
   NOISE_THRESHOLD: '0.6'     # Lower threshold = more suppression (default: 0.7)
 ```
 
-Or create `.agent-os/allowlist.yml` to suppress specific patterns.
+Or create `.argus/allowlist.yml` to suppress specific patterns.
 
 ### "Important finding was suppressed"
 
@@ -409,7 +409,7 @@ steps:
   - uses: actions/checkout@v4
     with:
       repository: ${{ matrix.repo }}
-  - uses: securedotcom/agent-os-action@v1
+  - uses: securedotcom/argus-action@v1
 ```
 
 ### Can I integrate Argus with Slack/Teams/etc?
@@ -424,7 +424,7 @@ steps:
       -d "{\"text\": \"🚨 ${{ steps.security.outputs.blockers }} security issues found\"}"
 ```
 
-Or use `.agent-os/notifications.yml` (coming soon).
+Or use `.argus/notifications.yml` (coming soon).
 
 ### Can I use Argus in pre-commit hooks?
 
@@ -514,13 +514,13 @@ But Argus alone doesn't cover full PCI-DSS (network security, physical access, e
 
 Example audit workflow:
 ```yaml
-- uses: securedotcom/agent-os-action@v1
+- uses: securedotcom/argus-action@v1
   with:
     review-type: 'audit'
 - uses: actions/upload-artifact@v4
   with:
     name: audit-report-${{ github.run_id }}
-    path: .agent-os/reviews/
+    path: .argus/reviews/
     retention-days: 365  # Keep for audit trail
 ```
 
@@ -580,8 +580,8 @@ For enterprise deployments, see [PLATFORM.md#rbac](../PLATFORM.md#deployment) fo
 
 ### How do I report a bug?
 
-1. Check [existing issues](https://github.com/securedotcom/agent-os-action/issues)
-2. If new, [open an issue](https://github.com/securedotcom/agent-os-action/issues/new) with:
+1. Check [existing issues](https://github.com/securedotcom/argus-action/issues)
+2. If new, [open an issue](https://github.com/securedotcom/argus-action/issues/new) with:
    - Steps to reproduce
    - Expected vs actual behavior
    - Workflow file (sanitized)
@@ -589,7 +589,7 @@ For enterprise deployments, see [PLATFORM.md#rbac](../PLATFORM.md#deployment) fo
 
 ### How do I request a feature?
 
-1. Check [discussions](https://github.com/securedotcom/agent-os-action/discussions)
+1. Check [discussions](https://github.com/securedotcom/argus-action/discussions)
 2. If new, start a discussion with:
    - Use case / problem
    - Proposed solution
@@ -607,7 +607,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
 
 **Community support**: Free via GitHub Issues/Discussions
 
-**Enterprise support**: [Contact us](mailto:enterprise@agent-os.io) for:
+**Enterprise support**: [Contact us](mailto:enterprise@argus.io) for:
 - SLA-backed support
 - Custom integrations
 - Professional services
@@ -618,9 +618,9 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
 ## Still Have Questions?
 
 - 📖 **Documentation**: [PLATFORM.md](../PLATFORM.md)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/securedotcom/agent-os-action/discussions)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/securedotcom/agent-os-action/issues)
-- 📧 **Email**: support@agent-os.io
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/securedotcom/argus-action/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/securedotcom/argus-action/issues)
+- 📧 **Email**: support@argus.io
 
 ---
 

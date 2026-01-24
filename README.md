@@ -190,8 +190,8 @@ Manual tuning      →     Auto-improvement suggestions
 
 | Feature | Description | Status | Try It |
 |---------|-------------|--------|--------|
-| **📊 Observability Dashboard** | Real-time visualization of AI decision quality, feedback stats, trends | ✅ Ready | `./scripts/agentos dashboard` |
-| **📝 Feedback Collection** | Mark findings as TP/FP → System learns → Fewer false positives | ✅ Ready | `./scripts/agentos feedback record <id> --mark fp --reason "..."` |
+| **📊 Observability Dashboard** | Real-time visualization of AI decision quality, feedback stats, trends | ✅ Ready | `./scripts/argus dashboard` |
+| **📝 Feedback Collection** | Mark findings as TP/FP → System learns → Fewer false positives | ✅ Ready | `./scripts/argus feedback record <id> --mark fp --reason "..."` |
 | **🤖 Decision Telemetry** | Every AI decision logged with reasoning, confidence, model used | ✅ Auto | Automatic (see `.argus-cache/decisions.jsonl`) |
 | **🔍 Pattern Discovery** | AI automatically identifies trends (e.g., "always suppresses test files") | ✅ Auto | View in dashboard or run `decision_analyzer.py` |
 | **🔌 Plugin Architecture** | Load custom scanners from `~/.argus/plugins/` without code changes | ✅ Ready | `python scripts/scanner_registry.py list` |
@@ -567,7 +567,7 @@ python scripts/run_ai_audit.py --project-type backend-api
 View multi-agent decisions in the dashboard:
 
 ```bash
-./scripts/agentos dashboard
+./scripts/argus dashboard
 # Shows: Which agents analyzed which findings, consensus results, accuracy metrics
 ```
 
@@ -591,7 +591,7 @@ After 1 week:
 python scripts/decision_analyzer.py --days 7
 
 # Compare FP rates before/after
-./scripts/agentos feedback stats
+./scripts/argus feedback stats
 ```
 
 **Expected results after 1 week:**
@@ -737,19 +737,19 @@ Argus includes a powerful CLI for local development and CI/CD integration.
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `run_ai_audit.py` | Full security audit with AI triage | `python scripts/run_ai_audit.py --project-type backend-api` |
-| `agentos normalize` | Normalize scanner outputs to unified format | `./scripts/agentos normalize --inputs semgrep.sarif trivy.json --output findings.json` |
-| `agentos gate` | Apply policy gates (PR/release) | `./scripts/agentos gate --stage pr --input findings.json` |
-| `agentos feedback record` | Record finding feedback (TP/FP) | `./scripts/agentos feedback record abc-123 --mark fp --reason "test file"` |
-| `agentos feedback stats` | View feedback statistics | `./scripts/agentos feedback stats` |
-| `agentos api-security` | Run API security testing (OWASP API Top 10) | `./scripts/agentos api-security --path /path/to/repo` |
-| `agentos dast` | Run DAST scan with Nuclei | `./scripts/agentos dast --target https://api.example.com --openapi spec.yaml` |
-| `agentos correlate` | Correlate SAST and DAST findings | `./scripts/agentos correlate --sast sast.json --dast dast.json` |
-| `agentos generate-tests` | Generate security test suite | `./scripts/agentos generate-tests --findings findings.json --output tests/security/` |
-| `agentos threat-intel` | Enrich findings with threat intelligence | `./scripts/agentos threat-intel enrich --findings findings.json` |
-| `agentos remediate` | Generate AI-powered fix suggestions | `./scripts/agentos remediate --findings findings.json --output fixes.md` |
-| `agentos runtime-security` | Monitor container runtime security | `./scripts/agentos runtime-security monitor --duration 60` |
-| `agentos regression-test` | Generate and run security regression tests | `./scripts/agentos regression-test generate --fixed-findings fixed.json` |
-| `agentos dashboard` | Launch observability dashboard | `./scripts/agentos dashboard` |
+| `argus normalize` | Normalize scanner outputs to unified format | `./scripts/argus normalize --inputs semgrep.sarif trivy.json --output findings.json` |
+| `argus gate` | Apply policy gates (PR/release) | `./scripts/argus gate --stage pr --input findings.json` |
+| `argus feedback record` | Record finding feedback (TP/FP) | `./scripts/argus feedback record abc-123 --mark fp --reason "test file"` |
+| `argus feedback stats` | View feedback statistics | `./scripts/argus feedback stats` |
+| `argus api-security` | Run API security testing (OWASP API Top 10) | `./scripts/argus api-security --path /path/to/repo` |
+| `argus dast` | Run DAST scan with Nuclei | `./scripts/argus dast --target https://api.example.com --openapi spec.yaml` |
+| `argus correlate` | Correlate SAST and DAST findings | `./scripts/argus correlate --sast sast.json --dast dast.json` |
+| `argus generate-tests` | Generate security test suite | `./scripts/argus generate-tests --findings findings.json --output tests/security/` |
+| `argus threat-intel` | Enrich findings with threat intelligence | `./scripts/argus threat-intel enrich --findings findings.json` |
+| `argus remediate` | Generate AI-powered fix suggestions | `./scripts/argus remediate --findings findings.json --output fixes.md` |
+| `argus runtime-security` | Monitor container runtime security | `./scripts/argus runtime-security monitor --duration 60` |
+| `argus regression-test` | Generate and run security regression tests | `./scripts/argus regression-test generate --fixed-findings fixed.json` |
+| `argus dashboard` | Launch observability dashboard | `./scripts/argus dashboard` |
 | `decision_analyzer.py` | Analyze AI decision quality | `python scripts/decision_analyzer.py --days 30` |
 | `scanner_registry.py` | Manage scanner plugins | `python scripts/scanner_registry.py list` |
 | `cache_manager.py` | View/clear cache | `python scripts/cache_manager.py stats` |
@@ -777,7 +777,7 @@ python scripts/run_ai_audit.py \
   --output-file pr-findings.json
 
 # Apply PR policy gate
-./scripts/agentos gate --stage pr --input pr-findings.json
+./scripts/argus gate --stage pr --input pr-findings.json
 
 # Exit code: 0 = pass, 1 = block (verified threats found)
 ```
@@ -786,12 +786,12 @@ python scripts/run_ai_audit.py \
 
 ```bash
 # User reviews finding and marks it
-./scripts/agentos feedback record finding-abc-123 \
+./scripts/argus feedback record finding-abc-123 \
   --mark fp \
   --reason "Test fixture in tests/ directory"
 
 # View feedback statistics
-./scripts/agentos feedback stats
+./scripts/argus feedback stats
 
 # Next scan automatically uses this feedback as context!
 python scripts/run_ai_audit.py --output-file improved.json
@@ -804,7 +804,7 @@ python scripts/run_ai_audit.py --output-file improved.json
 pip install streamlit plotly pandas
 
 # Launch dashboard
-./scripts/agentos dashboard
+./scripts/argus dashboard
 
 # Opens at http://localhost:8501
 ```
@@ -820,7 +820,7 @@ pip install streamlit plotly pandas
 
 ```bash
 # Test for OWASP API Top 10 vulnerabilities
-./scripts/agentos api-security --path /path/to/api
+./scripts/argus api-security --path /path/to/api
 
 # Output shows:
 # - Discovered endpoints (REST, GraphQL, gRPC)
@@ -837,13 +837,13 @@ pip install streamlit plotly pandas
 python scripts/run_ai_audit.py --output-file sast-findings.json
 
 # Step 2: Run DAST (dynamic testing)
-./scripts/agentos dast \
+./scripts/argus dast \
   --target https://staging.example.com \
   --openapi api/openapi.yaml \
   --severity critical,high
 
 # Step 3: Correlate to find confirmed exploitable vulnerabilities
-./scripts/agentos correlate \
+./scripts/argus correlate \
   --sast sast-findings.json \
   --dast dast-findings.json
 
@@ -857,7 +857,7 @@ python scripts/run_ai_audit.py --output-file sast-findings.json
 
 ```bash
 # Generate pytest/Jest tests from discovered vulnerabilities
-./scripts/agentos generate-tests \
+./scripts/argus generate-tests \
   --findings findings.json \
   --output tests/security/
 
@@ -1037,17 +1037,17 @@ Hit Rate:       87.3%
 
 ```bash
 # Mark as false positive
-./scripts/agentos feedback record finding-abc-123 \
+./scripts/argus feedback record finding-abc-123 \
   --mark fp \
   --reason "Test fixture file in tests/ directory"
 
 # Mark as true positive
-./scripts/agentos feedback record finding-xyz-789 \
+./scripts/argus feedback record finding-xyz-789 \
   --mark tp \
   --reason "Exploitable SQL injection"
 
 # View statistics
-./scripts/agentos feedback stats
+./scripts/argus feedback stats
 ```
 
 **Output:**
@@ -1112,7 +1112,7 @@ python scripts/decision_analyzer.py --format json > analysis.json
 
 **Launch interactive dashboard:**
 ```bash
-./scripts/agentos dashboard
+./scripts/argus dashboard
 # Opens at http://localhost:8501
 ```
 
@@ -1215,11 +1215,11 @@ python scripts/run_ai_audit.py --scanners my_scanner,semgrep,trivy
 
 ```bash
 # Apply PR gate
-./scripts/agentos gate --stage pr --input findings.json
+./scripts/argus gate --stage pr --input findings.json
 # Exit code: 0 = pass, 1 = block
 
 # Apply release gate
-./scripts/agentos gate --stage release --input findings.json \
+./scripts/argus gate --stage release --input findings.json \
   --sbom-present \
   --signature-verified \
   --provenance-present
@@ -1250,8 +1250,8 @@ python scripts/run_ai_audit.py --scanners my_scanner,semgrep,trivy
 | `ANTHROPIC_API_KEY` | Claude API key | None (required for AI) |
 | `OPENAI_API_KEY` | OpenAI API key | None (optional) |
 | `OLLAMA_ENDPOINT` | Ollama server URL | `http://localhost:11434` |
-| `AGENT_OS_CACHE_DIR` | Cache directory | `.argus-cache` |
-| `AGENT_OS_CACHE_TTL_DAYS` | Cache TTL in days | `7` |
+| `ARGUS_CACHE_DIR` | Cache directory | `.argus-cache` |
+| `ARGUS_CACHE_TTL_DAYS` | Cache TTL in days | `7` |
 
 ### CLI Flags
 
@@ -1371,7 +1371,7 @@ python scripts/run_ai_audit.py \
   --output-file release-findings.json
 
 # Apply release gate
-./scripts/agentos gate --stage release \
+./scripts/argus gate --stage release \
   --input release-findings.json \
   --sbom-present \
   --signature-verified
@@ -1390,17 +1390,17 @@ Improve AI over time:
 python scripts/run_ai_audit.py --output-file findings.json
 
 # 2. Review findings, mark false positives
-./scripts/agentos feedback record finding-001 --mark fp --reason "Test file"
-./scripts/agentos feedback record finding-002 --mark fp --reason "Documentation"
+./scripts/argus feedback record finding-001 --mark fp --reason "Test file"
+./scripts/argus feedback record finding-002 --mark fp --reason "Documentation"
 
 # 3. View feedback stats
-./scripts/agentos feedback stats
+./scripts/argus feedback stats
 
 # 4. Next scan uses feedback automatically!
 python scripts/run_ai_audit.py --output-file improved-findings.json
 
 # 5. Monitor improvement in dashboard
-./scripts/agentos dashboard
+./scripts/argus dashboard
 ```
 
 ---
@@ -1546,7 +1546,7 @@ ls policy/rego/*.rego
 python scripts/run_ai_audit.py --fail-on-blockers false
 
 # Debug policy evaluation
-./scripts/agentos gate --stage pr --input findings.json --debug
+./scripts/argus gate --stage pr --input findings.json --debug
 ```
 
 ---
@@ -1607,7 +1607,7 @@ pip install streamlit plotly pandas
 streamlit --version
 
 # Launch dashboard
-./scripts/agentos dashboard
+./scripts/argus dashboard
 ```
 
 ---
@@ -1661,7 +1661,7 @@ A: Past feedback is used as **few-shot examples** in AI prompts. Example: If you
 
 **Q: How do I view AI decision quality?**
 
-A: Launch the **observability dashboard** with `./scripts/agentos dashboard`. View metrics, trends, patterns, and suggestions.
+A: Launch the **observability dashboard** with `./scripts/argus dashboard`. View metrics, trends, patterns, and suggestions.
 
 **Q: Can I create custom scanners?**
 
@@ -1677,7 +1677,7 @@ A: `.argus-cache/decisions.jsonl` (JSONL format). Analyze with `decision_analyze
 
 **Q: How do I change cache TTL?**
 
-A: Set environment variable: `export AGENT_OS_CACHE_TTL_DAYS=14`
+A: Set environment variable: `export ARGUS_CACHE_TTL_DAYS=14`
 
 **Q: How do I disable specific scanners?**
 
@@ -1704,7 +1704,7 @@ A: **Yes!** Just use `runs-on: [self-hosted]` in your workflow.
 A: **Yes!** Use the CLI in any CI/CD system:
 ```bash
 python scripts/run_ai_audit.py --output-file findings.json
-./scripts/agentos gate --stage pr --input findings.json
+./scripts/argus gate --stage pr --input findings.json
 ```
 
 **Q: Can I deploy on Kubernetes?**
